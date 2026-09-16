@@ -16,6 +16,10 @@ disclaimer that the report is for general reflection only.
 Return only JSON matching the requested schema. The number of sections should
 follow the substance of the supplied chart rather than a fixed template.
 
+Write every string value in Simplified Chinese (简体中文), including the title,
+summary, section headings, section bodies, bullets, and disclaimer. Keep the
+BaZi terms in their established Chinese forms, such as 日主, 天干, 地支, and 五行.
+
 Chart data:
 ${JSON.stringify(chart)}
 `.trim();
