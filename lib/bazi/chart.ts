@@ -1,6 +1,7 @@
 import { Lunar } from 'lunar-typescript';
 import type { BaziChart, BaziInput, BaziPillars, FiveElement, FiveElements } from './types';
 
+const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
 const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 
 const ELEMENT_BY_PILLAR_CHARACTER: Readonly<Record<string, FiveElement>> = {
@@ -32,6 +33,14 @@ export function hourBranch(hour: number) {
   return BRANCHES[Math.floor(((hour + 1) % 24) / 2)];
 }
 
+function hourPillar(dayPillar: string, hour: number) {
+  const branch = hourBranch(hour);
+  const dayStemIndex = STEMS.indexOf(dayPillar[0]);
+  const branchIndex = BRANCHES.indexOf(branch);
+
+  return `${STEMS[((dayStemIndex % 5) * 2 + branchIndex) % STEMS.length]}${branch}`;
+}
+
 function countElements(pillars: BaziPillars): FiveElements {
   const counts: FiveElements = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 };
 
@@ -59,11 +68,12 @@ export function createChart(input: BaziInput): BaziChart {
   const eightChar = lunar.getEightChar();
   eightChar.setSect(2);
 
+  const day = eightChar.getDay();
   const pillars: BaziPillars = {
     year: eightChar.getYear(),
     month: eightChar.getMonth(),
-    day: eightChar.getDay(),
-    hour: eightChar.getTime(),
+    day,
+    hour: hourPillar(day, input.hour),
   };
 
   return {

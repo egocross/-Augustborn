@@ -62,4 +62,18 @@ describe('createChart', () => {
     expect(afterLiChun.pillars.year).toBe('乙巳');
     expect(afterLiChun.pillars.month).toBe('戊寅');
   });
+
+  it('derives the 23:00 hour stem from the returned civil-day day stem', () => {
+    const chart = createChart({
+      lunarYear: 2025,
+      lunarMonth: 1,
+      lunarDay: 6,
+      hour: 23,
+      minute: 0,
+    });
+
+    expect(chart.pillars.day).toBe('癸卯');
+    expect(chart.pillars.hour).toBe('壬子');
+    expect(chart.hourBranch).toBe('子');
+  });
 });
