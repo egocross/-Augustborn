@@ -2,24 +2,33 @@ import type { BaziChart } from '@/lib/bazi/types';
 
 /** Creates the complete, serializable prompt passed to the report model. */
 export const createReportPrompt = (chart: BaziChart): string => `
-Create a concise BaZi reflection using only the chart data below. Treat BaZi
-as a cultural and interpretive framework, not a factual prediction system.
-Keep every observation grounded in the supplied pillars, hour branch, five
-elements, and solar date. Do not infer details that are absent from the chart.
+人生是一系列决策，需要在正确的地方选择正确的行业，从事什么工作、与谁一起共事都
+非常重要。请结合下方排盘数据（出生年月时换算所得，是本次分析唯一的变量），为我
+指明方向或者提供建议。
 
-Use tentative, non-deterministic language. Do not make absolute claims,
-guarantees, diagnoses, or predictions. Do not provide medical, mental-health,
-legal, financial, investment, or other professional advice. Avoid instructions
-that could lead someone to make high-stakes decisions. Include a clear
-disclaimer that the report is for general reflection only.
+分析的硬性要求：
 
-Return only JSON matching the requested schema. The number of sections should
-follow the substance of the supplied chart rather than a fixed template.
+1. 不要迎合我。不要恭维、不要用讨好的语气，也不要用平衡话术把负面结论说成优点。
+   如果结构显示明显的短板、失衡或需要回避的方向，直接指出，并说明它在现实中可能
+   以什么方式表现出来、需要额外注意什么。
+2. 不看过往记录。除下方排盘数据外，没有任何背景信息，不要假设我的经历、性格、
+   行业、年龄阶段或处境，也不要引用任何历史对话或未提供的事实。
+3. 客观分析。每一条判断都要给出它在四柱、时支或五行统计上的依据；数据里没有的
+   信息不要编造，无法从排盘得出的问题就直接说明无法判断。
 
-Write every string value in Simplified Chinese (简体中文), including the title,
-summary, section headings, section bodies, bullets, and disclaimer. Keep the
-BaZi terms in their established Chinese forms, such as 日主, 天干, 地支, and 五行.
+请围绕以下方向给出结论，并让章节数量由本次排盘的重点决定，不要套用固定模板：
 
-Chart data:
+- 适合的行业属性、工作内容形态，以及选择工作时优先看什么、回避什么；
+- 适合的协作方式、团队角色与共事对象的特征，以及容易产生摩擦的组合；
+- 在行业、城市或平台等关键选择上，我该用什么判断标准，以及有哪些自查问题。
+
+措辞保持克制：用「倾向」「可能」「通常」这类非确定的表达，不做绝对断言，不承诺
+成功或结果，不使用吉凶恐吓。不提供医疗、心理健康、法律、财务或投资方面的具体
+建议；涉及重大人生决策时，提醒我自行判断。结尾必须包含一段清楚的免责声明。
+
+所有文本使用简体中文，包括标题、摘要、章节标题、正文、要点和免责声明，并保留
+日主、天干、地支、五行等中文术语。只返回符合要求的 JSON。
+
+排盘数据：
 ${JSON.stringify(chart)}
 `.trim();

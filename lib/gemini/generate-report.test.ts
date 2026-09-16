@@ -60,7 +60,7 @@ it('requests a Kie structured high-reasoning report and parses the result', asyn
       messages: [
         expect.objectContaining({
           role: 'user',
-          content: expect.stringContaining('Create a concise BaZi reflection'),
+          content: expect.stringContaining('人生是一系列决策'),
         }),
       ],
       reasoning_effort: 'high',

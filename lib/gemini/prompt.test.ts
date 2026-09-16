@@ -11,9 +11,10 @@ it('grounds the report request in the supplied chart and safety boundaries', () 
   });
 
   expect(prompt).toContain('1990-01-01');
-  expect(prompt).toContain('non-deterministic');
-  expect(prompt).toContain('medical');
-  expect(prompt).toContain('financial');
+  expect(prompt).toContain('行业');
+  expect(prompt).toContain('不要迎合');
+  expect(prompt).toContain('医疗');
+  expect(prompt).toContain('投资');
 });
 
 it('requires the report to be written in Simplified Chinese', () => {
@@ -24,5 +25,5 @@ it('requires the report to be written in Simplified Chinese', () => {
     fiveElements: { 木: 2, 火: 1, 土: 2, 金: 1, 水: 2 },
   });
 
-  expect(prompt).toContain('Simplified Chinese');
+  expect(prompt).toContain('简体中文');
 });
