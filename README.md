@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 八字分析 MVP
 
-## Getting Started
+这是一个以中国标准时间计算农历日期、生成八字命盘，并使用 Gemini 输出结构化解读的 Next.js 应用。
 
-First, run the development server:
+## 本地开发
+
+需要 Node.js 和 npm。安装依赖并复制服务端环境变量模板：
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+在浏览器打开 <http://localhost:3000>。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 环境变量与 Gemini
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+在 `.env.local` 中填写：
 
-## Learn More
+```dotenv
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-3.1-pro-preview
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
+```
 
-To learn more about Next.js, take a look at the following resources:
+`GEMINI_API_KEY` 是分析所必需的 Gemini API key；`GEMINI_MODEL` 可省略（默认值为
+`gemini-3.1-pro-preview`）。请在 Google AI Studio 或你的 Gemini 服务配置中创建/确认 key。
+这些变量只由服务端读取，绝不能以 `NEXT_PUBLIC_` 前缀暴露，也不要提交 `.env.local`。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Supabase 反馈表
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+创建 Supabase 项目后，在 Supabase SQL Editor 中执行仓库里的
+[`supabase/feedback.sql`](supabase/feedback.sql)。它会创建 `public.feedback` 表并启用 RLS。
 
-## Deploy on Vercel
+反馈接口仅写入 `rating`、`wants_deep_analysis` 和数据库自动生成的时间/id；没有公开的
+RLS 插入策略，写入使用服务端 `SUPABASE_SERVICE_ROLE_KEY` 完成。若未配置
+`SUPABASE_URL` 或 `SUPABASE_SERVICE_ROLE_KEY`，反馈会被禁用并返回配置提示，但八字分析仍可用。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Vercel 部署
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+将项目导入 Vercel 后，在 Project Settings → Environment Variables 中为需要的环境
+（Production，及希望使用的 Preview/Development）设置以下变量，然后重新部署：
+
+| 变量 | 必需 | 值 |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | 是 | Gemini API key |
+| `GEMINI_MODEL` | 否 | `gemini-3.1-pro-preview`（默认） |
+| `SUPABASE_URL` | 否 | Supabase 项目 URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | 否 | Supabase service-role key，仅服务端 |
+
+不要把 service-role key 放进浏览器代码、公开日志、截图或 Git。Vercel 环境变量修改后须
+重新部署才会进入运行中的函数。没有 Supabase 变量时仅关闭反馈，不会关闭分析；没有有效
+Gemini key 时分析接口会暂时不可用。
+
+若使用 CLI：
+
+```bash
+vercel               # 首次运行时关联 Vercel 项目
+vercel env add GEMINI_API_KEY production
+vercel env add GEMINI_MODEL production
+vercel env add SUPABASE_URL production
+vercel env add SUPABASE_SERVICE_ROLE_KEY production
+vercel --prod
+```
+
+## 隐私约束
+
+- 出生日期、出生时分、四柱和报告内容只用于当前分析，不写入 cookie、localStorage、Supabase、分析日志或 URL。
+- 报告只保存在当前页面内存中；刷新页面后需要重新分析。
+- Supabase 只接收用户主动提交的 1–5 分评分和是否愿意继续深度分析，不接收出生信息或报告。
+- 解读仅供参考，不构成医疗、法律或金融建议。
+
+## 验证
+
+```bash
+npm run test
+npm run lint
+npm run build
+```
