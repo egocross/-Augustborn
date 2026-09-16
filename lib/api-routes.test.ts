@@ -49,6 +49,17 @@ describe('/api/analyze', () => {
     expect(generateReport).not.toHaveBeenCalled();
   });
 
+  it('rejects an impossible lunar date before calculating a chart', async () => {
+    const response = await analyze(
+      jsonRequest('http://localhost/api/analyze', { ...validAnalysis, lunarYear: 2025, lunarMonth: 2, lunarDay: 30 }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: expect.any(String) });
+    expect(createChart).not.toHaveBeenCalled();
+    expect(generateReport).not.toHaveBeenCalled();
+  });
+
   it('creates a chart then returns its generated report', async () => {
     const chart = { pillars: {} };
     createChart.mockReturnValue(chart);

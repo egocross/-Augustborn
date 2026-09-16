@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Lunar } from 'lunar-typescript';
 
 export const analysisSchema = z
   .object({
@@ -8,7 +9,18 @@ export const analysisSchema = z
     hour: z.number().int().min(0).max(23),
     minute: z.number().int().min(0).max(59),
   })
-  .strict();
+  .strict()
+  .superRefine(({ lunarYear, lunarMonth, lunarDay }, context) => {
+    try {
+      Lunar.fromYmd(lunarYear, lunarMonth, lunarDay);
+    } catch {
+      context.addIssue({
+        code: 'custom',
+        message: 'Invalid lunar date.',
+        path: ['lunarDay'],
+      });
+    }
+  });
 
 export const feedbackSchema = z
   .object({
