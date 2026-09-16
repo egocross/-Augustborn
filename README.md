@@ -1,6 +1,6 @@
 # 八字分析 MVP
 
-这是一个以中国标准时间计算农历日期、生成八字命盘，并使用 Gemini 输出结构化解读的 Next.js 应用。
+这是一个以中国标准时间计算农历日期、生成八字命盘，并通过 Kie AI 的 OpenAI 兼容 Gemini 3.1 Pro API 输出结构化解读的 Next.js 应用。
 
 ## 本地开发
 
@@ -14,19 +14,21 @@ npm run dev
 
 在浏览器打开 <http://localhost:3000>。
 
-### 环境变量与 Gemini
+### 环境变量与 Kie AI
 
 在 `.env.local` 中填写：
 
 ```dotenv
-GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-3.1-pro-preview
+GEMINI_API_KEY=your-kie-ai-openai-compatible-key
+GEMINI_MODEL=gemini-3.1-pro-openai
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 ```
 
-`GEMINI_API_KEY` 是分析所必需的 Gemini API key；`GEMINI_MODEL` 可省略（默认值为
-`gemini-3.1-pro-preview`）。请在 Google AI Studio 或你的 Gemini 服务配置中创建/确认 key。
+`GEMINI_API_KEY` 是分析所必需的 Kie AI OpenAI 兼容 API key（变量名称为兼容现有部署而保留）；
+`GEMINI_MODEL` 可省略，默认值为 `gemini-3.1-pro-openai`。适配器固定使用 Kie API 基址
+`https://api.kie.ai/gemini-3.1-pro/v1`（完整 chat-completions 端点为
+`https://api.kie.ai/gemini-3.1-pro/v1/chat/completions`）。请在 Kie AI 开发者控制台创建 key。
 这些变量只由服务端读取，绝不能以 `NEXT_PUBLIC_` 前缀暴露，也不要提交 `.env.local`。
 
 ### Supabase 反馈表
@@ -45,14 +47,14 @@ RLS 插入策略，写入使用服务端 `SUPABASE_SERVICE_ROLE_KEY` 完成。�
 
 | 变量 | 必需 | 值 |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | 是 | Gemini API key |
-| `GEMINI_MODEL` | 否 | `gemini-3.1-pro-preview`（默认） |
+| `GEMINI_API_KEY` | 是 | Kie AI OpenAI 兼容 API key（仅服务端） |
+| `GEMINI_MODEL` | 否 | `gemini-3.1-pro-openai`（默认） |
 | `SUPABASE_URL` | 否 | Supabase 项目 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 否 | Supabase service-role key，仅服务端 |
 
 不要把 service-role key 放进浏览器代码、公开日志、截图或 Git。Vercel 环境变量修改后须
 重新部署才会进入运行中的函数。没有 Supabase 变量时仅关闭反馈，不会关闭分析；没有有效
-Gemini key 时分析接口会暂时不可用。
+Kie AI key 时分析接口会暂时不可用。
 
 若使用 CLI：
 

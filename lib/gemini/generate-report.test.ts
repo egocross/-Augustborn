@@ -1,13 +1,15 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 
-const generateContent = vi.fn();
+const { create, OpenAI } = vi.hoisted(() => {
+  const create = vi.fn();
+  const OpenAI = vi.fn(function OpenAI() {
+    return { chat: { completions: { create } } };
+  });
 
-vi.mock('@google/genai', () => ({
-  GoogleGenAI: class {
-    models = { generateContent };
-  },
-  ThinkingLevel: { HIGH: 'HIGH' },
-}));
+  return { create, OpenAI };
+});
+
+vi.mock('openai', () => ({ default: OpenAI }));
 
 import { generateReport } from './generate-report';
 
@@ -19,27 +21,56 @@ const chart = {
 };
 
 beforeEach(() => {
-  generateContent.mockReset();
+  create.mockReset();
+  OpenAI.mockClear();
 });
 
-it('requests a structured HIGH-thinking Gemini report and parses the result', async () => {
-  generateContent.mockResolvedValue({
-    text: JSON.stringify({
-      title: '报告',
-      summary: '摘要',
-      sections: [{ heading: '观察', body: '内容', bullets: [] }],
-      disclaimer: '仅供参考',
-    }),
+it('requests a Kie structured high-reasoning report and parses the result', async () => {
+  create.mockResolvedValue({
+    id: 'chatcmpl-test',
+    object: 'chat.completion',
+    created: 0,
+    model: 'gemini-3.1-pro-openai',
+    choices: [
+      {
+        index: 0,
+        finish_reason: 'stop',
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            title: '报告',
+            summary: '摘要',
+            sections: [{ heading: '观察', body: '内容', bullets: [] }],
+            disclaimer: '仅供参考',
+          }),
+        },
+      },
+    ],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   });
 
   await expect(generateReport(chart)).resolves.toMatchObject({ title: '报告' });
-  expect(generateContent).toHaveBeenCalledWith(
+  expect(OpenAI).toHaveBeenCalledWith({
+    apiKey: undefined,
+    baseURL: 'https://api.kie.ai/gemini-3.1-pro/v1',
+  });
+  expect(create).toHaveBeenCalledWith(
     expect.objectContaining({
-      model: 'gemini-3.1-pro-preview',
-      config: expect.objectContaining({
-        responseMimeType: 'application/json',
-        responseJsonSchema: expect.objectContaining({ type: 'object' }),
-        thinkingConfig: { thinkingLevel: 'HIGH' },
+      model: 'gemini-3.1-pro-openai',
+      messages: [
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining('Create a concise BaZi reflection'),
+        }),
+      ],
+      reasoning_effort: 'high',
+      response_format: expect.objectContaining({
+        type: 'json_schema',
+        json_schema: expect.objectContaining({
+          name: 'bazi_report',
+          strict: true,
+          schema: expect.objectContaining({ type: 'object' }),
+        }),
       }),
     }),
   );

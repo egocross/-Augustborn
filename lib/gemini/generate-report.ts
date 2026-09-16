@@ -1,29 +1,37 @@
 import 'server-only';
 
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import OpenAI from 'openai';
 
 import type { BaziChart } from '@/lib/bazi/types';
 
-import { GEMINI_API_KEY, GEMINI_MODEL } from './config';
+import { GEMINI_API_KEY, GEMINI_MODEL, KIE_GEMINI_BASE_URL } from './config';
 import { createReportPrompt } from './prompt';
 import { ReportJsonSchema, parseReport, type Report } from './schema';
 
 /** Generates a validated interpretive report without retaining chart data. */
 export const generateReport = async (chart: BaziChart): Promise<Report> => {
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  const response = await ai.models.generateContent({
+  const ai = new OpenAI({
+    apiKey: GEMINI_API_KEY,
+    baseURL: KIE_GEMINI_BASE_URL,
+  });
+  const response = await ai.chat.completions.create({
     model: GEMINI_MODEL,
-    contents: createReportPrompt(chart),
-    config: {
-      responseMimeType: 'application/json',
-      responseJsonSchema: ReportJsonSchema,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
+    messages: [{ role: 'user', content: createReportPrompt(chart) }],
+    reasoning_effort: 'high',
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'bazi_report',
+        strict: true,
+        schema: ReportJsonSchema,
+      },
     },
   });
 
-  if (!response.text) {
-    throw new Error('Gemini returned no report content.');
+  const content = response.choices[0]?.message.content;
+  if (!content) {
+    throw new Error('Kie returned no report content.');
   }
 
-  return parseReport(JSON.parse(response.text));
+  return parseReport(JSON.parse(content));
 };
