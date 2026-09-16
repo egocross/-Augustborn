@@ -1,3 +1,12 @@
+/** All BaZi date/time fields use China Standard Time, never the caller's browser time zone. */
+export const BAZI_TIME_ZONE = 'Asia/Shanghai' as const;
+
+/**
+ * A lunar birth date and wall-clock time in {@link BAZI_TIME_ZONE}.
+ *
+ * `hour` and `minute` must be the local China Standard Time supplied by the user;
+ * callers must not convert them from the browser or another time zone.
+ */
 export interface BaziInput {
   lunarYear: number;
   lunarMonth: number;
