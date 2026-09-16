@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 import type { BaziChart } from '@/lib/bazi/types';
