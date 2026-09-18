@@ -37,11 +37,11 @@ it('guides the model through the requested decision-report narrative', () => {
   });
 
   const narrativeStages = [
-    '盘面总纲与核心矛盾',
-    '环境与方位',
-    '行业与工作内容',
-    '工作方式与共事对象',
-    '最后的客观建议',
+    '核心性格与底层矛盾',
+    '在什么地方？（方位与环境）',
+    '从事什么行业？（方向选择）',
+    '怎么工作？与谁共事？',
+    '给你的客观建议',
   ];
 
   expect(narrativeStages.every((stage) => prompt.includes(stage))).toBe(true);

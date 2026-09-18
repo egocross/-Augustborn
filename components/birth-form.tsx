@@ -188,10 +188,5 @@ function isReport(value: unknown): value is Report {
   }
 
   const report = value as Partial<Report>;
-  return (
-    typeof report.title === 'string' &&
-    typeof report.summary === 'string' &&
-    typeof report.disclaimer === 'string' &&
-    Array.isArray(report.sections)
-  );
+  return typeof report.disclaimer === 'string' && Array.isArray(report.sections);
 }

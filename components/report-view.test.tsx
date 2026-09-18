@@ -7,8 +7,6 @@ it('renders an arbitrary model-provided section', () => {
   render(
     <ReportView
       report={{
-        title: '报告',
-        summary: '摘要',
         disclaimer: '参考',
         sections: [{ heading: '模型标题', body: '模型正文', bullets: [] }],
       }}

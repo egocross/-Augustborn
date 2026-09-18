@@ -38,8 +38,6 @@ it('requests a Kie structured high-reasoning report and parses the result', asyn
         message: {
           role: 'assistant',
           content: JSON.stringify({
-            title: '报告',
-            summary: '摘要',
             sections: [{ heading: '观察', body: '内容', bullets: [] }],
             disclaimer: '仅供参考',
           }),
@@ -49,7 +47,7 @@ it('requests a Kie structured high-reasoning report and parses the result', asyn
     usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
   });
 
-  await expect(generateReport(chart)).resolves.toMatchObject({ title: '报告' });
+  await expect(generateReport(chart)).resolves.toMatchObject({ disclaimer: '仅供参考' });
   expect(OpenAI).toHaveBeenCalledWith({
     apiKey: undefined,
     baseURL: 'https://api.kie.ai/gemini-3.1-pro/v1',

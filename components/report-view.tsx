@@ -6,13 +6,7 @@ type ReportViewProps = {
 
 export function ReportView({ report }: ReportViewProps) {
   return (
-    <article className="report-view" aria-labelledby="report-title">
-      <header className="report-intro">
-        <p className="eyebrow">命理简析</p>
-        <h1 id="report-title">{report.title}</h1>
-        <p className="report-summary">{report.summary}</p>
-      </header>
-
+    <article className="report-view">
       <div className="report-sections">
         {report.sections.map((section, index) => (
           <section className="report-section" key={`${section.heading}-${index}`}>

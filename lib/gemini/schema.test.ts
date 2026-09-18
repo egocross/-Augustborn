@@ -4,8 +4,6 @@ import { ReportJsonSchema, parseReport } from './schema';
 
 it('accepts a report whose section count is determined by the model', () => {
   const result = parseReport({
-    title: '报告',
-    summary: '摘要',
     sections: [{ heading: '观察', body: '内容', bullets: [] }],
     disclaimer: '仅供参考',
   });

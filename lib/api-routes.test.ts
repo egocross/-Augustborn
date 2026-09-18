@@ -17,8 +17,6 @@ import { POST as feedback } from '../app/api/feedback/route';
 
 const validAnalysis = { lunarYear: 1977, lunarMonth: 9, lunarDay: 3, hour: 13, minute: 30 };
 const report = {
-  title: '报告',
-  summary: '摘要',
   sections: [{ heading: '观察', body: '内容', bullets: [] }],
   disclaimer: '仅供参考',
 };

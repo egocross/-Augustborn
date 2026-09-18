@@ -4,8 +4,6 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { BirthForm } from './birth-form';
 
 const report = {
-  title: '你的报告',
-  summary: '一份简短摘要',
   disclaimer: '仅供参考',
   sections: [{ heading: '模型章节', body: '模型内容', bullets: [] }],
 };
@@ -27,7 +25,7 @@ it('submits only lunar date and China-standard-time fields, then renders the rep
   fireEvent.change(screen.getByLabelText('分钟'), { target: { value: '30' } });
   fireEvent.click(screen.getByRole('button', { name: '开始分析' }));
 
-  await waitFor(() => expect(screen.getByText('你的报告')).toBeTruthy());
+  await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
   expect(fetch).toHaveBeenCalledWith('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

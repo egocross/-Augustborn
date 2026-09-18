@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
 export const ReportSchema = z.object({
-  title: z.string().min(1),
-  summary: z.string().min(1),
   sections: z
     .array(
       z.object({
