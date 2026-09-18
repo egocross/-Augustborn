@@ -23,7 +23,11 @@ export async function POST(request: Request) {
     const report = await generateReport(chart);
 
     return Response.json(report);
-  } catch {
+  } catch (error) {
+    console.error(
+      'analyze_failed',
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    );
     return Response.json({ error: '分析暂时不可用，请稍后重试。' }, { status: 503 });
   }
 }
