@@ -13,29 +13,54 @@ import {
 import { createReportPrompt } from './prompt';
 import { ReportJsonSchema, parseReport, type Report } from './schema';
 
+const describeEmptyCompletion = (completion: unknown): string => {
+  if (typeof completion !== 'object' || completion === null) {
+    return `response type: ${typeof completion}`;
+  }
+
+  const record = completion as Record<string, unknown>;
+  const diagnostics: Record<string, unknown> = {};
+  for (const key of ['error', 'message', 'msg', 'detail', 'code', 'type']) {
+    if (key in record) {
+      diagnostics[key] = record[key];
+    }
+  }
+
+  return `keys: ${Object.keys(record).join(', ')}; diagnostics: ${JSON.stringify(diagnostics).slice(0, 300)}`;
+};
+
 /** Generates a validated interpretive report without retaining chart data. */
 export const generateReport = async (chart: BaziChart): Promise<Report> => {
   const ai = new OpenAI({
     apiKey: GEMINI_API_KEY,
     baseURL: KIE_GEMINI_BASE_URL,
   });
-  const response = await ai.chat.completions.create({
-    model: GEMINI_MODEL,
-    messages: [{ role: 'user', content: createReportPrompt(chart) }],
-    reasoning_effort: GEMINI_REASONING_EFFORT,
-    response_format: {
-      type: 'json_schema',
-      json_schema: {
-        name: 'bazi_report',
-        strict: true,
-        schema: ReportJsonSchema,
+  const createCompletion = () =>
+    ai.chat.completions.create({
+      model: GEMINI_MODEL,
+      messages: [{ role: 'user', content: createReportPrompt(chart) }],
+      reasoning_effort: GEMINI_REASONING_EFFORT,
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'bazi_report',
+          strict: true,
+          schema: ReportJsonSchema,
+        },
       },
-    },
-  });
+    });
 
-  const content = response.choices[0]?.message.content;
+  let response = await createCompletion();
+  let content = response.choices?.[0]?.message?.content ?? null;
+
   if (!content) {
-    throw new Error('Kie returned no report content.');
+    console.error('kie_empty_completion', describeEmptyCompletion(response));
+    response = await createCompletion();
+    content = response.choices?.[0]?.message?.content ?? null;
+  }
+
+  if (!content) {
+    throw new Error(`Kie returned no report content (${describeEmptyCompletion(response)}).`);
   }
 
   return parseReport(JSON.parse(content));
