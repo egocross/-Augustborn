@@ -46,7 +46,7 @@ h1, h2, h3, p { margin-top: 0; }
 /* Page shell ------------------------------------------------------------ */
 
 .site-shell {
-  width: min(100% - 2rem, 62rem);
+  width: min(100% - 2rem, 48rem);
   margin: 0 auto;
   padding: clamp(2.5rem, 7vh, 4.75rem) 0 clamp(3rem, 9vh, 5.5rem);
 }
@@ -94,7 +94,7 @@ h2 {
 
 /* Cards ----------------------------------------------------------------- */
 
-.birth-form, .feedback-panel, .explore-aside, .report-view {
+.birth-form, .feedback-panel, .report-view {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -210,39 +210,6 @@ input::placeholder { color: #a6a8ae; }
   font-size: 0.82rem;
   line-height: 1.7;
 }
-
-/* Side panel ----------------------------------------------------------- */
-
-.explore-aside {
-  display: grid;
-  gap: 1.35rem;
-  align-content: start;
-  padding: clamp(1.35rem, 4vw, 2rem);
-  background: linear-gradient(180deg, #fdfcfa 0%, #f5f4f1 100%);
-}
-
-.network-art { display: block; width: 100%; height: auto; }
-.aside-body { display: grid; gap: 0.9rem; }
-
-.explore-traits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.explore-traits li {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 72%);
-  padding: 0.35rem 0.8rem;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-}
-
-.aside-note { margin: 0; color: var(--muted); font-size: 0.8rem; line-height: 1.65; }
 
 /* Buttons -------------------------------------------------------------- */
 
@@ -425,12 +392,8 @@ input::placeholder { color: #a6a8ae; }
 
 /* Responsive ----------------------------------------------------------- */
 
-@media (min-width: 56rem) {
-  .birth-layout { grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr); align-items: start; }
-}
-
 @media (max-width: 40rem) {
-  .site-shell { width: min(100% - 1.5rem, 62rem); padding-top: 2.25rem; }
+  .site-shell { width: min(100% - 1.5rem, 48rem); padding-top: 2.25rem; }
   .report-section { grid-template-columns: 1fr; gap: 0.3rem; padding: 1.4rem 1.15rem; }
   .section-number { padding-top: 0; }
   .form-actions { justify-items: stretch; }
@@ -445,4 +408,3 @@ input::placeholder { color: #a6a8ae; }
     transition: none;
   }
 }
-

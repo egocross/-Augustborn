@@ -211,62 +211,8 @@ export function BirthForm() {
           </div>
         </form>
 
-        <aside className="explore-aside">
-          <NetworkArt />
-          <div className="aside-body">
-            <h2>报告会覆盖什么</h2>
-            <ul className="explore-traits">
-              <li>性格倾向</li>
-              <li>优势特征</li>
-              <li>工作方式</li>
-              <li>环境偏好</li>
-            </ul>
-            <p className="aside-note">报告只保留在当前页面内存中，刷新后需要重新生成。</p>
-          </div>
-        </aside>
       </div>
     </div>
-  );
-}
-
-function NetworkArt() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="network-art"
-      focusable="false"
-      preserveAspectRatio="xMidYMid meet"
-      viewBox="0 0 320 220"
-    >
-      <defs>
-        <linearGradient gradientUnits="userSpaceOnUse" id="explore-sheen" x1="40" x2="300" y1="10" y2="210">
-          <stop offset="0" stopColor="#dbe1ec" />
-          <stop offset="1" stopColor="#e9e0d6" />
-        </linearGradient>
-      </defs>
-      <ellipse cx="228" cy="66" fill="url(#explore-sheen)" opacity="0.5" rx="118" ry="78" />
-      <ellipse cx="86" cy="176" fill="url(#explore-sheen)" opacity="0.3" rx="96" ry="62" />
-      <g stroke="#9aa1ad" strokeOpacity="0.55" strokeWidth="1">
-        <path d="M52 168 96 86" />
-        <path d="M96 86 150 140" />
-        <path d="M150 140 196 58" />
-        <path d="M196 58 284 96" />
-        <path d="M284 96 232 150" />
-        <path d="M232 150 150 140" />
-        <path d="M96 86 232 150" />
-        <path d="M150 140 128 196" />
-      </g>
-      <g fill="#6d7480">
-        <circle cx="52" cy="168" r="3.5" />
-        <circle cx="96" cy="86" r="4" />
-        <circle cx="196" cy="58" r="4" />
-        <circle cx="284" cy="96" r="3" />
-        <circle cx="232" cy="150" r="3.5" />
-        <circle cx="128" cy="196" r="3" />
-      </g>
-      <circle cx="150" cy="140" fill="#3f4a5c" opacity="0.12" r="18" />
-      <circle cx="150" cy="140" fill="#3f4a5c" r="6" />
-    </svg>
   );
 }
 
@@ -282,4 +228,3 @@ function isReport(value: unknown): value is Report {
   const report = value as Partial<Report>;
   return typeof report.disclaimer === 'string' && Array.isArray(report.sections);
 }
-
