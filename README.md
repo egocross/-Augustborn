@@ -1,6 +1,6 @@
 # 八字分析 MVP
 
-这是一个以中国标准时间计算农历日期、生成八字命盘，并通过 Kie AI 的 OpenAI 兼容 Gemini 3.1 Pro API 输出结构化解读的 Next.js 应用。
+这是一个以中国标准时间计算农历日期、生成八字命盘，并通过 Gemini 模型输出结构化解读的 Next.js 应用。报告接口支持两个提供方：Google 官方 Gemini API（默认模型 `gemini-3.1-pro-preview`）与 Kie AI 的 OpenAI 兼容端点，通过 `GEMINI_PROVIDER` 切换。
 
 ## 本地开发
 
@@ -14,21 +14,28 @@ npm run dev
 
 在浏览器打开 <http://localhost:3000>。
 
-### 环境变量与 Kie AI
+### 环境变量
 
 在 `.env.local` 中填写：
 
 ```dotenv
 GEMINI_API_KEY=your-kie-ai-openai-compatible-key
-GEMINI_MODEL=gemini-3.1-pro-openai
+GEMINI_MODEL=
+GEMINI_REASONING_EFFORT=high
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 ```
 
-`GEMINI_API_KEY` 是分析所必需的 Kie AI OpenAI 兼容 API key（变量名称为兼容现有部署而保留）；
-`GEMINI_MODEL` 可省略，默认值为 `gemini-3.1-pro-openai`。适配器固定使用 Kie API 基址
-`https://api.kie.ai/gemini-3.1-pro/v1`（完整 chat-completions 端点为
-`https://api.kie.ai/gemini-3.1-pro/v1/chat/completions`）。请在 Kie AI 开发者控制台创建 key。
+报告适配器通过 `GEMINI_PROVIDER` 选择，可选 `kie`（默认，保持向后兼容）或 `google`：
+
+- `kie`：调用 Kie AI 的 OpenAI 兼容端点 `https://api.kie.ai/gemini-3.1-pro/v1`，
+  `GEMINI_API_KEY` 填 Kie 的 key，模型默认 `gemini-3.1-pro-openai`。
+- `google`：调用 Google 官方 Gemini API，`GEMINI_API_KEY` 填 Google AI Studio 的 key，
+  模型默认 `gemini-3.1-pro-preview`，思考档位通过官方 `thinking_level` 传递。
+
+`GEMINI_MODEL` 可选，用于覆盖默认模型（切换到 google 时会忽略残留的 Kie 模型名）；
+`GEMINI_REASONING_EFFORT` 可选，取值 `low` / `medium` / `high`，默认 `high`。
 这些变量只由服务端读取，绝不能以 `NEXT_PUBLIC_` 前缀暴露，也不要提交 `.env.local`。
 
 ### Supabase 反馈表
@@ -47,19 +54,22 @@ RLS 插入策略，写入使用服务端 `SUPABASE_SERVICE_ROLE_KEY` 完成。�
 
 | 变量 | 必需 | 值 |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | 是 | Kie AI OpenAI 兼容 API key（仅服务端） |
-| `GEMINI_MODEL` | 否 | `gemini-3.1-pro-openai`（默认） |
+| `GEMINI_PROVIDER` | 否 | `kie`（默认）或 `google` |
+| `GEMINI_API_KEY` | 是 | 所选提供方的 API key（仅服务端） |
+| `GEMINI_MODEL` | 否 | 覆盖默认模型（Kie `gemini-3.1-pro-openai` / Google `gemini-3.1-pro-preview`） |
+| `GEMINI_REASONING_EFFORT` | 否 | `low` / `medium` / `high`（默认 `high`） |
 | `SUPABASE_URL` | 否 | Supabase 项目 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 否 | Supabase service-role key，仅服务端 |
 
 不要把 service-role key 放进浏览器代码、公开日志、截图或 Git。Vercel 环境变量修改后须
 重新部署才会进入运行中的函数。没有 Supabase 变量时仅关闭反馈，不会关闭分析；没有有效
-Kie AI key 时分析接口会暂时不可用。
+API key 时分析接口会暂时不可用。
 
 若使用 CLI：
 
 ```bash
 vercel               # 首次运行时关联 Vercel 项目
+vercel env add GEMINI_PROVIDER production
 vercel env add GEMINI_API_KEY production
 vercel env add GEMINI_MODEL production
 vercel env add SUPABASE_URL production

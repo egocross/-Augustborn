@@ -1,5 +1,13 @@
-export const GEMINI_MODEL =
-  process.env.GEMINI_MODEL?.trim() || 'gemini-3.1-pro-openai';
+const configuredProvider = process.env.GEMINI_PROVIDER?.trim().toLowerCase();
+
+export type GeminiProvider = 'google' | 'kie';
+
+/** Which report API to call. Defaults to Kie so existing deployments keep working. */
+export const GEMINI_PROVIDER: GeminiProvider =
+  configuredProvider === 'google' || configuredProvider === 'kie' ? configuredProvider : 'kie';
+
+/** Optional model override. Each adapter falls back to its own provider default. */
+export const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || undefined;
 
 const reasoningEfforts = ['low', 'medium', 'high'] as const;
 
