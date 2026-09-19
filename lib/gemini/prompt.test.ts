@@ -43,6 +43,7 @@ it('guides the model through the requested decision-report narrative', () => {
   expect(prompt).toContain('结论 → 判断依据 → 现实表现 → 适用边界');
   expect(prompt).toContain('不要把章节数量写死');
   expect(prompt).toContain('全文禁止出现任何传统命理或玄学措辞与符号');
+  expect(prompt).toContain('也不要在标题里加');
 });
 
 it('bounds how an unknown birth time and a birth region may be used', () => {

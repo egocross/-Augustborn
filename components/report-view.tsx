@@ -5,6 +5,9 @@ type ReportViewProps = {
   pending?: boolean;
 };
 
+/** Drops a leading list number the model sometimes copies from the prompt. */
+const cleanHeading = (heading: string) => heading.replace(/^\s*\d+\s*[.、．]\s*/, '').trim() || heading;
+
 export function ReportView({ report, pending = false }: ReportViewProps) {
   return (
     <article className="report-view">
@@ -15,7 +18,7 @@ export function ReportView({ report, pending = false }: ReportViewProps) {
               {String(index + 1).padStart(2, '0')}
             </p>
             <div>
-              <h2>{section.heading}</h2>
+              <h2>{cleanHeading(section.heading)}</h2>
               <p>{section.body}</p>
               {section.bullets.length > 0 ? (
                 <ul>

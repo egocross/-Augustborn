@@ -31,3 +31,16 @@ it('shows completed sections while the rest of the report is still streaming', (
   expect(screen.getByText('正在继续生成…')).toBeTruthy();
   expect(document.querySelector('.skeleton')).toBeTruthy();
 });
+
+it('drops a leading list number the model copied into a heading', () => {
+  render(
+    <ReportView
+      report={{
+        disclaimer: '',
+        sections: [{ heading: '1. 核心性格与底层矛盾', body: '正文', bullets: [] }],
+      }}
+    />,
+  );
+
+  expect(screen.getByText('核心性格与底层矛盾')).toBeTruthy();
+});
