@@ -58,6 +58,8 @@ const describeEmptyResponse = (response: {
 export const generateReport = async (chart: BaziChart): Promise<Report> => {
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const model = GEMINI_MODEL ?? DEFAULT_MODEL;
+  const thinkingLevel = THINKING_LEVELS[GEMINI_REASONING_EFFORT];
+  console.info('gemini_request', { model, thinkingLevel });
 
   const createResponse = () =>
     ai.models.generateContent({
@@ -66,7 +68,7 @@ export const generateReport = async (chart: BaziChart): Promise<Report> => {
       config: {
         responseMimeType: 'application/json',
         responseJsonSchema: reportResponseSchema,
-        thinkingConfig: { thinkingLevel: THINKING_LEVELS[GEMINI_REASONING_EFFORT] },
+        thinkingConfig: { thinkingLevel },
       },
     });
 

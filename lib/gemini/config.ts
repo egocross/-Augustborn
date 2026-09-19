@@ -5,11 +5,13 @@ const reasoningEfforts = ['low', 'medium', 'high'] as const;
 
 export type GeminiReasoningEffort = (typeof reasoningEfforts)[number];
 
+const configuredEffort = process.env.GEMINI_REASONING_EFFORT?.trim().toLowerCase();
+
 /** Server-only setting. Keep the production default at the highest reasoning level. */
 export const GEMINI_REASONING_EFFORT: GeminiReasoningEffort = reasoningEfforts.includes(
-  process.env.GEMINI_REASONING_EFFORT as GeminiReasoningEffort,
+  configuredEffort as GeminiReasoningEffort,
 )
-  ? (process.env.GEMINI_REASONING_EFFORT as GeminiReasoningEffort)
+  ? (configuredEffort as GeminiReasoningEffort)
   : 'high';
 
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY;

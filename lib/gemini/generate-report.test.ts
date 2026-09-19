@@ -29,6 +29,7 @@ const reportPayload = {
 };
 
 beforeEach(() => {
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
   generateContent.mockReset();
   GoogleGenAI.mockClear();
 });
