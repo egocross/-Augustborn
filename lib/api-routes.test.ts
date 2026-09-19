@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createChart, generateReport, getSupabaseAdmin, from, insert } = vi.hoisted(() => ({
+const { createChart, generateReportStream, getSupabaseAdmin, from, insert } = vi.hoisted(() => ({
   createChart: vi.fn(),
-  generateReport: vi.fn(),
+  generateReportStream: vi.fn(),
   getSupabaseAdmin: vi.fn(),
   from: vi.fn(),
   insert: vi.fn(),
 }));
 
 vi.mock('@/lib/bazi/chart', () => ({ createChart }));
-vi.mock('@/lib/gemini/generate-report', () => ({ generateReport }));
+vi.mock('@/lib/gemini/generate-report', () => ({ generateReportStream }));
 vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdmin }));
 
 import { POST as analyze } from '../app/api/analyze/route';
@@ -30,7 +30,7 @@ const jsonRequest = (url: string, body: unknown) =>
 
 beforeEach(() => {
   createChart.mockReset();
-  generateReport.mockReset();
+  generateReportStream.mockReset();
   getSupabaseAdmin.mockReset();
   from.mockReset();
   insert.mockReset();
@@ -44,7 +44,7 @@ describe('/api/analyze', () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: expect.any(String) });
     expect(createChart).not.toHaveBeenCalled();
-    expect(generateReport).not.toHaveBeenCalled();
+    expect(generateReportStream).not.toHaveBeenCalled();
   });
 
   it('rejects an impossible lunar date before calculating a chart', async () => {
@@ -55,20 +55,29 @@ describe('/api/analyze', () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: expect.any(String) });
     expect(createChart).not.toHaveBeenCalled();
-    expect(generateReport).not.toHaveBeenCalled();
+    expect(generateReportStream).not.toHaveBeenCalled();
   });
 
-  it('creates a chart then returns its generated report', async () => {
+  it('creates a chart then streams its generated report', async () => {
     const chart = { pillars: {} };
     createChart.mockReturnValue(chart);
-    generateReport.mockResolvedValue(report);
+    generateReportStream.mockImplementation(async function* generate() {
+      yield JSON.stringify(report);
+    });
 
     const response = await analyze(jsonRequest('http://localhost/api/analyze', validAnalysis));
 
     expect(response.status).toBe(200);
     expect(createChart).toHaveBeenCalledWith(validAnalysis);
-    expect(generateReport).toHaveBeenCalledWith(chart);
-    expect(await response.json()).toEqual(report);
+    expect(generateReportStream).toHaveBeenCalledWith(chart);
+
+    const events = (await response.text())
+      .split('\n\n')
+      .filter((chunk) => chunk.length > 0)
+      .map((chunk) => JSON.parse(chunk.replace('data: ', '')));
+
+    expect(events[0]).toEqual({ type: 'status', stage: 'thinking' });
+    expect(events.at(-1)).toEqual({ type: 'report', report });
   });
 });
 

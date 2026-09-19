@@ -8,14 +8,35 @@ const report = {
   sections: [{ heading: '模型章节', body: '模型内容', bullets: [] }],
 };
 
+const encoder = new TextEncoder();
+
+const streamResponse = (events: unknown[]) => {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const event of events) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      }
+      controller.close();
+    },
+  });
+
+  return { ok: true, body, json: async () => ({}) } as unknown as Response;
+};
+
 beforeEach(() => {
   vi.stubGlobal(
     'fetch',
-    vi.fn().mockResolvedValue(new Response(JSON.stringify(report), { status: 200 })),
+    vi.fn().mockResolvedValue(
+      streamResponse([
+        { type: 'status', stage: 'thinking' },
+        { type: 'delta', text: JSON.stringify(report) },
+        { type: 'report', report },
+      ]),
+    ),
   );
 });
 
-it('submits only lunar date and China-standard-time fields, then renders the report in memory', async () => {
+it('submits only lunar date and China-standard-time fields, then streams the report in memory', async () => {
   render(<BirthForm />);
 
   fireEvent.change(screen.getByLabelText('农历年份'), { target: { value: '1977' } });

@@ -4,7 +4,8 @@ import { useState } from 'react';
 
 import { FeedbackForm } from '@/components/feedback-form';
 import { ReportView } from '@/components/report-view';
-import type { Report } from '@/lib/gemini/schema';
+import { consumeAnalyzeStream, extractCompleteSections } from '@/lib/analyze-stream';
+import type { Report, ReportSection } from '@/lib/gemini/schema';
 
 type BirthFields = {
   lunarYear: string;
@@ -25,6 +26,7 @@ const initialFields: BirthFields = {
 export function BirthForm() {
   const [fields, setFields] = useState<BirthFields>(initialFields);
   const [report, setReport] = useState<Report | null>(null);
+  const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -36,6 +38,8 @@ export function BirthForm() {
     event.preventDefault();
     setStatus('loading');
     setErrorMessage('');
+    setReport(null);
+    setLiveSections([]);
 
     const input = {
       lunarYear: Number(fields.lunarYear),
@@ -51,17 +55,30 @@ export function BirthForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       });
-      const payload: unknown = await response.json();
 
-      if (!response.ok || !isReport(payload)) {
+      if (!response.ok || !response.body) {
+        const payload: unknown = await response.json().catch(() => null);
         const message = isErrorResponse(payload) ? payload.error : '';
         throw new Error(message || '分析暂时不可用，请稍后重试。');
       }
 
-      setReport(payload);
+      let streamedJson = '';
+      const finished = await consumeAnalyzeStream(response.body, {
+        onDelta: (text) => {
+          streamedJson += text;
+          setLiveSections(extractCompleteSections(streamedJson));
+        },
+      });
+
+      if (!isReport(finished)) {
+        throw new Error('分析暂时不可用，请稍后重试。');
+      }
+
+      setReport(finished);
       setStatus('idle');
     } catch (error) {
       setStatus('error');
+      setLiveSections([]);
       setErrorMessage(error instanceof Error ? error.message : '分析暂时不可用，请稍后重试。');
     }
   }
@@ -69,18 +86,26 @@ export function BirthForm() {
   function startOver() {
     setFields(initialFields);
     setReport(null);
+    setLiveSections([]);
     setStatus('idle');
     setErrorMessage('');
   }
 
-  if (report) {
+  if (report || liveSections.length > 0) {
     return (
       <div className="result-stack">
-        <ReportView report={report} />
-        <FeedbackForm />
-        <button className="text-button" onClick={startOver} type="button">
-          重新分析
-        </button>
+        <ReportView
+          pending={report === null}
+          report={report ?? { sections: liveSections, disclaimer: '' }}
+        />
+        {report ? (
+          <>
+            <FeedbackForm />
+            <button className="text-button" onClick={startOver} type="button">
+              重新分析
+            </button>
+          </>
+        ) : null}
       </div>
     );
   }
@@ -103,7 +128,7 @@ export function BirthForm() {
                 aria-label="农历年份"
                 max="2100"
                 min="1900"
-                onChange={(event) => updateField('lunarYear', event.target.value)}
+                onChange={(changeEvent) => updateField('lunarYear', changeEvent.target.value)}
                 required
                 type="number"
                 value={fields.lunarYear}
@@ -115,7 +140,7 @@ export function BirthForm() {
                 aria-label="农历月份"
                 max="12"
                 min="1"
-                onChange={(event) => updateField('lunarMonth', event.target.value)}
+                onChange={(changeEvent) => updateField('lunarMonth', changeEvent.target.value)}
                 required
                 type="number"
                 value={fields.lunarMonth}
@@ -127,7 +152,7 @@ export function BirthForm() {
                 aria-label="农历日期"
                 max="30"
                 min="1"
-                onChange={(event) => updateField('lunarDay', event.target.value)}
+                onChange={(changeEvent) => updateField('lunarDay', changeEvent.target.value)}
                 required
                 type="number"
                 value={fields.lunarDay}
@@ -146,7 +171,7 @@ export function BirthForm() {
                 aria-label="小时"
                 max="23"
                 min="0"
-                onChange={(event) => updateField('hour', event.target.value)}
+                onChange={(changeEvent) => updateField('hour', changeEvent.target.value)}
                 required
                 type="number"
                 value={fields.hour}
@@ -159,7 +184,7 @@ export function BirthForm() {
                 aria-label="分钟"
                 max="59"
                 min="0"
-                onChange={(event) => updateField('minute', event.target.value)}
+                onChange={(changeEvent) => updateField('minute', changeEvent.target.value)}
                 required
                 type="number"
                 value={fields.minute}
@@ -169,6 +194,11 @@ export function BirthForm() {
         </fieldset>
 
         <p className="privacy-notice">不保存出生信息。提交内容仅用于本次分析，报告只保留在当前页面内存中。</p>
+        {status === 'loading' ? (
+          <p className="field-hint" role="status">
+            模型正在推演排盘，通常需要 30–60 秒；生成的章节会先显示出来。
+          </p>
+        ) : null}
         {status === 'error' ? <p className="form-error" role="alert">{errorMessage}</p> : null}
         <button className="primary-button" disabled={status === 'loading'} type="submit">
           {status === 'loading' ? '正在分析…' : '开始分析'}

@@ -2,9 +2,10 @@ import type { Report } from '@/lib/gemini/schema';
 
 type ReportViewProps = {
   report: Report;
+  pending?: boolean;
 };
 
-export function ReportView({ report }: ReportViewProps) {
+export function ReportView({ report, pending = false }: ReportViewProps) {
   return (
     <article className="report-view">
       <div className="report-sections">
@@ -28,9 +29,15 @@ export function ReportView({ report }: ReportViewProps) {
         ))}
       </div>
 
-      <footer className="report-disclaimer">
-        <p>{report.disclaimer}</p>
-      </footer>
+      {pending ? (
+        <p className="report-pending" role="status">
+          正在继续生成…
+        </p>
+      ) : (
+        <footer className="report-disclaimer">
+          <p>{report.disclaimer}</p>
+        </footer>
+      )}
     </article>
   );
 }

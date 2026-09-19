@@ -78,6 +78,7 @@ input[type="number"]:focus, input[type="radio"]:focus-visible, input[type="check
 .report-section li::marker { color: var(--accent); }
 .report-disclaimer { padding: 1.25rem 0 0; color: var(--muted); font-size: 0.83rem; line-height: 1.6; }
 .report-disclaimer p { margin: 0; }
+.report-pending { margin: 0; padding: 1.25rem 0 0; color: var(--muted); font-size: 0.9rem; }
 
 .feedback-panel { padding: clamp(1.25rem, 5vw, 2rem); }
 .feedback-panel form { display: grid; gap: 1.4rem; }

@@ -11,7 +11,6 @@ import {
   type GeminiReasoningEffort,
 } from './config';
 import { createReportPrompt } from './prompt';
-import { parseReport, type Report } from './schema';
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
 
@@ -23,7 +22,7 @@ const THINKING_LEVELS: Record<GeminiReasoningEffort, ThinkingLevel> = {
 
 /**
  * Gemini accepts a subset of JSON Schema for structured output, so this stays
- * minimal; parseReport still enforces the full report shape afterwards.
+ * minimal; the route still validates the finished report before sending it on.
  */
 const reportResponseSchema = {
   type: 'object',
@@ -46,56 +45,56 @@ const reportResponseSchema = {
   required: ['sections', 'disclaimer'],
 } as const;
 
-const describeEmptyResponse = (response: {
-  candidates?: Array<{ finishReason?: unknown }>;
-  promptFeedback?: { blockReason?: unknown };
-}): string =>
-  `finishReason: ${String(response.candidates?.[0]?.finishReason ?? 'none')}, blockReason: ${String(
-    response.promptFeedback?.blockReason ?? 'none',
-  )}`;
+const emptyStreamError = 'Gemini returned no report content.';
 
-/** Generates a validated report through the official Google Gemini API. */
-export const generateReport = async (chart: BaziChart): Promise<Report> => {
+/** Streams the report JSON text from the official Google Gemini API. */
+export async function* generateReportStream(chart: BaziChart): AsyncGenerator<string> {
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const model = GEMINI_MODEL ?? DEFAULT_MODEL;
   const thinkingLevel = THINKING_LEVELS[GEMINI_REASONING_EFFORT];
   console.info('gemini_request', { model, thinkingLevel });
 
-  const createResponse = () =>
-    ai.models.generateContent({
-      model,
-      contents: createReportPrompt(chart),
-      config: {
-        responseMimeType: 'application/json',
-        responseJsonSchema: reportResponseSchema,
-        thinkingConfig: { thinkingLevel },
-      },
-    });
-
   const startedAt = Date.now();
-  let response = await createResponse();
-  let content = response.text ?? null;
-
-  if (!content) {
-    console.error('gemini_empty_response', describeEmptyResponse(response));
-    response = await createResponse();
-    content = response.text ?? null;
-  }
-
-  if (!content) {
-    throw new Error(`Gemini returned no report content (${describeEmptyResponse(response)}).`);
-  }
-
-  const usage = response.usageMetadata;
-  console.info('gemini_report_ready', {
+  const stream = await ai.models.generateContentStream({
     model,
-    thinkingLevel,
+    contents: createReportPrompt(chart),
+    config: {
+      responseMimeType: 'application/json',
+      responseJsonSchema: reportResponseSchema,
+      thinkingConfig: { thinkingLevel },
+    },
+  });
+
+  let usage: { promptTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } | undefined;
+  let outputChars = 0;
+  let firstChunkMs: number | null = null;
+
+  for await (const chunk of stream) {
+    usage = chunk.usageMetadata ?? usage;
+    const text = chunk.text;
+    if (!text) {
+      continue;
+    }
+
+    if (firstChunkMs === null) {
+      firstChunkMs = Date.now() - startedAt;
+      console.info('gemini_first_chunk', { ms: firstChunkMs });
+    }
+
+    outputChars += text.length;
+    yield text;
+  }
+
+  console.info('gemini_stream_done', {
     elapsedMs: Date.now() - startedAt,
-    outputChars: content.length,
+    firstChunkMs,
+    outputChars,
     promptTokens: usage?.promptTokenCount,
     thoughtsTokens: usage?.thoughtsTokenCount,
     totalTokens: usage?.totalTokenCount,
   });
 
-  return parseReport(JSON.parse(content));
-};
+  if (outputChars === 0) {
+    throw new Error(emptyStreamError);
+  }
+}

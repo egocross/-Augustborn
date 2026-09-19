@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const { generateContent, GoogleGenAI } = vi.hoisted(() => {
-  const generateContent = vi.fn();
+const { generateContentStream, GoogleGenAI } = vi.hoisted(() => {
+  const generateContentStream = vi.fn();
   const GoogleGenAI = vi.fn(function GoogleGenAI() {
-    return { models: { generateContent } };
+    return { models: { generateContentStream } };
   });
 
-  return { generateContent, GoogleGenAI };
+  return { generateContentStream, GoogleGenAI };
 });
 
 vi.mock('@google/genai', () => ({
@@ -14,7 +14,7 @@ vi.mock('@google/genai', () => ({
   ThinkingLevel: { LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH' },
 }));
 
-import { generateReport } from './generate-report';
+import { generateReportStream } from './generate-report';
 
 const chart = {
   solarDate: '1990-01-01',
@@ -23,14 +23,24 @@ const chart = {
   fiveElements: { 木: 2, 火: 1, 土: 2, 金: 1, 水: 2 },
 };
 
-const reportPayload = {
-  sections: [{ heading: '观察', body: '内容', bullets: [] }],
-  disclaimer: '仅供参考',
+const collect = async () => {
+  const chunks: string[] = [];
+  for await (const delta of generateReportStream(chart)) {
+    chunks.push(delta);
+  }
+  return chunks.join('');
 };
+
+const streamOf = (chunks: Array<{ text?: string }>) =>
+  (async function* generate() {
+    for (const chunk of chunks) {
+      yield chunk;
+    }
+  })();
 
 beforeEach(() => {
   vi.spyOn(console, 'info').mockImplementation(() => undefined);
-  generateContent.mockReset();
+  generateContentStream.mockReset();
   GoogleGenAI.mockClear();
 });
 
@@ -38,12 +48,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it('requests a structured high-thinking report from the official Gemini API', async () => {
-  generateContent.mockResolvedValue({ text: JSON.stringify(reportPayload) });
+it('streams a structured high-thinking report from the official Gemini API', async () => {
+  generateContentStream.mockResolvedValue(streamOf([{ text: '{"sections":' }, { text: '[]}' }]));
 
-  await expect(generateReport(chart)).resolves.toMatchObject({ disclaimer: '仅供参考' });
+  await expect(collect()).resolves.toBe('{"sections":[]}');
   expect(GoogleGenAI).toHaveBeenCalledWith({ apiKey: undefined });
-  expect(generateContent).toHaveBeenCalledWith(
+  expect(generateContentStream).toHaveBeenCalledWith(
     expect.objectContaining({
       model: 'gemini-3.1-pro-preview',
       contents: expect.stringContaining('人生是一系列决策'),
@@ -56,12 +66,8 @@ it('requests a structured high-thinking report from the official Gemini API', as
   );
 });
 
-it('retries once when the official API returns no text', async () => {
-  vi.spyOn(console, 'error').mockImplementation(() => undefined);
-  generateContent
-    .mockResolvedValueOnce({ text: undefined })
-    .mockResolvedValueOnce({ text: JSON.stringify(reportPayload) });
+it('fails when the stream produces no report text', async () => {
+  generateContentStream.mockResolvedValue(streamOf([{ text: '' }]));
 
-  await expect(generateReport(chart)).resolves.toMatchObject({ disclaimer: '仅供参考' });
-  expect(generateContent).toHaveBeenCalledTimes(2);
+  await expect(collect()).rejects.toThrow('Gemini returned no report content.');
 });
