@@ -1,25 +1,25 @@
-/** All BaZi date/time fields use China Standard Time, never the caller's browser time zone. */
+/** All birth date/time fields use China Standard Time, never the caller's browser time zone. */
 export const BAZI_TIME_ZONE = 'Asia/Shanghai' as const;
 
 /**
- * A lunar birth date and wall-clock time in {@link BAZI_TIME_ZONE}.
+ * A Gregorian birth date and optional wall-clock time in {@link BAZI_TIME_ZONE}.
  *
- * `hour` and `minute` must be the local China Standard Time supplied by the user;
- * callers must not convert them from the browser or another time zone.
+ * `birthDate` is `YYYY-MM-DD`; `birthTime` is `HH:MM`, or null when the user
+ * does not know the exact time. `birthRegion` is optional free text that is only
+ * used as context for the report. Callers must not convert values from another
+ * time zone.
  */
 export interface BaziInput {
-  lunarYear: number;
-  lunarMonth: number;
-  lunarDay: number;
-  hour: number;
-  minute: number;
+  birthDate: string;
+  birthTime: string | null;
+  birthRegion?: string;
 }
 
 export interface BaziPillars {
   year: string;
   month: string;
   day: string;
-  hour: string;
+  hour: string | null;
 }
 
 export type FiveElement = '木' | '火' | '土' | '金' | '水';
@@ -28,7 +28,9 @@ export type FiveElements = Record<FiveElement, number>;
 
 export interface BaziChart {
   solarDate: string;
+  birthRegion: string | null;
+  timeKnown: boolean;
   pillars: BaziPillars;
-  hourBranch: string;
+  hourBranch: string | null;
   fiveElements: FiveElements;
 }

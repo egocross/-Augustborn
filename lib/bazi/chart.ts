@@ -1,4 +1,4 @@
-import { Lunar } from 'lunar-typescript';
+import { Solar } from 'lunar-typescript';
 import type { BaziChart, BaziInput, BaziPillars, FiveElement, FiveElements } from './types';
 
 const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
@@ -45,6 +45,10 @@ function countElements(pillars: BaziPillars): FiveElements {
   const counts: FiveElements = { 木: 0, 火: 0, 土: 0, 金: 0, 水: 0 };
 
   for (const pillar of Object.values(pillars)) {
+    if (!pillar) {
+      continue;
+    }
+
     for (const character of pillar) {
       const element = ELEMENT_BY_PILLAR_CHARACTER[character];
       if (element) {
@@ -57,29 +61,28 @@ function countElements(pillars: BaziPillars): FiveElements {
 }
 
 export function createChart(input: BaziInput): BaziChart {
-  const lunar = Lunar.fromYmdHms(
-    input.lunarYear,
-    input.lunarMonth,
-    input.lunarDay,
-    input.hour,
-    input.minute,
-    0,
-  );
+  const [year, month, day] = input.birthDate.split('-').map(Number);
+  const timeKnown = input.birthTime !== null;
+  const [hour, minute] = input.birthTime ? input.birthTime.split(':').map(Number) : [12, 0];
+
+  const lunar = Solar.fromYmdHms(year, month, day, hour, minute, 0).getLunar();
   const eightChar = lunar.getEightChar();
   eightChar.setSect(2);
 
-  const day = eightChar.getDay();
+  const dayPillar = eightChar.getDay();
   const pillars: BaziPillars = {
     year: eightChar.getYear(),
     month: eightChar.getMonth(),
-    day,
-    hour: hourPillar(day, input.hour),
+    day: dayPillar,
+    hour: timeKnown ? hourPillar(dayPillar, hour) : null,
   };
 
   return {
     solarDate: lunar.getSolar().toYmd(),
+    birthRegion: input.birthRegion?.trim() || null,
+    timeKnown,
     pillars,
-    hourBranch: hourBranch(input.hour),
+    hourBranch: timeKnown ? hourBranch(hour) : null,
     fiveElements: countElements(pillars),
   };
 }

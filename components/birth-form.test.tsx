@@ -36,20 +36,42 @@ beforeEach(() => {
   );
 });
 
-it('submits only lunar date and China-standard-time fields, then streams the report in memory', async () => {
+it('sends the birth date, time and region, then renders the streamed report', async () => {
   render(<BirthForm />);
 
-  fireEvent.change(screen.getByLabelText('农历年份'), { target: { value: '1977' } });
-  fireEvent.change(screen.getByLabelText('农历月份'), { target: { value: '9' } });
-  fireEvent.change(screen.getByLabelText('农历日期'), { target: { value: '3' } });
-  fireEvent.change(screen.getByLabelText('小时'), { target: { value: '13' } });
-  fireEvent.change(screen.getByLabelText('分钟'), { target: { value: '30' } });
-  fireEvent.click(screen.getByRole('button', { name: '开始分析' }));
+  expect(screen.getByText('发现更适合你的方向')).toBeTruthy();
+  expect(screen.getByText('填写出生信息')).toBeTruthy();
+
+  fireEvent.change(screen.getByLabelText('出生日期'), { target: { value: '1977-09-03' } });
+  fireEvent.change(screen.getByLabelText('出生时间'), { target: { value: '13:30' } });
+  fireEvent.change(screen.getByLabelText('出生地区'), { target: { value: '浙江杭州' } });
+  fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
 
   await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
   expect(fetch).toHaveBeenCalledWith('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lunarYear: 1977, lunarMonth: 9, lunarDay: 3, hour: 13, minute: 30 }),
+    body: JSON.stringify({ birthDate: '1977-09-03', birthTime: '13:30', birthRegion: '浙江杭州' }),
   });
 });
+
+it('disables the time input and sends a null birth time when the time is unknown', async () => {
+  render(<BirthForm />);
+
+  fireEvent.change(screen.getByLabelText('出生日期'), { target: { value: '1990-01-02' } });
+  fireEvent.click(screen.getByLabelText('不知道准确出生时间'));
+
+  const timeInput = screen.getByLabelText('出生时间') as HTMLInputElement;
+  expect(timeInput.disabled).toBe(true);
+  expect(screen.getByText('时间未知时，报告会跳过依赖出生时间的分析。')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
+
+  await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
+  expect(fetch).toHaveBeenCalledWith('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ birthDate: '1990-01-02', birthTime: null, birthRegion: '' }),
+  });
+});
+

@@ -18,6 +18,8 @@ import { generateReportStream } from './generate-report';
 
 const chart = {
   solarDate: '1990-01-01',
+  birthRegion: null,
+  timeKnown: true,
   pillars: { year: '庚午', month: '戊子', day: '甲子', hour: '甲子' },
   hourBranch: '子',
   fiveElements: { 木: 2, 火: 1, 土: 2, 金: 1, 水: 2 },

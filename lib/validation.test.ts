@@ -15,20 +15,17 @@ describe('feedbackSchema', () => {
 });
 
 describe('analysisSchema', () => {
-  const validInput = { lunarYear: 1977, lunarMonth: 9, lunarDay: 3, hour: 13, minute: 30 };
+  const validInput = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '浙江杭州' };
 
   it.each([
-    ['year below the supported range', { ...validInput, lunarYear: 1899 }],
-    ['year above the supported range', { ...validInput, lunarYear: 2101 }],
-    ['month below 1', { ...validInput, lunarMonth: 0 }],
-    ['month above 12', { ...validInput, lunarMonth: 13 }],
-    ['day below 1', { ...validInput, lunarDay: 0 }],
-    ['day above 30', { ...validInput, lunarDay: 31 }],
-    ['hour below 0', { ...validInput, hour: -1 }],
-    ['hour above 23', { ...validInput, hour: 24 }],
-    ['minute below 0', { ...validInput, minute: -1 }],
-    ['minute above 59', { ...validInput, minute: 60 }],
-  ])('rejects a %s', (_description, input) => {
+    ['a year below the supported range', { ...validInput, birthDate: '1899-12-31' }],
+    ['a year above the supported range', { ...validInput, birthDate: '2101-01-01' }],
+    ['an impossible date', { ...validInput, birthDate: '2025-02-30' }],
+    ['a malformed date', { ...validInput, birthDate: '1977-10' }],
+    ['an hour above 23', { ...validInput, birthTime: '24:00' }],
+    ['a malformed time', { ...validInput, birthTime: '下午一点' }],
+    ['a region over 40 characters', { ...validInput, birthRegion: '浙'.repeat(41) }],
+  ])('rejects %s', (_description, input) => {
     expect(analysisSchema.safeParse(input).success).toBe(false);
   });
 
@@ -36,7 +33,17 @@ describe('analysisSchema', () => {
     expect(analysisSchema.safeParse({ ...validInput, extra: true }).success).toBe(false);
   });
 
-  it('accepts a complete bounded lunar input', () => {
+  it('accepts a complete birth input', () => {
     expect(analysisSchema.safeParse(validInput).success).toBe(true);
+  });
+
+  it('accepts an unknown birth time and an omitted region', () => {
+    const result = analysisSchema.safeParse({ birthDate: '1977-10-15', birthTime: null });
+
+    if (!result.success) {
+      throw new Error('expected the input to be accepted');
+    }
+
+    expect(result.data).toMatchObject({ birthTime: null, birthRegion: '' });
   });
 });

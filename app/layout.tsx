@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "八字简析",
-  description: "基于农历出生日期与中国标准时间的八字参考。",
+  title: "发现更适合你的方向",
+  description:
+    "从出生信息出发，生成一份关于性格倾向、优势特征、工作方式与环境偏好的个人探索报告。",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

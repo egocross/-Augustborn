@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdmin }));
 import { POST as analyze } from '../app/api/analyze/route';
 import { POST as feedback } from '../app/api/feedback/route';
 
-const validAnalysis = { lunarYear: 1977, lunarMonth: 9, lunarDay: 3, hour: 13, minute: 30 };
+const validAnalysis = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '浙江杭州' };
 const report = {
   sections: [{ heading: '观察', body: '内容', bullets: [] }],
   disclaimer: '仅供参考',
@@ -39,7 +39,9 @@ beforeEach(() => {
 
 describe('/api/analyze', () => {
   it('validates the body before calculating a chart', async () => {
-    const response = await analyze(jsonRequest('http://localhost/api/analyze', { ...validAnalysis, hour: 24 }));
+    const response = await analyze(
+      jsonRequest('http://localhost/api/analyze', { ...validAnalysis, birthTime: '24:00' }),
+    );
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: expect.any(String) });
@@ -47,9 +49,9 @@ describe('/api/analyze', () => {
     expect(generateReportStream).not.toHaveBeenCalled();
   });
 
-  it('rejects an impossible lunar date before calculating a chart', async () => {
+  it('rejects an impossible birth date before calculating a chart', async () => {
     const response = await analyze(
-      jsonRequest('http://localhost/api/analyze', { ...validAnalysis, lunarYear: 2025, lunarMonth: 2, lunarDay: 30 }),
+      jsonRequest('http://localhost/api/analyze', { ...validAnalysis, birthDate: '2025-02-30' }),
     );
 
     expect(response.status).toBe(400);
