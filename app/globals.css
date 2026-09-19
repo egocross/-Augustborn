@@ -97,12 +97,43 @@ h1, h2, h3, p { margin-top: 0; }
 .generating-modal.is-leaving { animation: modal-out 240ms ease-in both; }
 
 .generating-orb {
-  width: 46px;
-  height: 46px;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 96px;
+  height: 96px;
   border-radius: var(--radius-pill);
-  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #cfd6e2 40%, #8f9aad 100%);
-  box-shadow: 0 0 0 1px rgb(44 54 68 / 8%), 0 14px 30px -14px rgb(44 54 68 / 55%);
-  animation: orb-breathe 2.6s ease-in-out infinite;
+  background: radial-gradient(circle at 34% 28%, #f2f8ff 0%, #bcd9ff 24%, #6ba6fb 52%, #2f74e8 78%, #1c53c4 100%);
+  box-shadow:
+    0 0 44px -6px rgb(74 144 250 / 60%),
+    0 0 96px -18px rgb(74 144 250 / 45%),
+    inset 0 -14px 28px rgb(21 71 168 / 35%),
+    inset 0 12px 22px rgb(255 255 255 / 55%);
+  animation: orb-breathe 4.4s ease-in-out infinite;
+}
+
+.generating-orb::before,
+.generating-orb::after {
+  content: '';
+  position: absolute;
+  border-radius: var(--radius-pill);
+  filter: blur(9px);
+}
+
+.generating-orb::before {
+  inset: -16%;
+  background:
+    radial-gradient(circle at 32% 32%, rgb(255 255 255 / 92%), rgb(255 255 255 / 0%) 44%),
+    radial-gradient(circle at 70% 64%, rgb(133 193 255 / 85%), rgb(133 193 255 / 0%) 46%);
+  animation: orb-swirl 7.5s linear infinite;
+}
+
+.generating-orb::after {
+  inset: 8%;
+  background:
+    radial-gradient(circle at 64% 28%, rgb(255 255 255 / 72%), rgb(255 255 255 / 0%) 42%),
+    radial-gradient(circle at 38% 72%, rgb(43 111 232 / 60%), rgb(43 111 232 / 0%) 52%);
+  animation: orb-swirl-reverse 9.5s linear infinite;
 }
 
 .generating-stage { margin: 0; color: var(--ink); font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
@@ -130,8 +161,19 @@ h1, h2, h3, p { margin-top: 0; }
 }
 
 @keyframes orb-breathe {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.07); opacity: 1; }
+  0%, 100% { transform: scale(1); opacity: 0.96; }
+  50% { transform: scale(1.045); opacity: 1; }
+}
+
+@keyframes orb-swirl {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.07); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes orb-swirl-reverse {
+  0% { transform: rotate(360deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
 }
 
 .landing-intro { display: grid; gap: 0.85rem; max-width: 42rem; }
@@ -512,6 +554,7 @@ input::placeholder { color: #a6a8ae; }
 
 @media (prefers-reduced-motion: reduce) {
   .generating-overlay, .generating-modal, .generating-orb, .result-stack { animation: none; }
+  .generating-orb::before, .generating-orb::after { animation: none; }
   .birth-flow.is-generating { transition: none; }
   .progress-bar { width: 100%; opacity: 0.4; animation: none; }
   .skeleton-line { animation: none; }
