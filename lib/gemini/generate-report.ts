@@ -72,6 +72,7 @@ export const generateReport = async (chart: BaziChart): Promise<Report> => {
       },
     });
 
+  const startedAt = Date.now();
   let response = await createResponse();
   let content = response.text ?? null;
 
@@ -84,6 +85,17 @@ export const generateReport = async (chart: BaziChart): Promise<Report> => {
   if (!content) {
     throw new Error(`Gemini returned no report content (${describeEmptyResponse(response)}).`);
   }
+
+  const usage = response.usageMetadata;
+  console.info('gemini_report_ready', {
+    model,
+    thinkingLevel,
+    elapsedMs: Date.now() - startedAt,
+    outputChars: content.length,
+    promptTokens: usage?.promptTokenCount,
+    thoughtsTokens: usage?.thoughtsTokenCount,
+    totalTokens: usage?.totalTokenCount,
+  });
 
   return parseReport(JSON.parse(content));
 };
