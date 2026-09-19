@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { FeedbackForm } from '@/components/feedback-form';
+import { GeneratingModal } from '@/components/generating-modal';
 import { ReportView } from '@/components/report-view';
 import { consumeAnalyzeStream, extractCompleteSections } from '@/lib/analyze-stream';
 import type { Report, ReportSection } from '@/lib/gemini/schema';
@@ -50,6 +52,19 @@ export function BirthForm() {
     return () => clearInterval(timer);
   }, [status]);
 
+  const [modalMounted, setModalMounted] = useState(false);
+  const showModal = status === 'loading' && liveSections.length === 0;
+
+  useEffect(() => {
+    if (showModal) {
+      return;
+    }
+
+    const timer = setTimeout(() => setModalMounted(false), 280);
+
+    return () => clearTimeout(timer);
+  }, [showModal]);
+
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -61,6 +76,7 @@ export function BirthForm() {
     setReport(null);
     setLiveSections([]);
     setLoadingStage(0);
+    setModalMounted(true);
 
     const input = {
       birthDate: form.birthDate,
@@ -110,6 +126,10 @@ export function BirthForm() {
     setErrorMessage('');
   }
 
+  const modal = modalMounted
+    ? createPortal(<GeneratingModal open={showModal} stage={loadingStages[loadingStage]} />, document.body)
+    : null;
+
   if (report || liveSections.length > 0) {
     return (
       <div className="result-stack">
@@ -129,12 +149,13 @@ export function BirthForm() {
             </button>
           </>
         ) : null}
+        {modal}
       </div>
     );
   }
 
   return (
-    <div className="birth-flow">
+    <div className={showModal ? 'birth-flow is-generating' : 'birth-flow'}>
       <header className="landing-intro">
         <p className="eyebrow">个人探索报告</p>
         <h1>发现更适合你的方向</h1>
@@ -213,14 +234,6 @@ export function BirthForm() {
           </fieldset>
 
           <div className="form-actions">
-            {status === 'loading' ? (
-              <div className="generating" role="status">
-                <p className="form-status">{loadingStages[loadingStage]}</p>
-                <div aria-hidden="true" className="progress-track">
-                  <span className="progress-bar" />
-                </div>
-              </div>
-            ) : null}
             {status === 'error' ? (
               <p className="form-error" role="alert">
                 {errorMessage}
@@ -234,8 +247,8 @@ export function BirthForm() {
             </p>
           </div>
         </form>
-
       </div>
+      {modal}
     </div>
   );
 }
