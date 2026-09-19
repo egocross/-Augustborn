@@ -75,3 +75,19 @@ it('disables the time input and sends a null birth time when the time is unknown
   });
 });
 
+it('shows a running progress indicator while the report is generating', async () => {
+  const pending = new ReadableStream<Uint8Array>({ start() {} });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({ ok: true, body: pending, json: async () => ({}) } as unknown as Response),
+  );
+
+  render(<BirthForm />);
+
+  fireEvent.change(screen.getByLabelText('出生日期'), { target: { value: '1977-10-15' } });
+  fireEvent.change(screen.getByLabelText('出生时间'), { target: { value: '13:30' } });
+  fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
+
+  await waitFor(() => expect(screen.getByText('正在读取出生信息…')).toBeTruthy());
+  expect(document.querySelector('.progress-track')).toBeTruthy();
+});

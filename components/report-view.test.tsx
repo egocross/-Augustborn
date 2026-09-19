@@ -29,4 +29,5 @@ it('shows completed sections while the rest of the report is still streaming', (
 
   expect(screen.getByText('流式标题')).toBeTruthy();
   expect(screen.getByText('正在继续生成…')).toBeTruthy();
+  expect(document.querySelector('.skeleton')).toBeTruthy();
 });

@@ -40,8 +40,9 @@ it('guides the model through the requested decision-report narrative', () => {
   expect(narrativeStages.map((stage) => prompt.indexOf(stage))).toEqual(
     [...narrativeStages.map((stage) => prompt.indexOf(stage))].sort((a, b) => a - b),
   );
-  expect(prompt).toContain('结论 → 盘面依据 → 现实表现 → 适用边界');
+  expect(prompt).toContain('结论 → 判断依据 → 现实表现 → 适用边界');
   expect(prompt).toContain('不要把章节数量写死');
+  expect(prompt).toContain('全文禁止出现任何传统命理或玄学措辞与符号');
 });
 
 it('bounds how an unknown birth time and a birth region may be used', () => {
@@ -53,7 +54,8 @@ it('bounds how an unknown birth time and a birth region may be used', () => {
     pillars: { ...chart.pillars, hour: null },
   });
 
-  expect(prompt).toContain('依赖出生时辰的判断');
+  expect(prompt).toContain('timeKnown 为 false');
+  expect(prompt).toContain('不要给出任何依赖出生时辰的');
   expect(prompt).toContain('它只作为环境背景使用');
   expect(prompt).toContain('浙江杭州');
 });

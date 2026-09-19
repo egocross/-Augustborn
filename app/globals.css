@@ -203,6 +203,33 @@ input::placeholder { color: #a6a8ae; }
 
 .form-error { margin: 0; color: var(--alert); font-size: 0.9rem; line-height: 1.6; }
 
+.generating { display: grid; gap: 0.8rem; width: 100%; }
+
+.progress-track {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+
+.progress-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: progress-sweep 1.7s ease-in-out infinite;
+}
+
+@keyframes progress-sweep {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(300%); }
+}
+
 .privacy-notice {
   margin: 0;
   max-width: 34rem;
@@ -323,6 +350,24 @@ input::placeholder { color: #a6a8ae; }
 }
 
 .report-disclaimer p { margin: 0; }
+.report-pending p { margin: 0; }
+
+.skeleton { display: grid; gap: 0.55rem; margin-bottom: 0.8rem; }
+
+.skeleton-line {
+  height: 0.65rem;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--surface-muted) 0%, var(--line) 45%, var(--surface-muted) 90%);
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-line-short { width: 58%; }
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 140% 0; }
+  100% { background-position: -140% 0; }
+}
 
 /* Feedback ------------------------------------------------------------- */
 
@@ -404,6 +449,8 @@ input::placeholder { color: #a6a8ae; }
 
 @media (prefers-reduced-motion: reduce) {
   .form-status::before { animation: none; }
+  .progress-bar { width: 100%; opacity: 0.4; animation: none; }
+  .skeleton-line { animation: none; }
   .primary-button, .secondary-button, .text-button, .rating-options span, .birth-form input {
     transition: none;
   }

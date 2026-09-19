@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { FeedbackForm } from '@/components/feedback-form';
 import { ReportView } from '@/components/report-view';
@@ -23,12 +23,32 @@ const initialFormState: FormState = {
 
 const fallbackError = '报告暂时无法生成，请稍后重试。';
 
+const loadingStages = [
+  '正在读取出生信息…',
+  '正在梳理性格与优势线索…',
+  '正在分析适合的工作方式与环境…',
+  '正在生成报告章节…',
+];
+
 export function BirthForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [report, setReport] = useState<Report | null>(null);
   const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [loadingStage, setLoadingStage] = useState(0);
+
+  useEffect(() => {
+    if (status !== 'loading') {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setLoadingStage((current) => (current + 1) % loadingStages.length);
+    }, 6000);
+
+    return () => clearInterval(timer);
+  }, [status]);
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -40,6 +60,7 @@ export function BirthForm() {
     setErrorMessage('');
     setReport(null);
     setLiveSections([]);
+    setLoadingStage(0);
 
     const input = {
       birthDate: form.birthDate,
@@ -193,9 +214,12 @@ export function BirthForm() {
 
           <div className="form-actions">
             {status === 'loading' ? (
-              <p className="form-status" role="status">
-                正在生成你的探索报告…已完成的章节会先显示出来。
-              </p>
+              <div className="generating" role="status">
+                <p className="form-status">{loadingStages[loadingStage]}</p>
+                <div aria-hidden="true" className="progress-track">
+                  <span className="progress-bar" />
+                </div>
+              </div>
             ) : null}
             {status === 'error' ? (
               <p className="form-error" role="alert">

@@ -30,9 +30,13 @@ export function ReportView({ report, pending = false }: ReportViewProps) {
       </div>
 
       {pending ? (
-        <p className="report-pending" role="status">
-          正在继续生成…
-        </p>
+        <div className="report-pending" role="status">
+          <div aria-hidden="true" className="skeleton">
+            <span className="skeleton-line" />
+            <span className="skeleton-line skeleton-line-short" />
+          </div>
+          <p>正在继续生成…</p>
+        </div>
       ) : (
         <footer className="report-disclaimer">
           <p>{report.disclaimer}</p>
