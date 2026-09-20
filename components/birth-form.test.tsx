@@ -89,7 +89,9 @@ it('shows a running progress indicator while the report is generating', async ()
   fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
 
   await waitFor(() => expect(screen.getByText('正在读取出生信息…')).toBeTruthy());
-  expect(screen.getByRole('dialog', { name: '正在生成报告' })).toBeTruthy();
+  const dialog = screen.getByRole('dialog', { name: '正在生成报告' });
+  expect(dialog).toBeTruthy();
+  expect(dialog.getAttribute('data-appearance')).toBe('dark-glass');
   expect(document.querySelector('.progress-track')).toBeTruthy();
   expect(document.querySelector('.birth-flow.is-generating')).toBeTruthy();
 });

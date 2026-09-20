@@ -13,6 +13,7 @@ export function GeneratingModal({ open, stage }: GeneratingModalProps) {
         aria-label="正在生成报告"
         aria-modal="true"
         className={`generating-modal${stateClass}`}
+        data-appearance="dark-glass"
         role="dialog"
       >
         <span aria-hidden="true" className="generating-orb" />
