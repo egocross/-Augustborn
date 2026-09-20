@@ -6,6 +6,8 @@ import { createPortal } from 'react-dom';
 import { FeedbackForm } from '@/components/feedback-form';
 import { GeneratingModal } from '@/components/generating-modal';
 import { ReportView } from '@/components/report-view';
+import { DeepAnalysisFlow } from '@/components/deep-analysis/deep-analysis-flow';
+import { clearDeepSession, loadDeepSession } from '@/lib/deep-analysis/session';
 import { consumeAnalyzeStream, extractCompleteSections } from '@/lib/analyze-stream';
 import type { Report, ReportSection } from '@/lib/gemini/schema';
 
@@ -32,9 +34,10 @@ const loadingStages = [
   '正在生成报告章节…',
 ];
 
-export function BirthForm() {
-  const [form, setForm] = useState<FormState>(initialFormState);
-  const [report, setReport] = useState<Report | null>(null);
+export function BirthForm({ deepReportPrice = '¥29.90' }: { deepReportPrice?: string }) {
+  const restored = typeof window !== 'undefined' ? loadDeepSession(window.sessionStorage) : null;
+  const [form, setForm] = useState<FormState>(() => restored?.birthInput ? { ...restored.birthInput, birthTime: restored.birthInput.birthTime ?? '', timeUnknown: restored.birthInput.birthTime === null } : initialFormState);
+  const [report, setReport] = useState<Report | null>(() => restored?.freeReport ?? null);
   const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -119,6 +122,7 @@ export function BirthForm() {
   }
 
   function startOver() {
+    clearDeepSession(window.sessionStorage);
     setForm(initialFormState);
     setReport(null);
     setLiveSections([]);
@@ -144,6 +148,11 @@ export function BirthForm() {
         {report ? (
           <>
             <FeedbackForm />
+            <DeepAnalysisFlow
+              birthInput={{ birthDate: form.birthDate, birthTime: form.timeUnknown || !form.birthTime ? null : form.birthTime, birthRegion: form.birthRegion }}
+              freeReport={report}
+              price={deepReportPrice}
+            />
             <button className="text-button" onClick={startOver} type="button">
               重新分析
             </button>

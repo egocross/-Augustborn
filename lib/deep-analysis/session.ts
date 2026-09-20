@@ -40,6 +40,7 @@ export type DeepFlowAction =
   | { type: 'setCustomQuestion'; value: string }
   | { type: 'customLoading' }
   | { type: 'customQuestionsReady'; questions: DynamicQuestion[] }
+  | { type: 'customQuestionsFailed'; code: string }
   | { type: 'setOptionalContext'; value: string }
   | { type: 'nextQuestion'; total: number }
   | { type: 'previousQuestion' }
@@ -56,6 +57,7 @@ export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): D
     case 'setCustomQuestion': return { ...state, customQuestion: action.value, errorCode: null };
     case 'customLoading': return { ...state, step: 'custom-loading', errorCode: null };
     case 'customQuestionsReady': return { ...state, customQuestions: action.questions, step: action.questions.length ? 'questions' : 'optional-context', questionIndex: 0 };
+    case 'customQuestionsFailed': return { ...state, step: 'custom-question', errorCode: action.code };
     case 'setOptionalContext': return { ...state, optionalContext: action.value };
     case 'nextQuestion': return action.total > state.questionIndex + 1 ? { ...state, questionIndex: state.questionIndex + 1 } : { ...state, step: 'optional-context' };
     case 'previousQuestion': return state.questionIndex > 0 ? { ...state, questionIndex: state.questionIndex - 1 } : { ...state, step: state.selectedDirection === 'custom' ? 'custom-question' : 'direction' };

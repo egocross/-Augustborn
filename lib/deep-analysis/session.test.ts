@@ -5,9 +5,12 @@ import { createInitialDeepState, deepFlowReducer, loadDeepSession, saveDeepSessi
 const storage = () => {
   const values = new Map<string, string>();
   return {
+    get length() { return values.size; },
+    clear: () => values.clear(),
     getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
-    removeItem: (key: string) => values.delete(key),
+    key: (index: number) => [...values.keys()][index] ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
   } as Storage;
 };
 
@@ -36,5 +39,12 @@ describe('deep flow session', () => {
     expect(next.answers).toEqual(paidState.answers);
     expect(next.paymentReceipt).toBe(paidState.paymentReceipt);
     expect(next.step).toBe('payment');
+  });
+
+  it('returns a failed custom-question request to the custom question step', () => {
+    const loading = { ...createInitialDeepState('session-123'), step: 'custom-loading' as const, selectedDirection: 'custom' as const, customQuestion: '我要不要转岗？' };
+    const next = deepFlowReducer(loading, { type: 'customQuestionsFailed', code: 'upstream_failed' });
+    expect(next.step).toBe('custom-question');
+    expect(next.customQuestion).toBe(loading.customQuestion);
   });
 });
