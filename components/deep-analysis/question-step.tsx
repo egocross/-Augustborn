@@ -9,6 +9,7 @@ type Question = FixedQuestion | DynamicQuestion;
 export function QuestionStep({ question, answer, onChange }: { question: Question; answer: AnswerValue; onChange: (answer: AnswerValue) => void }) {
   const [message, setMessage] = useState('');
   const selected = answer.optionIds ?? [];
+  const supplementaryField = 'supplementaryField' in question ? question.supplementaryField : undefined;
   const updateOption = (id: string, checked: boolean) => {
     if (question.type === 'single') { onChange({ optionIds: [id] }); return; }
     const next = checked ? [...selected, id] : selected.filter((value) => value !== id);
@@ -30,6 +31,20 @@ export function QuestionStep({ question, answer, onChange }: { question: Questio
         <span>{option.label}</span>
       </label>)}
     </div>
+    {supplementaryField ? <label className="supplementary-field">
+      <span>{supplementaryField.label}</span>
+      <input
+        maxLength={200}
+        onChange={(event) => {
+          const values = [...new Set(event.target.value.split(/[,，、/\n]/).map((value) => value.trim()).filter(Boolean))]
+            .slice(0, supplementaryField.maxItems);
+          onChange({ ...answer, supplementaryValue: values });
+        }}
+        placeholder={supplementaryField.placeholder}
+        type="text"
+        value={(answer.supplementaryValue ?? []).join('、')}
+      />
+    </label> : null}
     <p aria-live="polite" className="selection-message" role="status">{message}</p>
   </fieldset>;
 }
