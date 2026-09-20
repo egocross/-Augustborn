@@ -1,11 +1,9 @@
-import { z } from 'zod';
-
 import { QUESTION_BANK_V1 } from './questions';
 import { AnswerValueSchema, type DeepAnswers, type FixedDirectionId } from './types';
 
-const successSchema = z.object({ success: z.literal(true), data: z.record(z.string(), AnswerValueSchema) });
-const failureSchema = z.object({ success: z.literal(false), error: z.string() });
-export type AnswerValidationResult = z.infer<typeof successSchema> | z.infer<typeof failureSchema>;
+export type AnswerValidationResult =
+  | { success: true; data: DeepAnswers }
+  | { success: false; error: string };
 
 export function validateDirectionAnswers(directionId: FixedDirectionId, input: unknown): AnswerValidationResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {

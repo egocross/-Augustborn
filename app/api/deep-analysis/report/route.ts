@@ -1,0 +1,103 @@
+import { z } from 'zod';
+
+import { createChart } from '@/lib/bazi/chart';
+import { validateDirectionAnswers } from '@/lib/deep-analysis/answers';
+import { DeepAnalysisError, generateDeepReportStream } from '@/lib/deep-analysis/gemini';
+import { verifyPaymentReceipt } from '@/lib/deep-analysis/payment';
+import { persistDeepSession } from '@/lib/deep-analysis/persistence';
+import { createBirthSummary, createFreeReportSummary } from '@/lib/deep-analysis/summaries';
+import { DeepAnswersSchema, DeepReportSchema, DirectionIdSchema, DynamicQuestionSchema } from '@/lib/deep-analysis/types';
+import { ReportSchema } from '@/lib/gemini/schema';
+import { analysisSchema } from '@/lib/validation';
+
+export const maxDuration = 300;
+
+const RequestSchema = z.object({
+  sessionId: z.string().min(8).max(100), paymentReceipt: z.string().min(10).max(5000),
+  birthInput: analysisSchema, freeReport: ReportSchema, selectedDirection: DirectionIdSchema,
+  questionnaireVersion: z.literal('v1'), answers: DeepAnswersSchema,
+  optionalContext: z.string().max(2000), customQuestion: z.string().max(1000).nullable(),
+  customQuestions: z.array(DynamicQuestionSchema).max(5),
+}).strict();
+
+type Dependencies = {
+  generate: typeof generateDeepReportStream;
+  persist: typeof persistDeepSession;
+  verifyReceipt: typeof verifyPaymentReceipt;
+};
+
+const defaults: Dependencies = { generate: generateDeepReportStream, persist: persistDeepSession, verifyReceipt: verifyPaymentReceipt };
+
+const validateCustomAnswers = (questions: z.infer<typeof DynamicQuestionSchema>[], answers: Record<string, { optionIds?: string[] }>) => {
+  if (questions.length !== 0 && (questions.length < 3 || questions.length > 5)) return false;
+  if (Object.keys(answers).some((id) => !questions.some((question) => question.id === id))) return false;
+  return questions.every((question) => {
+    const selected = [...new Set(answers[question.id]?.optionIds ?? [])];
+    return selected.length > 0 && (!question.maxSelect || selected.length <= question.maxSelect)
+      && selected.every((id) => question.options.some((option) => option.id === id));
+  });
+};
+
+export const createDeepReportHandler = (dependencies: Dependencies = defaults) => async (request: Request) => {
+  const parsed = RequestSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return Response.json({ code: 'invalid_input', error: '请检查提交内容。' }, { status: 400 });
+  const input = parsed.data;
+  const verified = dependencies.verifyReceipt(input.paymentReceipt, { sessionId: input.sessionId, directionId: input.selectedDirection });
+  if (!verified.success) return Response.json({ code: 'payment_invalid', error: '支付凭证无效或已过期。' }, { status: 402 });
+
+  const answerResult = input.selectedDirection === 'custom'
+    ? { success: validateCustomAnswers(input.customQuestions, input.answers) }
+    : validateDirectionAnswers(input.selectedDirection, input.answers);
+  if (!answerResult.success || (input.selectedDirection === 'custom' && !input.customQuestion?.trim())) {
+    return Response.json({ code: 'invalid_input', error: '问卷答案不完整。' }, { status: 400 });
+  }
+
+  let chart;
+  try { chart = createChart(input.birthInput); } catch {
+    return Response.json({ code: 'invalid_input', error: '出生信息无法计算。' }, { status: 400 });
+  }
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const abortController = new AbortController();
+      const deadline = setTimeout(() => abortController.abort(), 240_000);
+      const heartbeat = setInterval(() => send({ type: 'heartbeat' }), 15_000);
+      const baseEvent = {
+        id: input.sessionId, selectedDirection: input.selectedDirection, questionnaireVersion: input.questionnaireVersion,
+        answers: input.answers, optionalContext: input.optionalContext, customQuestion: input.customQuestion,
+        paymentStatus: 'paid' as const,
+      };
+      try {
+        send({ type: 'status', stage: 'preparing' });
+        await dependencies.persist({ ...baseEvent, reportStatus: 'generating', reportResult: null });
+        const iterator = dependencies.generate({
+          birthProfile: createBirthSummary(input.birthInput, chart),
+          freeReportSummary: createFreeReportSummary(input.freeReport), directionId: input.selectedDirection,
+          questionnaireVersion: input.questionnaireVersion, answers: input.answers,
+          optionalContext: input.optionalContext, customQuestion: input.customQuestion, cityContext: null,
+        }, { signal: abortController.signal });
+        let text = '';
+        while (true) {
+          const next = await iterator.next();
+          if (next.done) break;
+          text += next.value;
+          send({ type: 'delta', text: next.value });
+        }
+        const report = DeepReportSchema.parse(JSON.parse(text));
+        await dependencies.persist({ ...baseEvent, reportStatus: 'complete', reportResult: report });
+        send({ type: 'report', report });
+      } catch (error) {
+        const code = error instanceof DeepAnalysisError ? error.code : error instanceof z.ZodError || error instanceof SyntaxError ? 'parse_failed' : 'upstream_failed';
+        await dependencies.persist({ ...baseEvent, reportStatus: 'failed', reportResult: null });
+        send({ type: 'error', code, message: code === 'timeout' ? '生成超时，请重试。' : '深度报告生成失败，请重试。' });
+      } finally {
+        clearTimeout(deadline); clearInterval(heartbeat); controller.close();
+      }
+    },
+  });
+  return new Response(stream, { headers: { 'cache-control': 'no-cache, no-transform', 'content-type': 'text/event-stream; charset=utf-8' } });
+};
+
+export const POST = createDeepReportHandler();
