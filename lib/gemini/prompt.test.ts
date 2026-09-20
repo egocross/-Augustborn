@@ -25,6 +25,12 @@ it('requires the report to be written in Simplified Chinese', () => {
   expect(createReportPrompt(chart)).toContain('简体中文');
 });
 
+it('keeps the product request line verbatim', () => {
+  expect(createReportPrompt(chart)).toContain(
+    '人生是一系列决策，需要在正确的地方选择正确的行业，从事什么工作、与谁一起共事都非常重要，结合我的八字，为我指明方向或者提供建议？（注意⚠️不要迎合我，不看过往记录，客观分析）',
+  );
+});
+
 it('guides the model through the requested decision-report narrative', () => {
   const prompt = createReportPrompt(chart);
 
