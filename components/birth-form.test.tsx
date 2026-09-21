@@ -2,6 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+
 import { createInitialDeepState, saveDeepSession } from '@/lib/deep-analysis/session';
 import { BirthForm } from './birth-form';
 
@@ -27,6 +30,7 @@ const streamResponse = (events: unknown[]) => {
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  push.mockReset();
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(

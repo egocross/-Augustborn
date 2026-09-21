@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import type { Report } from '@/lib/gemini/schema';
 import { QUESTION_BANK_V1 } from '@/lib/deep-analysis/questions';
@@ -10,7 +11,6 @@ import { createInitialDeepState, deepFlowReducer, loadDeepSession, saveDeepSessi
 import type { AnswerValue, FixedDirectionId } from '@/lib/deep-analysis/types';
 import { DirectionPicker } from './direction-picker';
 import { DeepGeneratingModal } from './deep-generating-modal';
-import { DeepReportView } from './deep-report-view';
 import { QuestionStep } from './question-step';
 
 type BirthInput = { birthDate: string; birthTime: string | null; birthRegion: string };
@@ -24,6 +24,7 @@ const paymentTitles = {
 } as const;
 
 export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput: BirthInput; freeReport: Report; price: string }) {
+  const router = useRouter();
   const [state, dispatch] = useReducer(
     deepFlowReducer,
     createInitialDeepState('pending-session', { birthInput, freeReport }),
@@ -84,10 +85,17 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
       try {
         const response = await fetch('/api/deep-analysis/report', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ sessionId: state.sessionId, paymentReceipt: receipt, birthInput, freeReport, selectedDirection: state.selectedDirection, questionnaireVersion: 'v1', answers: state.answers, optionalContext: state.optionalContext, customQuestion: state.selectedDirection === 'custom' ? state.customQuestion : null, customQuestions: state.customQuestions }) });
         if (!response.ok || !response.body) { const payload = await response.json().catch(() => ({})); throw new Error(payload.code || 'upstream_failed'); }
-        dispatch({
-          type: 'generationSucceeded',
-          report: await consumeDeepReportStream(response.body, { onStatus: setGenerationStage }),
-        });
+        const report = await consumeDeepReportStream(response.body, { onStatus: setGenerationStage });
+        const completedState = {
+          ...state,
+          paymentReceipt: receipt,
+          report,
+          step: 'report' as const,
+          errorCode: null,
+        };
+        saveDeepSession(completedState, window.sessionStorage);
+        dispatch({ type: 'restore', state: completedState });
+        router.push('/deep-report');
       } finally { clearTimeout(timer); }
     } catch (error) { dispatch({ type: 'generationFailed', code: error instanceof Error ? error.message : 'upstream_failed' }); }
   }
@@ -107,6 +115,6 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
   if (state.step === 'optional-context') return <section className="deep-panel question-panel"><p className="step-label">最后一步</p><h2>还有什么现实情况希望我们考虑？</h2><p className="deep-lead">例如收入压力、家庭情况、学历限制或已考虑的选项。这一步不是必填。</p><textarea aria-label="补充情况" maxLength={2000} onChange={(event) => dispatch({ type: 'setOptionalContext', value: event.target.value })} rows={6} value={state.optionalContext} /><button className="primary-button" onClick={() => dispatch({ type: 'goToPayment' })} type="button">查看深度报告说明</button></section>;
   if (state.step === 'payment') return <section className="deep-panel payment-panel"><p className="eyebrow">专项深度分析</p><h2>{state.selectedDirection ? paymentTitles[state.selectedDirection] : '你的深度分析已经准备好'}</h2><p className="deep-lead">系统会综合出生信息、基础报告、校准问题与补充信息，生成更具体的专项报告。</p><p className="price-label">{price}</p>{state.errorCode ? <p className="form-error" role="alert">上次操作未完成，你的答案已保留，可以重试。</p> : null}<button className="primary-button" onClick={generateReport} type="button">生成我的深度报告</button><p className="mock-note">当前为 Mock Payment，不会实际扣款。</p></section>;
   if (state.step === 'generating') return <DeepGeneratingModal stage={generationStage} />;
-  if (state.step === 'report' && state.report) return <DeepReportView report={state.report} />;
+  if (state.step === 'report' && state.report) return <section className="deep-panel deep-report-ready"><p className="eyebrow">专项报告已生成</p><h2>{state.report.title}</h2><p className="deep-lead">完整报告已放在独立阅读页面中，你可以随时返回继续查看。</p><button className="primary-button" onClick={() => router.push('/deep-report')} type="button">查看深度报告</button></section>;
   return null;
 }

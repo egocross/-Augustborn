@@ -2,6 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { BirthForm } from '@/components/birth-form';
+import { loadDeepSession } from '@/lib/deep-analysis/session';
+
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 const freeReport = { disclaimer: '仅供参考', sections: [{ heading: '核心性格与底层矛盾', body: '你倾向先理清问题再行动。', bullets: [] }] };
 const deepReport = {
@@ -25,6 +29,7 @@ const customQuestions = [1, 2, 3].map((number) => ({
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  push.mockReset();
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url === '/api/analyze') return sseResponse([{ type: 'delta', text: JSON.stringify(freeReport) }, { type: 'report', report: freeReport }]);
@@ -51,7 +56,8 @@ async function finishAndGenerate() {
   fireEvent.click(screen.getByRole('button', { name: '查看深度报告说明' }));
   expect(screen.getByText('¥29.90')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '生成我的深度报告' }));
-  await waitFor(() => expect(screen.getByText('你的专项深度分析')).toBeTruthy());
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/deep-report'));
+  expect(loadDeepSession(window.sessionStorage)?.report?.title).toBe('你的专项深度分析');
 }
 
 it('completes free report to work direction to paid deep report', async () => {

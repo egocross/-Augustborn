@@ -1,7 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-import { createInitialDeepState, saveDeepSession } from '@/lib/deep-analysis/session';
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+
+import { createInitialDeepState, loadDeepSession, saveDeepSession } from '@/lib/deep-analysis/session';
 import { DeepAnalysisFlow } from './deep-analysis-flow';
 
 const props = {
@@ -10,7 +13,23 @@ const props = {
   price: '¥29.90',
 };
 
-afterEach(() => cleanup());
+const deepReport = {
+  title: '你的职业方向深度分析', summary: '先验证最重要的方向。', keyFindings: ['聚焦', '验证'],
+  cards: [{ id: 'c1', title: '方向', summary: '摘要', details: ['详情'], evidence: [] }, { id: 'c2', title: '边界', summary: '摘要', details: ['详情'], evidence: [] }],
+  risks: [{ title: '风险', detail: '细节', mitigation: '应对' }],
+  nextActions: [{ title: '行动一', detail: '执行', timeframe: '本周' }, { title: '行动二', detail: '复盘', timeframe: '下周' }],
+  reflectionQuestions: [], disclaimer: '仅供探索。',
+};
+
+beforeEach(() => {
+  window.sessionStorage.clear();
+  push.mockReset();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 it('starts with five freely selectable exploration directions', async () => {
   render(<DeepAnalysisFlow {...props} />);
@@ -47,4 +66,43 @@ it('uses a direction-specific payment title', async () => {
   }, window.sessionStorage);
   render(<DeepAnalysisFlow {...props} />);
   expect(await screen.findByText('你的城市发展深度分析已经准备好')).toBeTruthy();
+});
+
+it('saves a completed report and opens the dedicated report page', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'work',
+    step: 'payment',
+    paymentReceipt: 'signed-receipt',
+    answers: {
+      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
+      work_q5: { optionIds: ['work_q5_growth'] },
+    },
+  }, window.sessionStorage);
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new ReadableStream<Uint8Array>({ start(controller) {
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'report', report: deepReport })}\n\n`));
+    controller.close();
+  } }), { status: 200 })));
+
+  render(<DeepAnalysisFlow {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: '生成我的深度报告' }));
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/deep-report'));
+  expect(loadDeepSession(window.sessionStorage)?.report?.title).toBe('你的职业方向深度分析');
+});
+
+it('keeps a compact entry on the free-report page after a deep report exists', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'work',
+    step: 'report',
+    report: deepReport,
+  }, window.sessionStorage);
+
+  render(<DeepAnalysisFlow {...props} />);
+  const openButton = await screen.findByRole('button', { name: '查看深度报告' });
+  expect(screen.queryByText('先看结论')).toBeNull();
+  fireEvent.click(openButton);
+  expect(push).toHaveBeenCalledWith('/deep-report');
 });
