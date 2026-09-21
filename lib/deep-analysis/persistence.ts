@@ -16,9 +16,9 @@ export type DeepSessionEvent = {
 };
 
 export async function persistDeepSession(event: DeepSessionEvent): Promise<{ persisted: boolean }> {
-  const client = getSupabaseAdmin();
-  if (!client) return { persisted: false };
   try {
+    const client = getSupabaseAdmin();
+    if (!client) return { persisted: false };
     const { error } = await client.from('deep_report_sessions').upsert({
       id: event.id,
       selected_direction: event.selectedDirection,

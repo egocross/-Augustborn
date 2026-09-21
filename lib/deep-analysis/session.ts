@@ -35,6 +35,7 @@ export function createInitialDeepState(
 }
 
 export type DeepFlowAction =
+  | { type: 'restore'; state: DeepFlowState }
   | { type: 'chooseDirection'; directionId: DirectionId }
   | { type: 'setAnswer'; questionId: string; answer: DeepAnswers[string] }
   | { type: 'setCustomQuestion'; value: string }
@@ -52,6 +53,7 @@ export type DeepFlowAction =
 
 export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): DeepFlowState {
   switch (action.type) {
+    case 'restore': return action.state;
     case 'chooseDirection': return { ...state, selectedDirection: action.directionId, step: action.directionId === 'custom' ? 'custom-question' : 'questions', questionIndex: 0, answers: {}, customQuestions: [], errorCode: null, paymentReceipt: null, report: null };
     case 'setAnswer': return { ...state, answers: { ...state.answers, [action.questionId]: action.answer }, errorCode: null };
     case 'setCustomQuestion': return { ...state, customQuestion: action.value, errorCode: null };
@@ -80,8 +82,29 @@ export function loadDeepSession(storage: Storage = sessionStorage): DeepFlowStat
     const envelope = JSON.parse(raw) as { version?: unknown; state?: unknown };
     if (envelope.version !== SESSION_VERSION) return null;
     const parsed = DeepFlowStateSchema.safeParse(envelope.state);
-    return parsed.success ? parsed.data : null;
+    return parsed.success ? normalizeRestoredState(parsed.data) : null;
   } catch { return null; }
+}
+
+function normalizeRestoredState(state: DeepFlowState): DeepFlowState {
+  const reset = () => createInitialDeepState(state.sessionId, {
+    ...(state.birthInput ? { birthInput: state.birthInput } : {}),
+    ...(state.freeReport ? { freeReport: state.freeReport } : {}),
+  });
+
+  if (state.step === 'direction') return { ...state, selectedDirection: null, questionIndex: 0 };
+  if (!state.selectedDirection) return reset();
+  if (state.step === 'custom-loading') {
+    return state.selectedDirection === 'custom' ? { ...state, step: 'custom-question' } : reset();
+  }
+  if (state.step === 'generating') return { ...state, step: 'payment', errorCode: 'interrupted' };
+  if (state.step === 'custom-question' && state.selectedDirection !== 'custom') return reset();
+  if (state.step === 'questions') {
+    const total = state.selectedDirection === 'custom' ? state.customQuestions.length : 5;
+    if (total === 0 || state.questionIndex >= total) return reset();
+  }
+  if (state.step === 'report' && !state.report) return reset();
+  return state;
 }
 
 export function clearDeepSession(storage: Storage = sessionStorage) {

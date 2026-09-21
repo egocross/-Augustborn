@@ -37,4 +37,9 @@ describe('persistDeepSession', () => {
     upsert.mockRejectedValue(new Error('private connection detail'));
     await expect(persistDeepSession(event)).resolves.toEqual({ persisted: false });
   });
+
+  it('returns false when creating the Supabase client throws', async () => {
+    getSupabaseAdmin.mockImplementation(() => { throw new Error('invalid Supabase configuration'); });
+    await expect(persistDeepSession(event)).resolves.toEqual({ persisted: false });
+  });
 });

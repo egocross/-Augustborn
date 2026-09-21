@@ -47,4 +47,25 @@ describe('deep flow session', () => {
     expect(next.step).toBe('custom-question');
     expect(next.customQuestion).toBe(loading.customQuestion);
   });
+
+  it('normalizes transient restored steps into safe retry states', () => {
+    const target = storage();
+    const generating = {
+      ...createInitialDeepState('session-123'),
+      selectedDirection: 'work' as const,
+      step: 'generating' as const,
+      paymentReceipt: 'signed-receipt',
+    };
+    saveDeepSession(generating, target);
+    expect(loadDeepSession(target)).toMatchObject({ step: 'payment', paymentReceipt: 'signed-receipt' });
+
+    saveDeepSession({ ...generating, selectedDirection: 'custom', step: 'custom-loading', customQuestion: '是否转岗？' }, target);
+    expect(loadDeepSession(target)).toMatchObject({ step: 'custom-question', customQuestion: '是否转岗？' });
+  });
+
+  it('resets semantically impossible restored states to direction selection', () => {
+    const target = storage();
+    saveDeepSession({ ...createInitialDeepState('session-123'), step: 'report' }, target);
+    expect(loadDeepSession(target)).toMatchObject({ step: 'direction', selectedDirection: null, report: null });
+  });
 });

@@ -57,4 +57,49 @@ describe('POST /api/deep-analysis/report', () => {
     const events = await readEvents(await POST(request(valid)));
     expect(events.at(-1)).toEqual({ type: 'report', report });
   });
+
+  it('delivers a valid report even when the persistence dependency throws', async () => {
+    persist.mockRejectedValue(new Error('database offline'));
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const events = await readEvents(await POST(request(valid)));
+    expect(events.at(-1)).toEqual({ type: 'report', report });
+  });
+
+  it('rejects multiple selections for a custom single-choice question', async () => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const response = await POST(request({
+      ...valid,
+      selectedDirection: 'custom',
+      customQuestion: '我是否应该转岗？',
+      customQuestions: [1, 2, 3].map((number) => ({
+        id: `custom_q${number}`,
+        type: 'single',
+        text: `补充问题 ${number}`,
+        required: true,
+        options: [{ id: `custom_q${number}_a`, label: '选项 A' }, { id: `custom_q${number}_b`, label: '选项 B' }],
+      })),
+      answers: {
+        custom_q1: { optionIds: ['custom_q1_a', 'custom_q1_b'] },
+        custom_q2: { optionIds: ['custom_q2_a'] },
+        custom_q3: { optionIds: ['custom_q3_a'] },
+      },
+    }));
+    expect(response.status).toBe(400);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('buffers model chunks server-side and only streams validated status and report events', async () => {
+    generate.mockImplementation(async function* () {
+      const value = JSON.stringify(report);
+      yield value.slice(0, 20);
+      yield value.slice(20);
+    });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const events = await readEvents(await POST(request(valid)));
+    expect(events.some((event) => event.type === 'delta')).toBe(false);
+    expect(events.filter((event) => event.type === 'status').map((event) => event.stage)).toEqual([
+      'preparing', 'analyzing', 'structuring', 'validating',
+    ]);
+    expect(events.at(-1)).toEqual({ type: 'report', report });
+  });
 });

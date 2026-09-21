@@ -33,7 +33,10 @@ const validateCustomAnswers = (questions: z.infer<typeof DynamicQuestionSchema>[
   if (Object.keys(answers).some((id) => !questions.some((question) => question.id === id))) return false;
   return questions.every((question) => {
     const selected = [...new Set(answers[question.id]?.optionIds ?? [])];
-    return selected.length > 0 && (!question.maxSelect || selected.length <= question.maxSelect)
+    const withinLimit = question.type === 'single'
+      ? selected.length === 1
+      : !question.maxSelect || selected.length <= question.maxSelect;
+    return selected.length > 0 && withinLimit
       && selected.every((id) => question.options.some((option) => option.id === id));
   });
 };
@@ -61,6 +64,9 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const safePersist = async (event: Parameters<typeof dependencies.persist>[0]) => {
+        try { await dependencies.persist(event); } catch { /* Optional persistence never blocks delivery. */ }
+      };
       const abortController = new AbortController();
       const deadline = setTimeout(() => abortController.abort(), 240_000);
       const heartbeat = setInterval(() => send({ type: 'heartbeat' }), 15_000);
@@ -71,7 +77,8 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
       };
       try {
         send({ type: 'status', stage: 'preparing' });
-        await dependencies.persist({ ...baseEvent, reportStatus: 'generating', reportResult: null });
+        await safePersist({ ...baseEvent, reportStatus: 'generating', reportResult: null });
+        send({ type: 'status', stage: 'analyzing' });
         const iterator = dependencies.generate({
           birthProfile: createBirthSummary(input.birthInput, chart),
           freeReportSummary: createFreeReportSummary(input.freeReport), directionId: input.selectedDirection,
@@ -79,18 +86,23 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
           optionalContext: input.optionalContext, customQuestion: input.customQuestion, cityContext: null,
         }, { signal: abortController.signal });
         let text = '';
+        let receivedFirstChunk = false;
         while (true) {
           const next = await iterator.next();
           if (next.done) break;
+          if (!receivedFirstChunk) {
+            receivedFirstChunk = true;
+            send({ type: 'status', stage: 'structuring' });
+          }
           text += next.value;
-          send({ type: 'delta', text: next.value });
         }
+        send({ type: 'status', stage: 'validating' });
         const report = DeepReportSchema.parse(JSON.parse(text));
-        await dependencies.persist({ ...baseEvent, reportStatus: 'complete', reportResult: report });
+        await safePersist({ ...baseEvent, reportStatus: 'complete', reportResult: report });
         send({ type: 'report', report });
       } catch (error) {
         const code = error instanceof DeepAnalysisError ? error.code : error instanceof z.ZodError || error instanceof SyntaxError ? 'parse_failed' : 'upstream_failed';
-        await dependencies.persist({ ...baseEvent, reportStatus: 'failed', reportResult: null });
+        await safePersist({ ...baseEvent, reportStatus: 'failed', reportResult: null });
         send({ type: 'error', code, message: code === 'timeout' ? '生成超时，请重试。' : '深度报告生成失败，请重试。' });
       } finally {
         clearTimeout(deadline); clearInterval(heartbeat); controller.close();

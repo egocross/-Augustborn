@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
+import { createInitialDeepState, saveDeepSession } from '@/lib/deep-analysis/session';
 import { BirthForm } from './birth-form';
 
 const report = {
@@ -39,6 +41,18 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
+it('does not read session storage during its hydration-sensitive initial render', () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678'),
+    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+    freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+  }, window.sessionStorage);
+
+  const html = renderToString(<BirthForm deepReportPrice="¥29.90" />);
+  expect(html).toContain('发现更适合你的方向');
+  expect(html).not.toContain('旧报告');
+});
+
 it('sends the birth date, time and region, then renders the streamed report', async () => {
   render(<BirthForm />);
 
@@ -52,7 +66,7 @@ it('sends the birth date, time and region, then renders the streamed report', as
   fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
 
   await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
-  expect(screen.getByText('接下来，你最想进一步弄清楚什么？')).toBeTruthy();
+  expect(await screen.findByText('接下来，你最想进一步弄清楚什么？')).toBeTruthy();
   expect(fetch).toHaveBeenCalledWith('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

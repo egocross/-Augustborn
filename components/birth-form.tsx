@@ -35,13 +35,26 @@ const loadingStages = [
 ];
 
 export function BirthForm({ deepReportPrice = '¥29.90' }: { deepReportPrice?: string }) {
-  const restored = typeof window !== 'undefined' ? loadDeepSession(window.sessionStorage) : null;
-  const [form, setForm] = useState<FormState>(() => restored?.birthInput ? { ...restored.birthInput, birthTime: restored.birthInput.birthTime ?? '', timeUnknown: restored.birthInput.birthTime === null } : initialFormState);
-  const [report, setReport] = useState<Report | null>(() => restored?.freeReport ?? null);
+  const [form, setForm] = useState<FormState>(initialFormState);
+  const [report, setReport] = useState<Report | null>(null);
   const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [loadingStage, setLoadingStage] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const restored = loadDeepSession(window.sessionStorage);
+      if (!restored?.birthInput || !restored.freeReport) return;
+      setForm({
+        ...restored.birthInput,
+        birthTime: restored.birthInput.birthTime ?? '',
+        timeUnknown: restored.birthInput.birthTime === null,
+      });
+      setReport(restored.freeReport);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (status !== 'loading') {
@@ -252,7 +265,7 @@ export function BirthForm({ deepReportPrice = '¥29.90' }: { deepReportPrice?: s
               {status === 'loading' ? '正在生成…' : '生成我的探索报告'}
             </button>
             <p className="privacy-notice">
-              不保存出生信息。提交内容仅用于本次分析，报告只保留在当前页面内存中。
+              出生信息不写入账户或数据库。为避免刷新丢失，本标签页会临时保存在浏览器 Session 中，关闭标签页后清除。
             </p>
           </div>
         </form>
