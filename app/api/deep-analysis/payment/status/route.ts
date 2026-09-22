@@ -22,7 +22,7 @@ export function createPaymentStatusHandler(_dependencies: {
 
 export const POST = createPaymentStatusHandler({
   async getStatus(input) {
-    const { getSandboxPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
-    return getSandboxPaymentCoordinator().getStatus(input);
+    const { getPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
+    return getPaymentCoordinator().getStatus(input);
   },
 });

@@ -1,13 +1,17 @@
 import type { DirectionId } from './types';
 import { issuePaymentReceipt } from './payment';
 
+export const PAYMENT_PROVIDER_IDS = ['alipay_sandbox', 'alipay'] as const;
+
+export type PaymentProviderId = (typeof PAYMENT_PROVIDER_IDS)[number];
+
 export type PaymentOrder = {
   id: string;
   outTradeNo: string;
   sessionId: string;
   directionId: DirectionId;
   amount: string;
-  provider: 'alipay_sandbox';
+  provider: PaymentProviderId;
   status: 'pending' | 'paid' | 'failed' | 'expired';
   paidAt: number | null;
   providerTradeNo: string | null;
@@ -33,11 +37,12 @@ export type PaymentProvider = {
 export function createPaymentCoordinator(_config: {
   repository: PaymentOrderRepository;
   provider: PaymentProvider;
+  providerId?: PaymentProviderId;
   amount: string;
   receiptSecret: string;
   now?: () => number;
 }) {
-  const config = { ..._config, now: _config.now ?? Date.now };
+  const config = { providerId: 'alipay_sandbox' as PaymentProviderId, ..._config, now: _config.now ?? Date.now };
   return {
     async createCheckout(input: { sessionId: string; directionId: DirectionId }) {
       const id = crypto.randomUUID();
@@ -48,7 +53,7 @@ export function createPaymentCoordinator(_config: {
         sessionId: input.sessionId,
         directionId: input.directionId,
         amount: config.amount,
-        provider: 'alipay_sandbox',
+        provider: config.providerId,
       });
       return config.provider.createCheckout({
         orderId: order.id,

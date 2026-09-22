@@ -59,14 +59,14 @@ ALIPAY_RETURN_URL=https://your-public-preview.example.com/explore
 | `REPORT_PROVIDER` | 否 | `gemini`（默认）或 `sample` |
 | `DEEP_REPORT_PRICE` | 是 | 付费页价格，当前 `¥29.90` |
 | `DEEP_REPORT_AMOUNT` | 支付宝时是 | 服务端签名金额，如 `29.90`，不含货币符号 |
-| `PAYMENT_PROVIDER` | 否 | `mock` 或 `alipay_sandbox`，默认 `mock` |
+| `PAYMENT_PROVIDER` | 否 | `mock` / `alipay_sandbox` / `alipay`，默认 `mock` |
 | `PAYMENT_RECEIPT_SECRET` | 支付宝时是 | 支付确认后的内部报告凭证签名密钥 |
 | `MOCK_PAYMENT_SECRET` | 是 | Mock 支付凭证 HMAC 签名密钥 |
 | `MOCK_PAYMENT_OUTCOME` | 否 | `success` 或 `failure`，用于测试支付失败 |
 | `SUPABASE_URL` | 否 | 反馈与会话里程碑持久化 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 否 | 仅服务端使用 |
-| `APP_URL` | 支付宝时是 | 可被支付宝访问的公网 HTTPS 根地址 |
-| `ALIPAY_*` | 支付宝时是 | 沙箱 App ID、卖家 ID、应用私钥、支付宝公钥、网关及回调地址 |
+| `APP_URL` | 支付宝时是 | 异步通知可被支付宝访问的公网 HTTPS 根地址 |
+| `ALIPAY_*` | 支付宝时是 | App ID、卖家 ID、应用私钥、支付宝公钥、网关及回调地址；`alipay` 模式需换成正式应用的正式密钥 |
 
 不要给密钥加 `NEXT_PUBLIC_` 前缀。Vercel 修改变量后需重新部署。
 

@@ -61,8 +61,8 @@ async function handleMockPayment(request: Request) {
 
 const handleSandboxPayment = createPaymentHandler({
   async createSandboxCheckout(input, request) {
-    const { getSandboxPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
-    return getSandboxPaymentCoordinator({ browserOrigin: request.headers.get('origin') }).createCheckout(input);
+    const { getPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
+    return getPaymentCoordinator({ browserOrigin: request.headers.get('origin') }).createCheckout(input);
   },
 });
 

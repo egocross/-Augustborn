@@ -1,5 +1,5 @@
 import { DirectionIdSchema } from './types';
-import type { PaymentOrder, PaymentOrderRepository } from './payment-orders';
+import { PAYMENT_PROVIDER_IDS, type PaymentOrder, type PaymentOrderRepository } from './payment-orders';
 
 type SupabaseLikeClient = {
   from(table: string): {
@@ -29,7 +29,7 @@ function mapRow(value: unknown): PaymentOrder {
     || typeof row.id !== 'string'
     || typeof row.out_trade_no !== 'string'
     || typeof row.session_id !== 'string'
-    || (row.provider !== 'alipay_sandbox')
+    || !PAYMENT_PROVIDER_IDS.includes(row.provider as (typeof PAYMENT_PROVIDER_IDS)[number])
     || !['pending', 'paid', 'failed', 'expired'].includes(row.status ?? '')
   ) throw new Error('invalid_payment_order_row');
   return {
@@ -38,7 +38,7 @@ function mapRow(value: unknown): PaymentOrder {
     sessionId: row.session_id,
     directionId: direction.data,
     amount: Number(row.amount).toFixed(2),
-    provider: row.provider,
+    provider: row.provider as PaymentOrder['provider'],
     status: row.status as PaymentOrder['status'],
     paidAt: row.paid_at ? new Date(row.paid_at).getTime() : null,
     providerTradeNo: row.provider_trade_no ?? null,

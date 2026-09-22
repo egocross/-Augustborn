@@ -82,4 +82,53 @@ describe('payment coordinator', () => {
 
     expect(await coordinator.getStatus({ orderId: order.id, sessionId: 'session-attacker' })).toEqual({ status: 'not_found' });
   });
+
+  it('records the configured provider so live and sandbox orders stay distinguishable', async () => {
+    const captured: Array<Omit<PaymentOrder, 'status' | 'paidAt' | 'providerTradeNo'>> = [];
+    const coordinator = createPaymentCoordinator({
+      repository: {
+        create: async (input) => {
+          captured.push(input);
+          return { ...input, status: 'pending', paidAt: null, providerTradeNo: null };
+        },
+        findById: async () => null,
+        findByOutTradeNo: async () => null,
+        markPaid: async () => order,
+      },
+      provider: {
+        createCheckout: async (input) => ({ status: 'pending', orderId: input.orderId, checkoutUrl: 'https://example.test/pay' }),
+        verifyNotification: () => ({ success: false }),
+      },
+      providerId: 'alipay',
+      amount: '29.90',
+      receiptSecret: 'test-payment-receipt-secret',
+    });
+
+    await coordinator.createCheckout({ sessionId: 'session-12345678', directionId: 'city' });
+    expect(captured[0]?.provider).toBe('alipay');
+  });
+
+  it('defaults to the sandbox provider label for the test environment', async () => {
+    const captured: Array<Omit<PaymentOrder, 'status' | 'paidAt' | 'providerTradeNo'>> = [];
+    const coordinator = createPaymentCoordinator({
+      repository: {
+        create: async (input) => {
+          captured.push(input);
+          return { ...input, status: 'pending', paidAt: null, providerTradeNo: null };
+        },
+        findById: async () => null,
+        findByOutTradeNo: async () => null,
+        markPaid: async () => order,
+      },
+      provider: {
+        createCheckout: async (input) => ({ status: 'pending', orderId: input.orderId, checkoutUrl: 'https://example.test/pay' }),
+        verifyNotification: () => ({ success: false }),
+      },
+      amount: '29.90',
+      receiptSecret: 'test-payment-receipt-secret',
+    });
+
+    await coordinator.createCheckout({ sessionId: 'session-12345678', directionId: 'city' });
+    expect(captured[0]?.provider).toBe('alipay_sandbox');
+  });
 });

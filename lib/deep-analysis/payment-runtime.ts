@@ -4,9 +4,14 @@ import { AlipaySdk } from 'alipay-sdk';
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { createAlipayPaymentProvider } from './alipay';
-import { createPaymentCoordinator } from './payment-orders';
+import { createPaymentCoordinator, type PaymentProviderId } from './payment-orders';
 import { createSupabasePaymentOrderRepository } from './payment-repository';
 import { resolveBrowserReturnUrl } from './public-url';
+
+const GATEWAYS: Record<PaymentProviderId, string> = {
+  alipay: 'https://openapi.alipay.com/gateway.do',
+  alipay_sandbox: 'https://openapi-sandbox.dl.alipaydev.com/gateway.do',
+};
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -29,16 +34,24 @@ const publicHttpsUrl = (name: string, fallbackPath: string) => {
   return url.toString();
 };
 
-export function getSandboxPaymentCoordinator(options: { browserOrigin?: string | null } = {}) {
+/**
+ * `PAYMENT_PROVIDER=alipay` targets the live Alipay gateway and requires a
+ * published app with the WAP payment product enabled and its own keys;
+ * `alipay_sandbox` keeps the test environment.
+ */
+export function getPaymentCoordinator(options: { browserOrigin?: string | null } = {}) {
   const client = getSupabaseAdmin();
   if (!client) throw new Error('missing_supabase_payment_storage');
 
+  const providerId: PaymentProviderId = process.env.PAYMENT_PROVIDER?.trim().toLowerCase() === 'alipay'
+    ? 'alipay'
+    : 'alipay_sandbox';
   const appId = required('ALIPAY_APP_ID');
   const gateway = new AlipaySdk({
     appId,
     privateKey: restoreMultilineSecret(required('ALIPAY_PRIVATE_KEY')),
     alipayPublicKey: restoreMultilineSecret(required('ALIPAY_PUBLIC_KEY')),
-    gateway: process.env.ALIPAY_GATEWAY?.trim() || 'https://openapi-sandbox.dl.alipaydev.com/gateway.do',
+    gateway: process.env.ALIPAY_GATEWAY?.trim() || GATEWAYS[providerId],
     keyType: process.env.ALIPAY_KEY_TYPE?.trim().toUpperCase() === 'PKCS1' ? 'PKCS1' : 'PKCS8',
     signType: 'RSA2',
   });
@@ -57,6 +70,7 @@ export function getSandboxPaymentCoordinator(options: { browserOrigin?: string |
   return createPaymentCoordinator({
     repository: createSupabasePaymentOrderRepository(client),
     provider,
+    providerId,
     amount: validAmount(process.env.DEEP_REPORT_AMOUNT?.trim() || '29.90'),
     receiptSecret: process.env.PAYMENT_RECEIPT_SECRET?.trim() || required('MOCK_PAYMENT_SECRET'),
   });

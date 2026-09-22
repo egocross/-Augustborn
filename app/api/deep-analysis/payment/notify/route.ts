@@ -20,7 +20,7 @@ export function createPaymentNotificationHandler(_dependencies: {
 
 export const POST = createPaymentNotificationHandler({
   async processNotification(fields) {
-    const { getSandboxPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
-    return getSandboxPaymentCoordinator().processNotification(fields);
+    const { getPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
+    return getPaymentCoordinator().processNotification(fields);
   },
 });
