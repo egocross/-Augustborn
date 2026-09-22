@@ -29,6 +29,7 @@ npm run dev
 GEMINI_API_KEY=your-google-ai-studio-key
 GEMINI_MODEL=gemini-3.1-pro-preview
 GEMINI_REASONING_EFFORT=high
+REPORT_PROVIDER=gemini
 DEEP_REPORT_PRICE=¥29.90
 DEEP_REPORT_AMOUNT=29.90
 PAYMENT_PROVIDER=mock
@@ -55,6 +56,7 @@ ALIPAY_RETURN_URL=https://your-public-preview.example.com/explore
 | `GEMINI_API_KEY` | 是 | Google AI Studio API key，仅服务端 |
 | `GEMINI_MODEL` | 否 | 默认 `gemini-3.1-pro-preview` |
 | `GEMINI_REASONING_EFFORT` | 否 | `low` / `medium` / `high`，默认 `high` |
+| `REPORT_PROVIDER` | 否 | `gemini`（默认）或 `sample` |
 | `DEEP_REPORT_PRICE` | 是 | 付费页价格，当前 `¥29.90` |
 | `DEEP_REPORT_AMOUNT` | 支付宝时是 | 服务端签名金额，如 `29.90`，不含货币符号 |
 | `PAYMENT_PROVIDER` | 否 | `mock` 或 `alipay_sandbox`，默认 `mock` |
@@ -68,11 +70,17 @@ ALIPAY_RETURN_URL=https://your-public-preview.example.com/explore
 
 不要给密钥加 `NEXT_PUBLIC_` 前缀。Vercel 修改变量后需重新部署。
 
+## 报告内容来源
+
+`REPORT_PROVIDER=sample` 时，基础报告、专项深度报告与自定义补充问题全部由本地固定内容生成，不发出任何 Gemini 请求，适合反复调试界面与流程。在 `.env.development.local` 里写入 `REPORT_PROVIDER=sample` 即可启用（当前工作区已设置），生产环境保持 `REPORT_PROVIDER=gemini`。
+
+所有模型调用都收在 `lib/report-provider` 这一层，路由只依赖该层的 `streamBaseReport`、`streamDeepReport` 与 `createCustomQuestions`，替换供应商不需要改动请求处理、流式传输和校验逻辑。
+
 ## 支付边界
 
 `PAYMENT_PROVIDER=mock` 保留本地快速测试。`PAYMENT_PROVIDER=alipay_sandbox` 使用支付宝手机网站支付：服务端创建订单，跳转沙箱收银台，异步回调验签并校验 App ID、卖家 ID、订单号、金额和交易状态后，才签发绑定 Session 和方向的短期报告凭证。支付宝 `return_url` 只用于返回页面，不作为付款成功依据。
 
-沙箱回调无法访问 `localhost`。本地联调时，`APP_URL` 必须是指向当前本地服务的临时 HTTPS 隧道，或使用 Vercel Preview 地址。
+支付宝的异步通知无法访问 `localhost`，因此本地联调时 `APP_URL` 必须是指向当前本地服务的临时 HTTPS 隧道或 Vercel Preview 地址；浏览器回跳地址会自动使用发起支付的那个站点，不再单独依赖 `APP_URL`。
 
 ## Supabase
 

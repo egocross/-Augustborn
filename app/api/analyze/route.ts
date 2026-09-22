@@ -1,7 +1,7 @@
 import type { AnalyzeStreamEvent } from '@/lib/analyze-stream';
 import { createChart } from '@/lib/bazi/chart';
-import { generateReportStream } from '@/lib/gemini/generate-report';
 import { parseReport } from '@/lib/gemini/schema';
+import { streamBaseReport } from '@/lib/report-provider';
 import { analysisSchema } from '@/lib/validation';
 
 const invalidRequest = () => Response.json({ error: '输入格式无效。' }, { status: 400 });
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
       let text = '';
       try {
-        for await (const delta of generateReportStream(chart)) {
+        for await (const delta of streamBaseReport(chart)) {
           text += delta;
           send({ type: 'delta', text: delta });
         }

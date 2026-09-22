@@ -2,9 +2,10 @@ import { z } from 'zod';
 
 import { createChart } from '@/lib/bazi/chart';
 import { validateDirectionAnswers } from '@/lib/deep-analysis/answers';
-import { DeepAnalysisError, generateDeepReportStream } from '@/lib/deep-analysis/gemini';
+import { DeepAnalysisError } from '@/lib/deep-analysis/gemini';
 import { verifyPaymentReceipt } from '@/lib/deep-analysis/payment';
 import { persistDeepSession } from '@/lib/deep-analysis/persistence';
+import { streamDeepReport } from '@/lib/report-provider';
 import { createBirthSummary, createFreeReportSummary } from '@/lib/deep-analysis/summaries';
 import { DeepAnswersSchema, DeepReportSchema, DirectionIdSchema, DynamicQuestionSchema } from '@/lib/deep-analysis/types';
 import { ReportSchema } from '@/lib/gemini/schema';
@@ -21,12 +22,12 @@ const RequestSchema = z.object({
 }).strict();
 
 type Dependencies = {
-  generate: typeof generateDeepReportStream;
+  generate: typeof streamDeepReport;
   persist: typeof persistDeepSession;
   verifyReceipt: typeof verifyPaymentReceipt;
 };
 
-const defaults: Dependencies = { generate: generateDeepReportStream, persist: persistDeepSession, verifyReceipt: verifyPaymentReceipt };
+const defaults: Dependencies = { generate: streamDeepReport, persist: persistDeepSession, verifyReceipt: verifyPaymentReceipt };
 
 const validateCustomAnswers = (questions: z.infer<typeof DynamicQuestionSchema>[], answers: Record<string, { optionIds?: string[] }>) => {
   if (questions.length !== 0 && (questions.length < 3 || questions.length > 5)) return false;

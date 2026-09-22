@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import { DeepAnalysisError, generateCustomQuestions } from '@/lib/deep-analysis/gemini';
+import { DeepAnalysisError } from '@/lib/deep-analysis/gemini';
+import { createCustomQuestions } from '@/lib/report-provider';
 
 const RequestSchema = z.object({
   sessionId: z.string().min(8).max(100),
@@ -18,9 +19,9 @@ const messages = {
   parse_failed: '补充问题生成失败，请重试。',
 } as const;
 
-type Generator = typeof generateCustomQuestions;
+type Generator = typeof createCustomQuestions;
 
-export const createCustomQuestionsHandler = (generator: Generator = generateCustomQuestions) => async (request: Request) => {
+export const createCustomQuestionsHandler = (generator: Generator = createCustomQuestions) => async (request: Request) => {
   const parsed = RequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ code: 'invalid_input', error: '请检查输入内容。' }, { status: 400 });
 
