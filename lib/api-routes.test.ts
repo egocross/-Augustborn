@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { createChart, generateReportStream, getSupabaseAdmin, from, insert } = vi.hoisted(() => ({
   createChart: vi.fn(),
@@ -36,6 +36,8 @@ beforeEach(() => {
   insert.mockReset();
   from.mockReturnValue({ insert });
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe('/api/analyze', () => {
   it('validates the body before calculating a chart', async () => {
@@ -84,22 +86,22 @@ describe('/api/analyze', () => {
 });
 
 describe('/api/feedback', () => {
-  it('inserts only the two approved feedback fields', async () => {
+  it('inserts the rating while preserving the legacy database constraint', async () => {
     getSupabaseAdmin.mockReturnValue({ from });
     insert.mockResolvedValue({ error: null });
 
     const response = await feedback(
-      jsonRequest('http://localhost/api/feedback', { rating: 4, wantsDeepAnalysis: true }),
+      jsonRequest('http://localhost/api/feedback', { rating: 4 }),
     );
 
     expect(response.status).toBe(204);
     expect(from).toHaveBeenCalledWith('feedback');
-    expect(insert).toHaveBeenCalledWith({ rating: 4, wants_deep_analysis: true });
+    expect(insert).toHaveBeenCalledWith({ rating: 4, wants_deep_analysis: false });
   });
 
   it('does not access Supabase for invalid feedback', async () => {
     const response = await feedback(
-      jsonRequest('http://localhost/api/feedback', { rating: 0, wantsDeepAnalysis: false }),
+      jsonRequest('http://localhost/api/feedback', { rating: 0 }),
     );
 
     expect(response.status).toBe(400);
@@ -111,11 +113,22 @@ describe('/api/feedback', () => {
     getSupabaseAdmin.mockReturnValue(null);
 
     const response = await feedback(
-      jsonRequest('http://localhost/api/feedback', { rating: 5, wantsDeepAnalysis: false }),
+      jsonRequest('http://localhost/api/feedback', { rating: 5 }),
     );
 
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: expect.any(String) });
+  });
+
+  it('accepts feedback without persistence when previewing locally', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    getSupabaseAdmin.mockReturnValue(null);
+
+    const response = await feedback(
+      jsonRequest('http://localhost/api/feedback', { rating: 3 }),
+    );
+
+    expect(response.status).toBe(204);
   });
 
   it('returns a safe error when Supabase rejects an insert', async () => {
@@ -123,7 +136,7 @@ describe('/api/feedback', () => {
     insert.mockRejectedValue(new Error('connection details must not reach the client'));
 
     const response = await feedback(
-      jsonRequest('http://localhost/api/feedback', { rating: 5, wantsDeepAnalysis: false }),
+      jsonRequest('http://localhost/api/feedback', { rating: 5 }),
     );
 
     expect(response.status).toBe(503);

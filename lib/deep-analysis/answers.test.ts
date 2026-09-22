@@ -43,7 +43,7 @@ describe('validateDirectionAnswers', () => {
 
   it('normalizes and bounds city candidates', () => {
     const result = validateDirectionAnswers('city', {
-      city_q1: { textValue: '杭州' },
+      city_q1: { optionIds: ['city_q1_hangzhou'] },
       city_q2: {
         optionIds: ['city_q2_domestic'],
         supplementaryValue: [' 上海 ', '成都', '上海'],
@@ -56,6 +56,33 @@ describe('validateDirectionAnswers', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.city_q2.supplementaryValue).toEqual(['上海', '成都']);
+    }
+  });
+
+  it('rejects another-city selection without a custom city name', () => {
+    const result = validateDirectionAnswers('city', {
+      city_q1: { optionIds: ['city_q1_other'] },
+      city_q2: { optionIds: ['city_q2_domestic'] },
+      city_q3: { optionIds: ['city_q3_jobs'] },
+      city_q4: { optionIds: ['city_q4_specialize'] },
+      city_q5: { optionIds: ['city_q5_partner'] },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('normalizes the custom city name for another-city selection', () => {
+    const result = validateDirectionAnswers('city', {
+      city_q1: { optionIds: ['city_q1_other'], supplementaryValue: [' 成都 '] },
+      city_q2: { optionIds: ['city_q2_domestic'] },
+      city_q3: { optionIds: ['city_q3_jobs'] },
+      city_q4: { optionIds: ['city_q4_specialize'] },
+      city_q5: { optionIds: ['city_q5_partner'] },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.city_q1.supplementaryValue).toEqual(['成都']);
     }
   });
 });

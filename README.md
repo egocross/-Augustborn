@@ -8,9 +8,9 @@
 
 1. 填写出生日期、时间与可选出生地区。
 2. 获得免费基础探索报告并可提交极简反馈。
-3. 选择职业、行业、城市、合作环境或自定义方向。
+3. 点击“开始深入探索”，进入独立的 `/explore` 页面，选择职业、行业、城市、合作环境或自定义方向。
 4. 标准方向回答固定 5 题；自定义问题由 AI 判断是否需要 3–5 个补充问题。
-5. 填写可选现实补充，通过 Mock Payment 进入生成。
+5. 填写可选现实补充，通过 Mock Payment 或支付宝沙箱进入生成。
 6. 生成完成后进入独立报告页，获得可展开阅读的结构化深度报告。
 
 ## 本地开发
@@ -30,10 +30,24 @@ GEMINI_API_KEY=your-google-ai-studio-key
 GEMINI_MODEL=gemini-3.1-pro-preview
 GEMINI_REASONING_EFFORT=high
 DEEP_REPORT_PRICE=¥29.90
+DEEP_REPORT_AMOUNT=29.90
+PAYMENT_PROVIDER=mock
+PAYMENT_RECEIPT_SECRET=replace-with-a-long-random-secret
 MOCK_PAYMENT_SECRET=replace-with-a-long-random-secret
 MOCK_PAYMENT_OUTCOME=success
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
+
+# 仅支付宝沙箱模式需要
+APP_URL=https://your-public-preview.example.com
+ALIPAY_APP_ID=your-sandbox-app-id
+ALIPAY_SELLER_ID=your-sandbox-seller-id
+ALIPAY_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+ALIPAY_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+ALIPAY_KEY_TYPE=PKCS8
+ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+ALIPAY_NOTIFY_URL=https://your-public-preview.example.com/api/deep-analysis/payment/notify
+ALIPAY_RETURN_URL=https://your-public-preview.example.com/explore
 ```
 
 | 变量 | 必需 | 说明 |
@@ -42,26 +56,33 @@ SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 | `GEMINI_MODEL` | 否 | 默认 `gemini-3.1-pro-preview` |
 | `GEMINI_REASONING_EFFORT` | 否 | `low` / `medium` / `high`，默认 `high` |
 | `DEEP_REPORT_PRICE` | 是 | 付费页价格，当前 `¥29.90` |
+| `DEEP_REPORT_AMOUNT` | 支付宝时是 | 服务端签名金额，如 `29.90`，不含货币符号 |
+| `PAYMENT_PROVIDER` | 否 | `mock` 或 `alipay_sandbox`，默认 `mock` |
+| `PAYMENT_RECEIPT_SECRET` | 支付宝时是 | 支付确认后的内部报告凭证签名密钥 |
 | `MOCK_PAYMENT_SECRET` | 是 | Mock 支付凭证 HMAC 签名密钥 |
 | `MOCK_PAYMENT_OUTCOME` | 否 | `success` 或 `failure`，用于测试支付失败 |
 | `SUPABASE_URL` | 否 | 反馈与会话里程碑持久化 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 否 | 仅服务端使用 |
+| `APP_URL` | 支付宝时是 | 可被支付宝访问的公网 HTTPS 根地址 |
+| `ALIPAY_*` | 支付宝时是 | 沙箱 App ID、卖家 ID、应用私钥、支付宝公钥、网关及回调地址 |
 
 不要给密钥加 `NEXT_PUBLIC_` 前缀。Vercel 修改变量后需重新部署。
 
-## Mock Payment 边界
+## 支付边界
 
-`lib/deep-analysis/payment.ts` 的 `PaymentService` 是支付抽象边界。当前不会实际扣款，只签发绑定 Session 和方向、30 分钟有效的 HMAC 凭证。接入微信支付、支付宝或 Stripe 时替换该服务，保留 API 和 UI 状态机。
+`PAYMENT_PROVIDER=mock` 保留本地快速测试。`PAYMENT_PROVIDER=alipay_sandbox` 使用支付宝手机网站支付：服务端创建订单，跳转沙箱收银台，异步回调验签并校验 App ID、卖家 ID、订单号、金额和交易状态后，才签发绑定 Session 和方向的短期报告凭证。支付宝 `return_url` 只用于返回页面，不作为付款成功依据。
+
+沙箱回调无法访问 `localhost`。本地联调时，`APP_URL` 必须是指向当前本地服务的临时 HTTPS 隧道，或使用 Vercel Preview 地址。
 
 ## Supabase
 
-在 SQL Editor 中执行 `supabase/feedback.sql` 和 `supabase/deep-report-sessions.sql`。两张表均启用 RLS，浏览器没有直接写权限。深度会话只保存方向、稳定题目/选项 ID、可选补充、支付状态和结构化报告，不保存原始出生日期、时间或地区。Supabase 未配置或写入失败时不阻断报告交付。
+在 SQL Editor 中执行 `supabase/feedback.sql`、`supabase/deep-report-sessions.sql` 和 `supabase/payment-orders.sql`。三张表均启用 RLS，浏览器没有直接写权限。支付订单仅保存随机 Session ID、方向、金额和交易状态，不保存原始出生信息。支付宝模式下 Supabase 是必需的，以便在跨请求的异步回调中安全确认订单。
 
 ## 隐私与恢复
 
 - 原始出生信息不写入 Supabase、Cookie、localStorage、URL 或应用日志。
 - 当前标签页使用版本化 `sessionStorage` 保留，刷新可恢复；关闭标签页后由浏览器清理。
-- 深度报告使用固定路径 `/deep-report`，不将出生信息或报告内容放入 URL。
+- 专项答题与深度报告分别使用固定路径 `/explore` 和 `/deep-report`，不将出生信息或报告内容放入 URL。
 - 会话数据损坏或版本不兼容时安全丢弃。
 - 报告不构成医疗、法律、金融或心理诊断建议。
 

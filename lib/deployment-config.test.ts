@@ -15,4 +15,11 @@ it('documents the required deep-analysis environment variables', () => {
   expect(env).toContain('DEEP_REPORT_PRICE=¥29.90');
   expect(env).toContain('MOCK_PAYMENT_SECRET=');
   expect(env).toContain('MOCK_PAYMENT_OUTCOME=success');
+  expect(env).toContain('PAYMENT_PROVIDER=mock');
+  expect(env).toContain('DEEP_REPORT_AMOUNT=29.90');
+  expect(env).toContain('PAYMENT_RECEIPT_SECRET=');
+  expect(env).toContain('ALIPAY_APP_ID=');
+  expect(env).toContain('ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do');
+  expect(env).toContain('ALIPAY_NOTIFY_URL=');
+  expect(env).toContain('ALIPAY_RETURN_URL=');
 });

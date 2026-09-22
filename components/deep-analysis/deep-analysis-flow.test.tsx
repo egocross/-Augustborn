@@ -68,6 +68,27 @@ it('uses a direction-specific payment title', async () => {
   expect(await screen.findByText('你的城市发展深度分析已经准备好')).toBeTruthy();
 });
 
+it('offers popular cities and requires a name only when another city is selected', async () => {
+  render(<DeepAnalysisFlow {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: /我更适合在哪类城市发展/ }));
+
+  expect(screen.getByRole('radio', { name: '北京' })).toBeTruthy();
+  expect(screen.getByRole('radio', { name: '上海' })).toBeTruthy();
+  expect(screen.getByRole('radio', { name: '广州' })).toBeTruthy();
+  expect(screen.getByRole('radio', { name: '深圳' })).toBeTruthy();
+  expect(screen.getByRole('radio', { name: '杭州' })).toBeTruthy();
+  expect(screen.queryByLabelText('请输入目前生活的城市')).toBeNull();
+
+  fireEvent.click(screen.getByRole('radio', { name: '其他城市' }));
+  const continueButton = screen.getByRole('button', { name: '继续' }) as HTMLButtonElement;
+  expect(continueButton.disabled).toBe(true);
+
+  fireEvent.change(screen.getByLabelText('请输入目前生活的城市'), { target: { value: '成都' } });
+  expect(continueButton.disabled).toBe(false);
+  fireEvent.click(continueButton);
+  expect(screen.getByText('你能够接受的发展范围？')).toBeTruthy();
+});
+
 it('saves a completed report and opens the dedicated report page', async () => {
   saveDeepSession({
     ...createInitialDeepState('session-12345678', props),
@@ -90,6 +111,53 @@ it('saves a completed report and opens the dedicated report page', async () => {
 
   await waitFor(() => expect(push).toHaveBeenCalledWith('/deep-report'));
   expect(loadDeepSession(window.sessionStorage)?.report?.title).toBe('你的职业方向深度分析');
+});
+
+it('stores a pending Alipay order before redirecting to the sandbox cashier', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'city',
+    step: 'payment',
+  }, window.sessionStorage);
+  const redirectToCheckout = vi.fn();
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
+    status: 'pending',
+    orderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
+    checkoutUrl: 'https://openapi-sandbox.dl.alipaydev.com/gateway.do?signed=1',
+  })));
+
+  render(<DeepAnalysisFlow {...props} paymentMode="alipay_sandbox" redirectToCheckout={redirectToCheckout} />);
+  fireEvent.click(await screen.findByRole('button', { name: '前往支付宝沙箱付款' }));
+
+  await waitFor(() => expect(redirectToCheckout).toHaveBeenCalledWith('https://openapi-sandbox.dl.alipaydev.com/gateway.do?signed=1'));
+  expect(loadDeepSession(window.sessionStorage)?.paymentOrderId).toBe('07a6ec32-8a87-4e77-9f24-fd807084b8f6');
+});
+
+it('confirms a returned sandbox order with the server before generating the report', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'work',
+    step: 'payment',
+    paymentOrderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
+    answers: {
+      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
+      work_q5: { optionIds: ['work_q5_growth'] },
+    },
+  }, window.sessionStorage);
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json({ status: 'paid', receipt: 'server-signed-receipt' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start(controller) {
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'report', report: deepReport })}\n\n`));
+      controller.close();
+    } }), { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+
+  render(<DeepAnalysisFlow {...props} paymentMode="alipay_sandbox" />);
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/deep-report'));
+  expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/deep-analysis/payment/status');
+  expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/deep-analysis/report');
 });
 
 it('keeps a compact entry on the free-report page after a deep report exists', async () => {

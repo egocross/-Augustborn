@@ -36,7 +36,7 @@ export function DeepReportPage() {
     if (!state) return;
     const resetState = deepFlowReducer(state, { type: 'backToDirection' });
     saveDeepSession(resetState, window.sessionStorage);
-    router.push('/');
+    router.push('/explore');
   }
 
   return (
@@ -55,7 +55,7 @@ export function DeepReportPage() {
         <div>
           <p className="eyebrow">继续探索</p>
           <h2>还有其他问题想弄清楚？</h2>
-          <p>返回基础报告，选择另一个方向重新回答。</p>
+          <p>返回探索页，选择另一个方向继续回答。</p>
         </div>
         <button className="primary-button" onClick={chooseAnotherDirection} type="button">重新选择探索方向</button>
       </section>

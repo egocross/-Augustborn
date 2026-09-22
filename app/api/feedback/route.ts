@@ -19,13 +19,17 @@ export async function POST(request: Request) {
 
   const supabase = getSupabaseAdmin();
   if (!supabase) {
+    if (process.env.NODE_ENV === 'development') {
+      return new Response(null, { status: 204 });
+    }
+
     return Response.json({ error: '反馈服务尚未配置。' }, { status: 503 });
   }
 
   try {
     const { error } = await supabase.from('feedback').insert({
       rating: parsed.data.rating,
-      wants_deep_analysis: parsed.data.wantsDeepAnalysis,
+      wants_deep_analysis: false,
     });
 
     if (error) {

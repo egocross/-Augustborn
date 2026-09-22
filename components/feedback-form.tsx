@@ -1,13 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const ratings = [1, 2, 3, 4, 5];
 
 export function FeedbackForm() {
   const [rating, setRating] = useState(5);
-  const [wantsDeepAnalysis, setWantsDeepAnalysis] = useState(false);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'complete' | 'error'>('idle');
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!dialogOpen) {
+      return;
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setDialogOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [dialogOpen]);
 
   async function submitFeedback(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -17,7 +32,7 @@ export function FeedbackForm() {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating, wantsDeepAnalysis }),
+        body: JSON.stringify({ rating }),
       });
 
       if (!response.ok) {
@@ -25,19 +40,53 @@ export function FeedbackForm() {
       }
 
       setStatus('complete');
+      setDialogOpen(true);
     } catch {
       setStatus('error');
     }
   }
 
   if (status === 'complete') {
-    return <p className="feedback-confirmation" role="status">感谢你的反馈。</p>;
+    return (
+      <>
+        <p className="feedback-confirmation" role="status">已提交反馈</p>
+        {dialogOpen ? (
+          <div
+            className="feedback-success-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setDialogOpen(false);
+              }
+            }}
+            role="presentation"
+          >
+            <section
+              aria-labelledby="feedback-success-heading"
+              aria-modal="true"
+              className="feedback-success-dialog"
+              role="dialog"
+            >
+              <div aria-hidden="true" className="feedback-success-emoji">😊</div>
+              <h2 id="feedback-success-heading">谢谢你的反馈</h2>
+              <p>你的评分已收到。</p>
+              <button
+                autoFocus
+                className="primary-button feedback-success-button"
+                onClick={() => setDialogOpen(false)}
+                type="button"
+              >
+                完成
+              </button>
+            </section>
+          </div>
+        ) : null}
+      </>
+    );
   }
 
   return (
     <section className="feedback-panel" aria-labelledby="feedback-heading">
-      <p className="eyebrow">读后感</p>
-      <h2 id="feedback-heading">这份解读贴近你吗？</h2>
+      <h2 id="feedback-heading">这份报告贴近你吗？</h2>
       <form onSubmit={submitFeedback}>
         <fieldset>
           <legend>准确度评分</legend>
@@ -56,15 +105,6 @@ export function FeedbackForm() {
             ))}
           </div>
         </fieldset>
-
-        <label className="checkbox-label">
-          <input
-            checked={wantsDeepAnalysis}
-            onChange={(event) => setWantsDeepAnalysis(event.target.checked)}
-            type="checkbox"
-          />
-          愿意继续深度分析
-        </label>
 
         {status === 'error' ? (
           <p className="form-error" role="alert">反馈暂时无法提交，请稍后再试。</p>

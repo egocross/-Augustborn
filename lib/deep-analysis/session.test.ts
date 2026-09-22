@@ -41,6 +41,24 @@ describe('deep flow session', () => {
     expect(next.step).toBe('payment');
   });
 
+  it('preserves the pending provider order before leaving for the cashier', () => {
+    const paymentState = {
+      ...createInitialDeepState('session-123'),
+      selectedDirection: 'city' as const,
+      step: 'payment' as const,
+    };
+    const next = deepFlowReducer(paymentState, {
+      type: 'paymentStarted',
+      orderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
+    });
+
+    expect(next).toMatchObject({
+      step: 'payment',
+      paymentOrderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
+      paymentReceipt: null,
+    });
+  });
+
   it('returns a failed custom-question request to the custom question step', () => {
     const loading = { ...createInitialDeepState('session-123'), step: 'custom-loading' as const, selectedDirection: 'custom' as const, customQuestion: '我要不要转岗？' };
     const next = deepFlowReducer(loading, { type: 'customQuestionsFailed', code: 'upstream_failed' });

@@ -38,6 +38,5 @@ export const analysisSchema = z
 export const feedbackSchema = z
   .object({
     rating: z.number().int().min(1).max(5),
-    wantsDeepAnalysis: z.boolean(),
   })
   .strict();

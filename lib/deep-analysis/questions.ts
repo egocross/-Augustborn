@@ -49,7 +49,9 @@ export const QUESTION_BANK_V1: Record<FixedDirectionId, FixedQuestion[]> = {
     ]) }),
   ],
   city: [
-    question({ id: 'city_q1', directionId: 'city', type: 'text', text: '你目前主要生活在哪个城市？', required: true }),
+    question({ id: 'city_q1', directionId: 'city', type: 'single', text: '你目前主要生活在哪个城市？', required: true, supplementaryField: { id: 'city_q1_other_city', label: '请输入目前生活的城市', placeholder: '如：成都', required: true, maxItems: 1, showWhenOptionId: 'city_q1_other' }, options: options([
+      ['city_q1_beijing', '北京'], ['city_q1_shanghai', '上海'], ['city_q1_guangzhou', '广州'], ['city_q1_shenzhen', '深圳'], ['city_q1_hangzhou', '杭州'], ['city_q1_other', '其他城市'],
+    ]) }),
     question({ id: 'city_q2', directionId: 'city', type: 'single', text: '你能够接受的发展范围？', required: true, supplementaryField: { id: 'city_q2_candidates', label: '已经有考虑的城市？', placeholder: '例如：上海、成都', required: false, maxItems: 5 }, options: options([
       ['city_q2_current', '只考虑目前所在城市'], ['city_q2_nearby', '可以考虑同省 / 周边城市'], ['city_q2_domestic', '可以考虑国内其他城市'], ['city_q2_major', '一线 / 新一线城市都可以'], ['city_q2_small', '中小城市也可以'], ['city_q2_overseas', '可以考虑海外'], ['city_q2_global', '全球范围都可以'], ['city_q2_uncertain', '暂时不确定'],
     ]) }),

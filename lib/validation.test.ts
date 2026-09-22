@@ -4,13 +4,15 @@ import { analysisSchema, feedbackSchema } from './validation';
 
 describe('feedbackSchema', () => {
   it('rejects feedback ratings outside 1 through 5', () => {
-    expect(feedbackSchema.safeParse({ rating: 6, wantsDeepAnalysis: false }).success).toBe(false);
+    expect(feedbackSchema.safeParse({ rating: 6 }).success).toBe(false);
+  });
+
+  it('accepts an accuracy rating without a deep-analysis intent field', () => {
+    expect(feedbackSchema.safeParse({ rating: 5 }).success).toBe(true);
   });
 
   it('rejects unknown feedback fields', () => {
-    expect(
-      feedbackSchema.safeParse({ rating: 5, wantsDeepAnalysis: true, birthDate: 'private' }).success,
-    ).toBe(false);
+    expect(feedbackSchema.safeParse({ rating: 5, wantsDeepAnalysis: true }).success).toBe(false);
   });
 });
 

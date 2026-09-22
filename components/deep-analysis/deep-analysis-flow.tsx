@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Report } from '@/lib/gemini/schema';
@@ -23,7 +23,21 @@ const paymentTitles = {
   custom: '你的专项问题深度分析已经准备好',
 } as const;
 
-export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput: BirthInput; freeReport: Report; price: string }) {
+type PaymentMode = 'mock' | 'alipay_sandbox';
+
+export function DeepAnalysisFlow({
+  birthInput,
+  freeReport,
+  price,
+  paymentMode = 'mock',
+  redirectToCheckout = (url) => window.location.assign(url),
+}: {
+  birthInput: BirthInput;
+  freeReport: Report;
+  price: string;
+  paymentMode?: PaymentMode;
+  redirectToCheckout?: (url: string) => void;
+}) {
   const router = useRouter();
   const [state, dispatch] = useReducer(
     deepFlowReducer,
@@ -31,6 +45,8 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
   );
   const [hydrated, setHydrated] = useState(false);
   const [generationStage, setGenerationStage] = useState('preparing');
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const autoGenerationOrderRef = useRef<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -55,7 +71,15 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
     : state.selectedDirection ? QUESTION_BANK_V1[state.selectedDirection as FixedDirectionId] : [], [state.selectedDirection, state.customQuestions]);
   const question = questions[state.questionIndex];
   const currentAnswer = question ? state.answers[question.id] ?? {} : {};
-  const answerReady = question?.type === 'text' ? Boolean(currentAnswer.textValue?.trim()) : Boolean(currentAnswer.optionIds?.length);
+  const supplementaryField = question && 'supplementaryField' in question ? question.supplementaryField : undefined;
+  const supplementaryRequired = Boolean(
+    supplementaryField?.required
+    && (!supplementaryField.showWhenOptionId || currentAnswer.optionIds?.includes(supplementaryField.showWhenOptionId)),
+  );
+  const answerReady = question?.type === 'text'
+    ? Boolean(currentAnswer.textValue?.trim())
+    : Boolean(currentAnswer.optionIds?.length)
+      && (!supplementaryRequired || Boolean(currentAnswer.supplementaryValue?.some((value) => value.trim())));
 
   async function prepareCustomQuestions() {
     if (state.customQuestion.trim().length < 2) return;
@@ -68,15 +92,9 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
     } catch (error) { dispatch({ type: 'customQuestionsFailed', code: error instanceof Error ? error.message : 'upstream_failed' }); }
   }
 
-  async function generateReport() {
+  async function generateReport(receiptOverride?: string) {
     try {
-      let receipt = state.paymentReceipt;
-      if (!receipt) {
-        const payment = await fetch('/api/deep-analysis/payment', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: state.sessionId, directionId: state.selectedDirection }) });
-        const paymentData = await payment.json();
-        if (!payment.ok || typeof paymentData.receipt !== 'string') throw new Error(paymentData.code || 'payment_failed');
-        receipt = paymentData.receipt;
-      }
+      const receipt = receiptOverride ?? state.paymentReceipt;
       if (!receipt) throw new Error('payment_failed');
       setGenerationStage('preparing');
       dispatch({ type: 'generationStarted', receipt });
@@ -100,6 +118,92 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
     } catch (error) { dispatch({ type: 'generationFailed', code: error instanceof Error ? error.message : 'upstream_failed' }); }
   }
 
+  async function startPayment() {
+    if (!state.selectedDirection || paymentBusy) return;
+    setPaymentBusy(true);
+    try {
+      if (state.paymentReceipt) {
+        await generateReport(state.paymentReceipt);
+        return;
+      }
+      const payment = await fetch('/api/deep-analysis/payment', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sessionId: state.sessionId, directionId: state.selectedDirection }),
+      });
+      const paymentData = await payment.json();
+      if (!payment.ok) throw new Error(paymentData.code || 'payment_failed');
+      if (paymentData.status === 'paid' && typeof paymentData.receipt === 'string') {
+        await generateReport(paymentData.receipt);
+        return;
+      }
+      if (
+        paymentData.status === 'pending'
+        && typeof paymentData.orderId === 'string'
+        && typeof paymentData.checkoutUrl === 'string'
+      ) {
+        const action = { type: 'paymentStarted' as const, orderId: paymentData.orderId };
+        const pendingState = deepFlowReducer(state, action);
+        saveDeepSession(pendingState, window.sessionStorage);
+        dispatch(action);
+        redirectToCheckout(paymentData.checkoutUrl);
+        return;
+      }
+      throw new Error('payment_failed');
+    } catch (error) {
+      dispatch({ type: 'generationFailed', code: error instanceof Error ? error.message : 'payment_failed' });
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (
+      !hydrated
+      || paymentMode !== 'alipay_sandbox'
+      || state.step !== 'payment'
+      || !state.paymentOrderId
+      || state.paymentReceipt
+      || autoGenerationOrderRef.current === state.paymentOrderId
+    ) return;
+
+    let cancelled = false;
+    let timer: number | undefined;
+    let attempts = 0;
+    const poll = async () => {
+      try {
+        const response = await fetch('/api/deep-analysis/payment/status', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ orderId: state.paymentOrderId, sessionId: state.sessionId }),
+        });
+        const payload = await response.json();
+        if (cancelled) return;
+        if (response.ok && payload.status === 'paid' && typeof payload.receipt === 'string') {
+          autoGenerationOrderRef.current = state.paymentOrderId;
+          dispatch({ type: 'paymentConfirmed', receipt: payload.receipt });
+          await generateReport(payload.receipt);
+          return;
+        }
+        attempts += 1;
+        if (response.ok && payload.status === 'pending' && attempts < 120) {
+          timer = window.setTimeout(poll, 1_500);
+          return;
+        }
+        dispatch({ type: 'generationFailed', code: payload.code || 'payment_pending' });
+      } catch {
+        if (!cancelled) dispatch({ type: 'generationFailed', code: 'payment_status_unavailable' });
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+    // The payment order identity deliberately owns this polling lifecycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, paymentMode, state.paymentOrderId, state.paymentReceipt, state.sessionId, state.step]);
+
   if (!hydrated) return <section aria-busy="true" className="deep-panel" />;
   if (state.step === 'direction') return <DirectionPicker onSelect={(directionId) => dispatch({ type: 'chooseDirection', directionId })} />;
   if (state.step === 'custom-question' || state.step === 'custom-loading') return <section className="deep-panel question-panel">
@@ -113,7 +217,7 @@ export function DeepAnalysisFlow({ birthInput, freeReport, price }: { birthInput
     <div className="deep-actions"><button className="secondary-button" onClick={() => dispatch({ type: 'previousQuestion' })} type="button">上一步</button><button className="primary-button" disabled={!answerReady} onClick={() => dispatch({ type: 'nextQuestion', total: questions.length })} type="button">继续</button></div>
   </section>;
   if (state.step === 'optional-context') return <section className="deep-panel question-panel"><p className="step-label">最后一步</p><h2>还有什么现实情况希望我们考虑？</h2><p className="deep-lead">例如收入压力、家庭情况、学历限制或已考虑的选项。这一步不是必填。</p><textarea aria-label="补充情况" maxLength={2000} onChange={(event) => dispatch({ type: 'setOptionalContext', value: event.target.value })} rows={6} value={state.optionalContext} /><button className="primary-button" onClick={() => dispatch({ type: 'goToPayment' })} type="button">查看深度报告说明</button></section>;
-  if (state.step === 'payment') return <section className="deep-panel payment-panel"><p className="eyebrow">专项深度分析</p><h2>{state.selectedDirection ? paymentTitles[state.selectedDirection] : '你的深度分析已经准备好'}</h2><p className="deep-lead">系统会综合出生信息、基础报告、校准问题与补充信息，生成更具体的专项报告。</p><p className="price-label">{price}</p>{state.errorCode ? <p className="form-error" role="alert">上次操作未完成，你的答案已保留，可以重试。</p> : null}<button className="primary-button" onClick={generateReport} type="button">生成我的深度报告</button><p className="mock-note">当前为 Mock Payment，不会实际扣款。</p></section>;
+  if (state.step === 'payment') return <section className="deep-panel payment-panel"><p className="eyebrow">专项深度分析</p><h2>{state.selectedDirection ? paymentTitles[state.selectedDirection] : '你的深度分析已经准备好'}</h2><p className="deep-lead">系统会综合出生信息、基础报告、校准问题与补充信息，生成更具体的专项报告。</p><p className="price-label">{price}</p>{state.errorCode ? <p className="form-error" role="alert">上次操作未完成，你的答案已保留，可以重试。</p> : null}<button className="primary-button" disabled={paymentBusy} onClick={startPayment} type="button">{paymentMode === 'alipay_sandbox' ? (paymentBusy ? '正在连接支付宝…' : '前往支付宝沙箱付款') : (paymentBusy ? '正在准备…' : '生成我的深度报告')}</button><p className="mock-note">{paymentMode === 'alipay_sandbox' ? '沙箱环境只使用测试账号与测试资金，不会从真实账户扣款。' : '当前为 Mock Payment，不会实际扣款。'}</p></section>;
   if (state.step === 'generating') return <DeepGeneratingModal stage={generationStage} />;
   if (state.step === 'report' && state.report) return <section className="deep-panel deep-report-ready"><p className="eyebrow">专项报告已生成</p><h2>{state.report.title}</h2><p className="deep-lead">完整报告已放在独立阅读页面中，你可以随时返回继续查看。</p><button className="primary-button" onClick={() => router.push('/deep-report')} type="button">查看深度报告</button></section>;
   return null;

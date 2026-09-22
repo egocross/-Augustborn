@@ -9,7 +9,11 @@ type Question = FixedQuestion | DynamicQuestion;
 export function QuestionStep({ question, answer, onChange }: { question: Question; answer: AnswerValue; onChange: (answer: AnswerValue) => void }) {
   const [message, setMessage] = useState('');
   const selected = answer.optionIds ?? [];
+  const optionLayout = (question.options?.length ?? 0) >= 7 ? 'compact' : 'standard';
   const supplementaryField = 'supplementaryField' in question ? question.supplementaryField : undefined;
+  const showSupplementaryField = supplementaryField
+    ? !supplementaryField.showWhenOptionId || selected.includes(supplementaryField.showWhenOptionId)
+    : false;
   const updateOption = (id: string, checked: boolean) => {
     if (question.type === 'single') { onChange({ optionIds: [id] }); return; }
     const next = checked ? [...selected, id] : selected.filter((value) => value !== id);
@@ -24,14 +28,14 @@ export function QuestionStep({ question, answer, onChange }: { question: Questio
 
   return <fieldset className="question-content">
     <legend className="question-title">{question.text}</legend>
-    {question.maxSelect ? <p className="question-hint">最多选择 {question.maxSelect} 项</p> : null}
-    <div className="option-grid">
+    {question.maxSelect ? <p className="question-hint">已选择 {selected.length} / {question.maxSelect} 项</p> : null}
+    <div className="option-grid" data-layout={optionLayout}>
       {question.options?.map((option) => <label className="option-card" key={option.id}>
         <input checked={selected.includes(option.id)} name={question.id} onChange={(event) => updateOption(option.id, event.target.checked)} type={question.type === 'single' ? 'radio' : 'checkbox'} />
         <span>{option.label}</span>
       </label>)}
     </div>
-    {supplementaryField ? <label className="supplementary-field">
+    {supplementaryField && showSupplementaryField ? <label className="supplementary-field">
       <span>{supplementaryField.label}</span>
       <input
         maxLength={200}

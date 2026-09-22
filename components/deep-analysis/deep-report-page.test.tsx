@@ -65,12 +65,12 @@ it('returns to the free report without deleting the completed report', async () 
   expect(loadDeepSession(window.sessionStorage)?.report?.title).toBe(report.title);
 });
 
-it('resets only the paid flow when choosing another exploration direction', async () => {
+it('resets only the paid flow and returns to the exploration picker', async () => {
   saveCompletedReport();
   render(<DeepReportPage />);
 
   fireEvent.click(await screen.findByRole('button', { name: '重新选择探索方向' }));
-  expect(push).toHaveBeenCalledWith('/');
+  expect(push).toHaveBeenCalledWith('/explore');
   const saved = loadDeepSession(window.sessionStorage);
   expect(saved?.step).toBe('direction');
   expect(saved?.report).toBeNull();

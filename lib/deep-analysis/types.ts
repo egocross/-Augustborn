@@ -11,6 +11,7 @@ export const SupplementaryFieldSchema = z.object({
   placeholder: z.string().optional(),
   required: z.boolean(),
   maxItems: z.number().int().positive().optional(),
+  showWhenOptionId: z.string().min(1).optional(),
 });
 export const FixedQuestionSchema = z.object({
   id: z.string().min(1),

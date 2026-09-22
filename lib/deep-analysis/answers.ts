@@ -47,9 +47,16 @@ export function validateDirectionAnswers(directionId: FixedDirectionId, input: u
       return { success: false, error: `此题最多选择 ${question.maxSelect} 项。` };
     }
 
-    const supplementaryValue = answer.supplementaryValue
+    const supplementaryVisible = question.supplementaryField
+      ? !question.supplementaryField.showWhenOptionId || optionIds.includes(question.supplementaryField.showWhenOptionId)
+      : false;
+    const normalizedSupplementaryValue = answer.supplementaryValue
       ? [...new Set(answer.supplementaryValue.map((value) => value.trim()).filter(Boolean))]
       : undefined;
+    const supplementaryValue = supplementaryVisible ? normalizedSupplementaryValue : undefined;
+    if (question.supplementaryField?.required && supplementaryVisible && !supplementaryValue?.length) {
+      return { success: false, error: `请完成：${question.supplementaryField.label}` };
+    }
     if (question.supplementaryField?.maxItems && (supplementaryValue?.length ?? 0) > question.supplementaryField.maxItems) {
       return { success: false, error: `最多填写 ${question.supplementaryField.maxItems} 项。` };
     }

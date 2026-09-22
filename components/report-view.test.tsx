@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { expect, it } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, expect, it } from 'vitest';
 
 import { ReportView } from './report-view';
+
+afterEach(() => cleanup());
 
 it('renders an arbitrary model-provided section', () => {
   render(
@@ -43,4 +45,20 @@ it('drops a leading list number the model copied into a heading', () => {
   );
 
   expect(screen.getByText('核心性格与底层矛盾')).toBeTruthy();
+});
+
+it('replaces a long model disclaimer with the concise product disclaimer', () => {
+  const { getByText, queryByText } = render(
+    <ReportView
+      report={{
+        disclaimer: '这是一段很长的模型免责声明，不应该分散用户阅读报告的注意力。',
+        sections: [{ heading: '标题', body: '正文', bullets: [] }],
+      }}
+    />,
+  );
+
+  expect(
+    getByText('仅供自我探索参考，不构成医疗、法律、财务或职业决策建议。'),
+  ).toBeTruthy();
+  expect(queryByText(/\u8fd9是一段很长的模型免责声明/)).toBeNull();
 });

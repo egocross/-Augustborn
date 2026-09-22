@@ -28,9 +28,13 @@ export const mockPaymentService: PaymentService = {
 const sign = (encodedPayload: string, secret: string) =>
   createHmac('sha256', secret).update(encodedPayload).digest('base64url');
 
+const configuredReceiptSecret = () => process.env.PAYMENT_RECEIPT_SECRET?.trim()
+  || process.env.MOCK_PAYMENT_SECRET?.trim()
+  || '';
+
 export function issuePaymentReceipt(
   input: { sessionId: string; directionId: DirectionId; paidAt: number },
-  secret = process.env.MOCK_PAYMENT_SECRET ?? '',
+  secret = configuredReceiptSecret(),
 ): string {
   if (!secret) throw new Error('missing_payment_secret');
   const payload: ReceiptPayload = {
@@ -45,7 +49,7 @@ export function issuePaymentReceipt(
 export function verifyPaymentReceipt(
   receipt: string,
   expected: { sessionId: string; directionId: DirectionId; now?: number },
-  secret = process.env.MOCK_PAYMENT_SECRET ?? '',
+  secret = configuredReceiptSecret(),
 ): { success: true; payload: ReceiptPayload } | { success: false } {
   try {
     if (!secret) return { success: false };

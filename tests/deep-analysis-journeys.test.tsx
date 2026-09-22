@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { BirthForm } from '@/components/birth-form';
+import { DeepExplorationPage } from '@/components/deep-analysis/deep-exploration-page';
 import { loadDeepSession } from '@/lib/deep-analysis/session';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -43,10 +44,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 async function createFreeReport() {
-  render(<BirthForm deepReportPrice="¥29.90" />);
+  render(<BirthForm />);
   fireEvent.change(screen.getByLabelText('出生日期'), { target: { value: '1977-10-15' } });
   fireEvent.change(screen.getByLabelText('出生时间'), { target: { value: '13:30' } });
   fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
+  fireEvent.click(await screen.findByRole('button', { name: '开始深入探索' }));
+  expect(push).toHaveBeenCalledWith('/explore');
+
+  cleanup();
+  render(<DeepExplorationPage price="¥29.90" />);
   await screen.findByText('接下来，你最想进一步弄清楚什么？');
 }
 
@@ -72,7 +78,7 @@ it('completes free report to work direction to paid deep report', async () => {
 it('completes free report to city direction to paid deep report', async () => {
   await createFreeReport();
   fireEvent.click(screen.getByRole('button', { name: /我更适合在哪类城市发展/ }));
-  fireEvent.change(screen.getByLabelText('你目前主要生活在哪个城市？'), { target: { value: '杭州' } }); fireEvent.click(continueButton());
+  fireEvent.click(screen.getByLabelText('杭州')); fireEvent.click(continueButton());
   fireEvent.click(screen.getByLabelText('可以考虑国内其他城市'));
   fireEvent.change(screen.getByLabelText('已经有考虑的城市？'), { target: { value: '上海、成都、上海' } });
   fireEvent.click(continueButton());

@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { FeedbackForm } from '@/components/feedback-form';
 import { GeneratingModal } from '@/components/generating-modal';
 import { ReportView } from '@/components/report-view';
-import { DeepAnalysisFlow } from '@/components/deep-analysis/deep-analysis-flow';
+import { DeepAnalysisEntry } from '@/components/deep-analysis/deep-analysis-entry';
 import { clearDeepSession, loadDeepSession } from '@/lib/deep-analysis/session';
 import { consumeAnalyzeStream, extractCompleteSections } from '@/lib/analyze-stream';
 import type { Report, ReportSection } from '@/lib/gemini/schema';
@@ -34,7 +34,7 @@ const loadingStages = [
   '正在生成报告章节…',
 ];
 
-export function BirthForm({ deepReportPrice = '¥29.90' }: { deepReportPrice?: string }) {
+export function BirthForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [report, setReport] = useState<Report | null>(null);
   const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
@@ -160,12 +160,11 @@ export function BirthForm({ deepReportPrice = '¥29.90' }: { deepReportPrice?: s
         />
         {report ? (
           <>
-            <FeedbackForm />
-            <DeepAnalysisFlow
+            <DeepAnalysisEntry
               birthInput={{ birthDate: form.birthDate, birthTime: form.timeUnknown || !form.birthTime ? null : form.birthTime, birthRegion: form.birthRegion }}
               freeReport={report}
-              price={deepReportPrice}
             />
+            <FeedbackForm />
             <button className="text-button" onClick={startOver} type="button">
               重新分析
             </button>

@@ -5,6 +5,8 @@ type ReportViewProps = {
   pending?: boolean;
 };
 
+const PRODUCT_DISCLAIMER = '仅供自我探索参考，不构成医疗、法律、财务或职业决策建议。';
+
 /** Drops a leading list number the model sometimes copies from the prompt. */
 const cleanHeading = (heading: string) => heading.replace(/^\s*\d+\s*[.、．]\s*/, '').trim() || heading;
 
@@ -42,7 +44,7 @@ export function ReportView({ report, pending = false }: ReportViewProps) {
         </div>
       ) : (
         <footer className="report-disclaimer">
-          <p>{report.disclaimer}</p>
+          <p>{PRODUCT_DISCLAIMER}</p>
         </footer>
       )}
     </article>
