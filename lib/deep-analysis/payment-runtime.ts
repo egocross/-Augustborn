@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin';
 import { createAlipayPaymentProvider } from './alipay';
 import { createPaymentCoordinator } from './payment-orders';
 import { createSupabasePaymentOrderRepository } from './payment-repository';
+import { resolveBrowserReturnUrl } from './public-url';
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -28,7 +29,7 @@ const publicHttpsUrl = (name: string, fallbackPath: string) => {
   return url.toString();
 };
 
-export function getSandboxPaymentCoordinator() {
+export function getSandboxPaymentCoordinator(options: { browserOrigin?: string | null } = {}) {
   const client = getSupabaseAdmin();
   if (!client) throw new Error('missing_supabase_payment_storage');
 
@@ -46,7 +47,10 @@ export function getSandboxPaymentCoordinator() {
     appId,
     sellerId: required('ALIPAY_SELLER_ID'),
     notifyUrl: publicHttpsUrl('ALIPAY_NOTIFY_URL', '/api/deep-analysis/payment/notify'),
-    returnUrl: publicHttpsUrl('ALIPAY_RETURN_URL', '/explore'),
+    returnUrl: resolveBrowserReturnUrl(
+      options.browserOrigin,
+      publicHttpsUrl('ALIPAY_RETURN_URL', '/explore'),
+    ),
     gateway,
   });
 

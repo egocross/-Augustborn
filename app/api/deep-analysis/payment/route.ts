@@ -15,7 +15,10 @@ type SandboxCheckout = {
 };
 
 export function createPaymentHandler(_dependencies: {
-  createSandboxCheckout: (input: z.infer<typeof PaymentRequestSchema>) => Promise<SandboxCheckout>;
+  createSandboxCheckout: (
+    input: z.infer<typeof PaymentRequestSchema>,
+    request: Request,
+  ) => Promise<SandboxCheckout>;
 }) {
   return async (request: Request) => {
     const parsed = PaymentRequestSchema.safeParse(await request.json().catch(() => null));
@@ -23,7 +26,7 @@ export function createPaymentHandler(_dependencies: {
       return Response.json({ code: 'invalid_input', error: '支付信息无效。' }, { status: 400 });
     }
     try {
-      const checkout = await _dependencies.createSandboxCheckout(parsed.data);
+      const checkout = await _dependencies.createSandboxCheckout(parsed.data, request);
       return Response.json({
         ...checkout,
         price: process.env.DEEP_REPORT_PRICE?.trim() || '¥29.90',
@@ -57,9 +60,9 @@ async function handleMockPayment(request: Request) {
 }
 
 const handleSandboxPayment = createPaymentHandler({
-  async createSandboxCheckout(input) {
+  async createSandboxCheckout(input, request) {
     const { getSandboxPaymentCoordinator } = await import('@/lib/deep-analysis/payment-runtime');
-    return getSandboxPaymentCoordinator().createCheckout(input);
+    return getSandboxPaymentCoordinator({ browserOrigin: request.headers.get('origin') }).createCheckout(input);
   },
 });
 

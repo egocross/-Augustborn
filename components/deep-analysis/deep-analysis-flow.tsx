@@ -30,12 +30,14 @@ export function DeepAnalysisFlow({
   freeReport,
   price,
   paymentMode = 'mock',
+  returnedOrderId = null,
   redirectToCheckout = (url) => window.location.assign(url),
 }: {
   birthInput: BirthInput;
   freeReport: Report;
   price: string;
   paymentMode?: PaymentMode;
+  returnedOrderId?: string | null;
   redirectToCheckout?: (url: string) => void;
 }) {
   const router = useRouter();
@@ -51,16 +53,20 @@ export function DeepAnalysisFlow({
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const restored = loadDeepSession(window.sessionStorage);
-      if (restored?.birthInput && restored.freeReport) {
-        dispatch({ type: 'restore', state: restored });
-      } else {
-        const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `session-${Date.now()}`;
-        dispatch({ type: 'restore', state: createInitialDeepState(id, { birthInput, freeReport }) });
-      }
+      const fallbackId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `session-${Date.now()}`;
+      const base = restored?.birthInput && restored.freeReport
+        ? restored
+        : createInitialDeepState(fallbackId, { birthInput, freeReport });
+      // The Alipay return leg carries the order id, so a pending payment still
+      // resumes when the local session did not record it before the redirect.
+      const resumed = paymentMode === 'alipay_sandbox' && returnedOrderId && base.step === 'payment' && !base.paymentOrderId
+        ? { ...base, paymentOrderId: returnedOrderId }
+        : base;
+      dispatch({ type: 'restore', state: resumed });
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [birthInput, freeReport]);
+  }, [birthInput, freeReport, paymentMode, returnedOrderId]);
 
   useEffect(() => {
     if (hydrated) saveDeepSession(state, window.sessionStorage);

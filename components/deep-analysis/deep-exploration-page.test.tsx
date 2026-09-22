@@ -14,10 +14,14 @@ const context = {
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  window.history.replaceState({}, '', '/explore');
   push.mockReset();
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  window.history.replaceState({}, '', '/explore');
+});
 
 it('renders direction choices on the dedicated exploration page', async () => {
   saveDeepSession(createInitialDeepState('session-12345678', context), window.sessionStorage);
@@ -56,4 +60,12 @@ it('offers safe recovery when the current tab has no free report context', async
   expect(await screen.findByText('当前标签页还没有可继续的探索内容')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '返回首页' }));
   expect(push).toHaveBeenCalledWith('/');
+});
+
+it('explains a completed payment when this tab lost the exploration record', async () => {
+  window.history.replaceState({}, '', '/explore?payment_order=07a6ec32-8a87-4e77-9f24-fd807084b8f6');
+  render(<DeepExplorationPage price="¥29.90" />);
+
+  expect(await screen.findByText('这笔支付已经完成，但当前标签页没有对应的探索记录')).toBeTruthy();
+  expect(screen.getByText(/只保存在发起支付的那个标签页里/)).toBeTruthy();
 });

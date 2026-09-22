@@ -59,4 +59,31 @@ describe('POST /api/deep-analysis/payment', () => {
       price: '¥29.90',
     });
   });
+
+  it('forwards the requesting browser origin so the return leg stays on that site', async () => {
+    process.env.PAYMENT_PROVIDER = 'alipay_sandbox';
+    const received: Array<{ input: unknown; origin: string | null }> = [];
+    const handler = createPaymentHandler({
+      createSandboxCheckout: async (input, request) => {
+        received.push({ input, origin: request.headers.get('origin') });
+        return {
+          status: 'pending' as const,
+          orderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
+          checkoutUrl: 'https://openapi-sandbox.dl.alipaydev.com/gateway.do?signed=1',
+        };
+      },
+    });
+
+    const response = await handler(new Request('http://localhost/api/deep-analysis/payment', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
+      body: JSON.stringify({ sessionId: 'session-12345678', directionId: 'city' }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(received).toEqual([{
+      input: { sessionId: 'session-12345678', directionId: 'city' },
+      origin: 'http://localhost:3000',
+    }]);
+  });
 });

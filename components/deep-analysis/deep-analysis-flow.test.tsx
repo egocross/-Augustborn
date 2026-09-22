@@ -133,6 +133,34 @@ it('stores a pending Alipay order before redirecting to the sandbox cashier', as
   expect(loadDeepSession(window.sessionStorage)?.paymentOrderId).toBe('07a6ec32-8a87-4e77-9f24-fd807084b8f6');
 });
 
+it('resumes a returned Alipay order when the stored session lost the order id', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'work',
+    step: 'payment',
+    answers: {
+      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
+      work_q5: { optionIds: ['work_q5_growth'] },
+    },
+  }, window.sessionStorage);
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json({ status: 'paid', receipt: 'server-signed-receipt' }))
+    .mockResolvedValueOnce(new Response(new ReadableStream<Uint8Array>({ start(controller) {
+      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'report', report: deepReport })}\n\n`));
+      controller.close();
+    } }), { status: 200 }));
+  vi.stubGlobal('fetch', fetchMock);
+
+  render(<DeepAnalysisFlow {...props} paymentMode="alipay_sandbox" returnedOrderId="07a6ec32-8a87-4e77-9f24-fd807084b8f6" />);
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith('/deep-report'));
+  expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+    orderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
+    sessionId: 'session-12345678',
+  });
+});
+
 it('confirms a returned sandbox order with the server before generating the report', async () => {
   saveDeepSession({
     ...createInitialDeepState('session-12345678', props),
