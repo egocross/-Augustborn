@@ -17,9 +17,11 @@ it('renders option cards and enforces the multi-select limit', () => {
 
 it('updates a single-select answer', () => {
   const onChange = vi.fn();
-  render(<QuestionStep answer={{}} onChange={onChange} question={QUESTION_BANK_V1.work[0]} />);
+  const onSingleSelect = vi.fn();
+  render(<QuestionStep answer={{}} onChange={onChange} onSingleSelect={onSingleSelect} question={QUESTION_BANK_V1.work[0]} />);
   fireEvent.click(screen.getByRole('radio', { name: '学生' }));
   expect(onChange).toHaveBeenCalledWith({ optionIds: ['work_q1_student'] });
+  expect(onSingleSelect).toHaveBeenCalledTimes(1);
 });
 
 it('uses a compact option layout for short option lists and full width for long ones', () => {

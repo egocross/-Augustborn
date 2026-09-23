@@ -45,6 +45,15 @@ it('opens the first fixed question only after choosing a direction', async () =>
   expect(screen.getByText('你目前处于什么状态？')).toBeTruthy();
 });
 
+it('moves to the next question immediately after a standard single-choice answer', async () => {
+  render(<DeepAnalysisFlow {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: /我适合做什么工作/ }));
+
+  fireEvent.click(screen.getByRole('radio', { name: '学生' }));
+  expect(await screen.findByText('第 2 / 5 题')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '继续' })).toBeTruthy();
+});
+
 it('restores stored progress after mount instead of losing answers', async () => {
   saveDeepSession({
     ...createInitialDeepState('session-12345678', props),

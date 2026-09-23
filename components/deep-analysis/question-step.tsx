@@ -11,6 +11,8 @@ type QuestionStepProps = {
   question: Question;
   answer: AnswerValue;
   onChange: (answer: AnswerValue) => void;
+  /** Single-choice questions can advance immediately once no extra field is needed. */
+  onSingleSelect?: () => void;
 };
 
 /** Short option lists get a two-column grid; long sentences stay full width. */
@@ -30,7 +32,7 @@ export function QuestionStep(props: QuestionStepProps) {
   return <QuestionFields key={props.question.id} {...props} />;
 }
 
-function QuestionFields({ question, answer, onChange }: QuestionStepProps) {
+function QuestionFields({ question, answer, onChange, onSingleSelect }: QuestionStepProps) {
   const [message, setMessage] = useState('');
   const [supplementaryText, setSupplementaryText] = useState(() => (answer.supplementaryValue ?? []).join('、'));
   const selected = answer.optionIds ?? [];
@@ -43,6 +45,11 @@ function QuestionFields({ question, answer, onChange }: QuestionStepProps) {
   const updateOption = (id: string, checked: boolean) => {
     if (question.type === 'single') {
       onChange({ ...answer, optionIds: [id] });
+      const showsSupplementaryField = Boolean(
+        supplementaryField
+        && (!supplementaryField.showWhenOptionId || supplementaryField.showWhenOptionId === id),
+      );
+      if (!showsSupplementaryField) onSingleSelect?.();
       return;
     }
 

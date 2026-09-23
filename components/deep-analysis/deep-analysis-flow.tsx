@@ -123,10 +123,15 @@ export function DeepAnalysisFlow({
     supplementaryField?.required
     && (!supplementaryField.showWhenOptionId || currentAnswer.optionIds?.includes(supplementaryField.showWhenOptionId)),
   );
+  const supplementaryVisible = Boolean(
+    supplementaryField
+    && (!supplementaryField.showWhenOptionId || currentAnswer.optionIds?.includes(supplementaryField.showWhenOptionId)),
+  );
   const answerReady = question?.type === 'text'
     ? Boolean(currentAnswer.textValue?.trim())
     : Boolean(currentAnswer.optionIds?.length)
       && (!supplementaryRequired || Boolean(currentAnswer.supplementaryValue?.some((value) => value.trim())));
+  const needsManualContinue = question?.type !== 'single' || supplementaryVisible;
   const flowError = describeFlowError(state.errorCode, Boolean(state.paymentReceipt));
 
   async function prepareCustomQuestions() {
@@ -290,8 +295,16 @@ export function DeepAnalysisFlow({
   </section>;
   if (state.step === 'questions' && question) return <section className="deep-panel question-panel">
     <p className="step-label">第 {state.questionIndex + 1} / {questions.length} 题</p>
-    <QuestionStep answer={currentAnswer} onChange={(answer: AnswerValue) => dispatch({ type: 'setAnswer', questionId: question.id, answer })} question={question} />
-    <div className="deep-actions"><button className="secondary-button" onClick={() => dispatch({ type: 'previousQuestion' })} type="button">上一步</button><button className="primary-button" disabled={!answerReady} onClick={() => dispatch({ type: 'nextQuestion', total: questions.length })} type="button">继续</button></div>
+    <QuestionStep
+      answer={currentAnswer}
+      onChange={(answer: AnswerValue) => dispatch({ type: 'setAnswer', questionId: question.id, answer })}
+      onSingleSelect={() => dispatch({ type: 'nextQuestion', total: questions.length })}
+      question={question}
+    />
+    <div className="deep-actions">
+      <button className="secondary-button" onClick={() => dispatch({ type: 'previousQuestion' })} type="button">上一步</button>
+      {needsManualContinue ? <button className="primary-button" disabled={!answerReady} onClick={() => dispatch({ type: 'nextQuestion', total: questions.length })} type="button">继续</button> : null}
+    </div>
   </section>;
   if (state.step === 'optional-context') return <section className="deep-panel question-panel">
     <p className="step-label">最后一步</p><h2>还有什么现实情况希望我们考虑？</h2>

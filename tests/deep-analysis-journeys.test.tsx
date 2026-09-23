@@ -69,7 +69,9 @@ async function finishAndGenerate() {
 it('completes free report to work direction to paid deep report', async () => {
   await createFreeReport();
   fireEvent.click(screen.getByRole('button', { name: /我适合做什么工作/ }));
-  for (const label of ['学生', '内容创作', '提出新的点子', '高度重复', '快速成长']) {
+  fireEvent.click(screen.getByLabelText('学生'));
+  await screen.findByText('过去你主要做过哪些类型的事情？');
+  for (const label of ['内容创作', '提出新的点子', '高度重复', '快速成长']) {
     fireEvent.click(screen.getByLabelText(label)); fireEvent.click(continueButton());
   }
   await finishAndGenerate();
@@ -78,13 +80,15 @@ it('completes free report to work direction to paid deep report', async () => {
 it('completes free report to city direction to paid deep report', async () => {
   await createFreeReport();
   fireEvent.click(screen.getByRole('button', { name: /我更适合在哪类城市发展/ }));
-  fireEvent.click(screen.getByLabelText('杭州')); fireEvent.click(continueButton());
+  fireEvent.click(screen.getByLabelText('杭州'));
+  await screen.findByText('你能够接受的发展范围？');
   fireEvent.click(screen.getByLabelText('可以考虑国内其他城市'));
   fireEvent.change(screen.getByLabelText('已经有考虑的城市？'), { target: { value: '上海、成都、上海' } });
   fireEvent.click(continueButton());
-  for (const label of ['工作机会多', '深耕某个专业领域', '家庭 / 伴侣']) {
-    fireEvent.click(screen.getByLabelText(label)); fireEvent.click(continueButton());
-  }
+  fireEvent.click(screen.getByLabelText('工作机会多')); fireEvent.click(continueButton());
+  fireEvent.click(screen.getByLabelText('深耕某个专业领域'));
+  await screen.findByText('哪些现实条件会限制你选择城市？');
+  fireEvent.click(screen.getByLabelText('家庭 / 伴侣')); fireEvent.click(continueButton());
   await finishAndGenerate();
 });
 
@@ -94,7 +98,8 @@ it('completes custom question through generated follow-ups to paid deep report',
   fireEvent.change(screen.getByLabelText('我的问题'), { target: { value: '我是否应该转岗？' } }); fireEvent.click(continueButton());
   await screen.findByText('补充问题 1');
   for (let number = 1; number <= 3; number += 1) {
-    fireEvent.click(screen.getByLabelText('选项 A')); fireEvent.click(continueButton());
+    fireEvent.click(screen.getByLabelText('选项 A'));
+    if (number < 3) await screen.findByText(`补充问题 ${number + 1}`);
   }
   await finishAndGenerate();
 });
