@@ -952,28 +952,6 @@ input::placeholder { color: var(--placeholder); }
 
 .deep-exploration-page[aria-busy='true'] { min-height: 70vh; }
 
-.deep-exploration-toolbar {
-  position: sticky;
-  top: 1rem;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  border: 1px solid rgb(212 211 206 / 86%);
-  border-radius: 18px;
-  background: rgb(253 252 250 / 84%);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
-  backdrop-filter: blur(18px) saturate(1.15);
-  box-shadow: 0 16px 38px -30px rgb(24 25 28 / 52%);
-  padding: 0.8rem 0.9rem 0.8rem 1.1rem;
-}
-
-.deep-exploration-toolbar > div { display: grid; gap: 0.1rem; }
-.deep-exploration-toolbar .eyebrow { margin: 0; }
-.deep-exploration-toolbar p:last-child { margin: 0; color: var(--muted); font-size: 0.82rem; }
-.deep-exploration-toolbar .secondary-button { flex: 0 0 auto; min-height: 2.7rem; padding: 0.55rem 0.9rem; }
-
 /* Dedicated deep-report page ------------------------------------------ */
 
 .deep-report-page-shell {
@@ -1108,14 +1086,10 @@ input::placeholder { color: var(--placeholder); }
   .deep-actions .primary-button, .deep-actions .secondary-button, .payment-panel .primary-button { width: 100%; }
   .deep-report-block ol li { grid-template-columns: 1fr; }
   .deep-report-block ol span { grid-row: auto; }
-  .deep-report-toolbar,
-  .deep-exploration-toolbar { top: 0.5rem; align-items: center; gap: 0.75rem; padding: 0.55rem 0.6rem 0.55rem 0.9rem; }
-  .deep-report-toolbar-copy,
-  .deep-exploration-toolbar > div { min-width: 0; }
-  .deep-report-toolbar-copy > p:last-child,
-  .deep-exploration-toolbar p:last-child { display: none; }
-  .deep-report-toolbar .secondary-button,
-  .deep-exploration-toolbar .secondary-button { width: auto; min-height: 2.5rem; padding: 0 0.95rem; font-size: 0.85rem; }
+  .deep-report-toolbar { top: 0.5rem; align-items: center; gap: 0.75rem; padding: 0.55rem 0.6rem 0.55rem 0.9rem; }
+  .deep-report-toolbar-copy { min-width: 0; }
+  .deep-report-toolbar-copy > p:last-child { display: none; }
+  .deep-report-toolbar .secondary-button { width: auto; min-height: 2.5rem; padding: 0 0.95rem; font-size: 0.85rem; }
   .deep-report-page-actions { align-items: stretch; flex-direction: column; gap: 1.25rem; }
   .deep-report-page-actions .primary-button { width: 100%; }
   .deep-report-recovery,

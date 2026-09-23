@@ -28,7 +28,6 @@ it('renders direction choices on the dedicated exploration page', async () => {
   render(<DeepExplorationPage price="¥29.90" />);
 
   expect(await screen.findByText('接下来，你最想进一步弄清楚什么？')).toBeTruthy();
-  expect(screen.getByRole('button', { name: '返回基础报告' })).toBeTruthy();
   expect(screen.getByRole('button', { name: /我适合做什么工作/ })).toBeTruthy();
 });
 
@@ -44,14 +43,6 @@ it('restores questionnaire progress instead of returning to direction choices', 
 
   expect(await screen.findByText('第 2 / 5 题')).toBeTruthy();
   expect(screen.queryByText('接下来，你最想进一步弄清楚什么？')).toBeNull();
-});
-
-it('returns to the free report from the exploration page', async () => {
-  saveDeepSession(createInitialDeepState('session-12345678', context), window.sessionStorage);
-  render(<DeepExplorationPage price="¥29.90" />);
-
-  fireEvent.click(await screen.findByRole('button', { name: '返回基础报告' }));
-  expect(push).toHaveBeenCalledWith('/');
 });
 
 it('offers safe recovery when the current tab has no free report context', async () => {

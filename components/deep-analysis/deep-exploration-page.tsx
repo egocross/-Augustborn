@@ -47,13 +47,6 @@ export function DeepExplorationPage({ price, paymentMode = 'mock' }: { price: st
 
   return (
     <div className="deep-exploration-page">
-      <header className="deep-exploration-toolbar">
-        <div>
-          <p className="eyebrow">专项探索</p>
-          <p>根据你的基础报告，继续聚焦一个现实问题。</p>
-        </div>
-        <button className="secondary-button" onClick={() => router.push('/')} type="button">返回基础报告</button>
-      </header>
       <DeepAnalysisFlow birthInput={session.birthInput} freeReport={session.freeReport} paymentMode={paymentMode} price={price} returnedOrderId={returnedOrderId} />
     </div>
   );
