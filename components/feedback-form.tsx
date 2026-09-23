@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDocumentScrollLock } from '@/lib/use-document-scroll-lock';
 
 const ratings = [1, 2, 3, 4, 5];
 
@@ -11,6 +12,8 @@ export function FeedbackForm() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const dialogRef = useRef<HTMLElement | null>(null);
   const confirmationRef = useRef<HTMLParagraphElement | null>(null);
+
+  useDocumentScrollLock(dialogOpen);
 
   useEffect(() => {
     if (!dialogOpen) {
@@ -54,12 +57,8 @@ export function FeedbackForm() {
     };
 
     document.addEventListener('keydown', onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
     };
   }, [dialogOpen]);
 

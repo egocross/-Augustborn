@@ -7,6 +7,7 @@ type GeneratingModalProps = {
 };
 
 export function GeneratingModal({ open, stage, onCancel }: GeneratingModalProps) {
+  useDocumentScrollLock(open);
   const stateClass = open ? '' : ' is-leaving';
 
   return (
@@ -35,3 +36,4 @@ export function GeneratingModal({ open, stage, onCancel }: GeneratingModalProps)
     </div>
   );
 }
+import { useDocumentScrollLock } from '@/lib/use-document-scroll-lock';
