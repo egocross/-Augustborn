@@ -31,6 +31,7 @@ const customQuestions = [1, 2, 3].map((number) => ({
 beforeEach(() => {
   window.sessionStorage.clear();
   push.mockReset();
+  vi.stubGlobal('scrollTo', vi.fn());
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url === '/api/analyze') return sseResponse([{ type: 'delta', text: JSON.stringify(freeReport) }, { type: 'report', report: freeReport }]);

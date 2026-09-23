@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, scrollTo } = vi.hoisted(() => ({ push: vi.fn(), scrollTo: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 import { createInitialDeepState, loadDeepSession, saveDeepSession } from '@/lib/deep-analysis/session';
@@ -31,6 +31,8 @@ const streamResponse = (events: unknown[]) => {
 beforeEach(() => {
   window.sessionStorage.clear();
   push.mockReset();
+  scrollTo.mockReset();
+  vi.stubGlobal('scrollTo', scrollTo);
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(
@@ -43,7 +45,10 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 it('does not read session storage during its hydration-sensitive initial render', () => {
   saveDeepSession({
@@ -108,6 +113,17 @@ it('sends the birth date, time and region, then renders the streamed report', as
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ birthDate: '1977-09-03', birthTime: '13:30', birthRegion: '浙江杭州' }),
   }));
+});
+
+it('brings the reader back to the top when the streamed report replaces the form', async () => {
+  render(<BirthForm />);
+
+  fireEvent.change(screen.getByLabelText('出生日期'), { target: { value: '1977-09-03' } });
+  fireEvent.change(screen.getByLabelText('出生时间'), { target: { value: '13:30' } });
+  fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
+
+  await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0 });
 });
 
 it('disables the time input and sends a null birth time when the time is unknown', async () => {

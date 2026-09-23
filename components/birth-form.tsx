@@ -54,6 +54,9 @@ export function BirthForm() {
   const [notice, setNotice] = useState('');
   const [loadingStage, setLoadingStage] = useState(0);
   const analyzeRef = useRef<AbortController | null>(null);
+  // Marks a generation started in this tab, so its first streamed section can
+  // bring the page back to the top without affecting restored reports.
+  const pendingReportScrollRef = useRef(false);
   // Empty during server rendering so hydration matches, then the local date.
   const latestBirthDate = useSyncExternalStore(subscribeToNothing, localToday, () => '');
 
@@ -86,6 +89,15 @@ export function BirthForm() {
   }, [status]);
 
   useEffect(() => () => analyzeRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (!pendingReportScrollRef.current) return;
+    if (!report && liveSections.length === 0) return;
+    pendingReportScrollRef.current = false;
+    // The submit button sits at the bottom of the form, so the replaced report
+    // would otherwise open mid-document, below the first sections.
+    window.scrollTo({ top: 0, left: 0 });
+  }, [liveSections.length, report]);
 
   const [modalMounted, setModalMounted] = useState(false);
   const showModal = status === 'loading' && liveSections.length === 0;
@@ -121,6 +133,7 @@ export function BirthForm() {
     setLiveSections([]);
     setLoadingStage(0);
     setModalMounted(true);
+    pendingReportScrollRef.current = true;
 
     const input = {
       birthDate: form.birthDate,
