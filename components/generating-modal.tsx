@@ -2,9 +2,11 @@ type GeneratingModalProps = {
   /** False while the modal plays its exit animation. */
   open: boolean;
   stage: string;
+  /** When provided, the waiting state offers a way out that also aborts the request. */
+  onCancel?: () => void;
 };
 
-export function GeneratingModal({ open, stage }: GeneratingModalProps) {
+export function GeneratingModal({ open, stage, onCancel }: GeneratingModalProps) {
   const stateClass = open ? '' : ' is-leaving';
 
   return (
@@ -24,6 +26,11 @@ export function GeneratingModal({ open, stage }: GeneratingModalProps) {
           <span className="progress-bar" />
         </div>
         <p className="generating-note">通常需要 30–60 秒，生成的章节会先显示出来</p>
+        {onCancel ? (
+          <button className="generating-cancel" onClick={onCancel} type="button">
+            取消生成
+          </button>
+        ) : null}
       </div>
     </div>
   );

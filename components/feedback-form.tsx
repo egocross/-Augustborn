@@ -1,31 +1,79 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const ratings = [1, 2, 3, 4, 5];
 
 export function FeedbackForm() {
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState<number | null>(null);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'complete' | 'error'>('idle');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const confirmationRef = useRef<HTMLParagraphElement | null>(null);
 
   useEffect(() => {
     if (!dialogOpen) {
       return;
     }
 
-    const closeOnEscape = (event: KeyboardEvent) => {
+    const node = dialogRef.current;
+    const focusable = () => Array.from(
+      node?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? [],
+    ).filter((element) => !element.hasAttribute('disabled'));
+
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         setDialogOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const items = focusable();
+      if (items.length === 0) {
+        return;
+      }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      const inside = Boolean(active && node?.contains(active));
+
+      if (event.shiftKey && (!inside || active === first)) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!event.shiftKey && (!inside || active === last)) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
+    document.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [dialogOpen]);
+
+  useEffect(() => {
+    if (!dialogOpen && status === 'complete') {
+      confirmationRef.current?.focus();
+    }
+  }, [dialogOpen, status]);
 
   async function submitFeedback(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (rating === null) {
+      return;
+    }
     setStatus('submitting');
 
     try {
@@ -46,40 +94,49 @@ export function FeedbackForm() {
     }
   }
 
+  // The dialog only opens after a user action, so `document` always exists here.
+  const dialog = dialogOpen
+    ? createPortal(
+      <div
+        className="feedback-success-overlay"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            setDialogOpen(false);
+          }
+        }}
+        role="presentation"
+      >
+        <section
+          aria-labelledby="feedback-success-heading"
+          aria-modal="true"
+          className="feedback-success-dialog"
+          ref={dialogRef}
+          role="dialog"
+        >
+          <div aria-hidden="true" className="feedback-success-emoji">😊</div>
+          <h2 id="feedback-success-heading">谢谢你的反馈</h2>
+          <p>你的评分已收到。</p>
+          <button
+            autoFocus
+            className="primary-button feedback-success-button"
+            onClick={() => setDialogOpen(false)}
+            type="button"
+          >
+            完成
+          </button>
+        </section>
+      </div>,
+      document.body,
+    )
+    : null;
+
   if (status === 'complete') {
     return (
       <>
-        <p className="feedback-confirmation" role="status">已提交反馈</p>
-        {dialogOpen ? (
-          <div
-            className="feedback-success-overlay"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) {
-                setDialogOpen(false);
-              }
-            }}
-            role="presentation"
-          >
-            <section
-              aria-labelledby="feedback-success-heading"
-              aria-modal="true"
-              className="feedback-success-dialog"
-              role="dialog"
-            >
-              <div aria-hidden="true" className="feedback-success-emoji">😊</div>
-              <h2 id="feedback-success-heading">谢谢你的反馈</h2>
-              <p>你的评分已收到。</p>
-              <button
-                autoFocus
-                className="primary-button feedback-success-button"
-                onClick={() => setDialogOpen(false)}
-                type="button"
-              >
-                完成
-              </button>
-            </section>
-          </div>
-        ) : null}
+        <p className="feedback-confirmation" ref={confirmationRef} role="status" tabIndex={-1}>
+          已提交反馈
+        </p>
+        {dialog}
       </>
     );
   }
@@ -104,13 +161,14 @@ export function FeedbackForm() {
               </label>
             ))}
           </div>
+          <p className="rating-hint">1 分代表不太贴近，5 分代表很贴近。</p>
         </fieldset>
 
         {status === 'error' ? (
           <p className="form-error" role="alert">反馈暂时无法提交，请稍后再试。</p>
         ) : null}
 
-        <button className="secondary-button" disabled={status === 'submitting'} type="submit">
+        <button className="secondary-button" disabled={status === 'submitting' || rating === null} type="submit">
           {status === 'submitting' ? '提交中…' : '提交反馈'}
         </button>
       </form>

@@ -11,7 +11,11 @@ export type DeepStep = 'direction' | 'custom-question' | 'custom-loading' | 'que
 export type DeepFlowState = {
   sessionId: string; step: DeepStep; selectedDirection: DirectionId | null; questionIndex: number;
   answers: DeepAnswers; optionalContext: string; customQuestion: string; customQuestions: DynamicQuestion[];
-  paymentOrderId: string | null; paymentReceipt: string | null; report: DeepReport | null; errorCode: string | null;
+  paymentOrderId: string | null; paymentReceipt: string | null;
+  report: DeepReport | null;
+  /** Last finished report. Survives “choose another direction” so it stays readable. */
+  lastReport: DeepReport | null;
+  errorCode: string | null;
   birthInput: z.infer<typeof analysisSchema> | null; freeReport: Report | null;
 };
 
@@ -20,20 +24,39 @@ const DeepFlowStateSchema = z.object({
   selectedDirection: DirectionIdSchema.nullable(), questionIndex: z.number().int().min(0).max(5), answers: DeepAnswersSchema,
   optionalContext: z.string().max(2000), customQuestion: z.string().max(1000), customQuestions: z.array(DynamicQuestionSchema).max(5),
   paymentOrderId: z.string().uuid().nullable().default(null),
-  paymentReceipt: z.string().nullable(), report: DeepReportSchema.nullable(), errorCode: z.string().nullable(),
+  paymentReceipt: z.string().nullable(),
+  report: DeepReportSchema.nullable(),
+  lastReport: DeepReportSchema.nullable().default(null),
+  errorCode: z.string().nullable(),
   birthInput: analysisSchema.nullable(), freeReport: ReportSchema.nullable(),
 });
 
+type DeepContext = { birthInput?: z.infer<typeof analysisSchema>; freeReport?: Report };
+
+export const FIXED_QUESTION_COUNT = 5;
+
+const createSessionId = () => {
+  const generated = globalThis.crypto?.randomUUID?.();
+  return typeof generated === 'string' && generated.length >= 8 ? generated : `session-${Date.now()}`;
+};
+
 export function createInitialDeepState(
   sessionId: string,
-  context: { birthInput?: z.infer<typeof analysisSchema>; freeReport?: Report } = {},
+  context: DeepContext = {},
 ): DeepFlowState {
   return {
     sessionId, step: 'direction', selectedDirection: null, questionIndex: 0, answers: {},
     optionalContext: '', customQuestion: '', customQuestions: [], paymentOrderId: null, paymentReceipt: null,
-    report: null, errorCode: null, birthInput: context.birthInput ?? null, freeReport: context.freeReport ?? null,
+    report: null, lastReport: null, errorCode: null,
+    birthInput: context.birthInput ?? null, freeReport: context.freeReport ?? null,
   };
 }
+
+/** Carries the birth input and free report across state resets. */
+const withContext = (state: DeepFlowState): DeepContext => ({
+  ...(state.birthInput ? { birthInput: state.birthInput } : {}),
+  ...(state.freeReport ? { freeReport: state.freeReport } : {}),
+});
 
 export type DeepFlowAction =
   | { type: 'restore'; state: DeepFlowState }
@@ -46,7 +69,9 @@ export type DeepFlowAction =
   | { type: 'setOptionalContext'; value: string }
   | { type: 'nextQuestion'; total: number }
   | { type: 'previousQuestion' }
+  | { type: 'backToLastQuestion' }
   | { type: 'goToPayment' }
+  | { type: 'backToOptionalContext' }
   | { type: 'paymentStarted'; orderId: string }
   | { type: 'paymentConfirmed'; receipt: string }
   | { type: 'generationStarted'; receipt: string }
@@ -66,13 +91,18 @@ export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): D
     case 'setOptionalContext': return { ...state, optionalContext: action.value };
     case 'nextQuestion': return action.total > state.questionIndex + 1 ? { ...state, questionIndex: state.questionIndex + 1 } : { ...state, step: 'optional-context' };
     case 'previousQuestion': return state.questionIndex > 0 ? { ...state, questionIndex: state.questionIndex - 1 } : { ...state, step: state.selectedDirection === 'custom' ? 'custom-question' : 'direction' };
+    case 'backToLastQuestion': {
+      const total = state.selectedDirection === 'custom' ? state.customQuestions.length : FIXED_QUESTION_COUNT;
+      return { ...state, step: 'questions', questionIndex: Math.max(0, total - 1), errorCode: null };
+    }
     case 'goToPayment': return { ...state, step: 'payment', errorCode: null };
+    case 'backToOptionalContext': return { ...state, step: 'optional-context', errorCode: null };
     case 'paymentStarted': return { ...state, paymentOrderId: action.orderId, paymentReceipt: null, errorCode: null };
     case 'paymentConfirmed': return { ...state, paymentReceipt: action.receipt, errorCode: null };
     case 'generationStarted': return { ...state, paymentReceipt: action.receipt, step: 'generating', errorCode: null };
-    case 'generationSucceeded': return { ...state, report: action.report, step: 'report', errorCode: null };
+    case 'generationSucceeded': return { ...state, report: action.report, lastReport: action.report, step: 'report', errorCode: null };
     case 'generationFailed': return { ...state, step: 'payment', errorCode: action.code };
-    case 'backToDirection': return { ...createInitialDeepState(state.sessionId, { ...(state.birthInput ? { birthInput: state.birthInput } : {}), ...(state.freeReport ? { freeReport: state.freeReport } : {}) }) };
+    case 'backToDirection': return { ...createInitialDeepState(state.sessionId, withContext(state)), lastReport: state.lastReport };
   }
 }
 
@@ -92,9 +122,9 @@ export function loadDeepSession(storage: Storage = sessionStorage): DeepFlowStat
 }
 
 function normalizeRestoredState(state: DeepFlowState): DeepFlowState {
-  const reset = () => createInitialDeepState(state.sessionId, {
-    ...(state.birthInput ? { birthInput: state.birthInput } : {}),
-    ...(state.freeReport ? { freeReport: state.freeReport } : {}),
+  const reset = (): DeepFlowState => ({
+    ...createInitialDeepState(state.sessionId, withContext(state)),
+    lastReport: state.lastReport,
   });
 
   if (state.step === 'direction') return { ...state, selectedDirection: null, questionIndex: 0 };
@@ -105,11 +135,31 @@ function normalizeRestoredState(state: DeepFlowState): DeepFlowState {
   if (state.step === 'generating') return { ...state, step: 'payment', errorCode: 'interrupted' };
   if (state.step === 'custom-question' && state.selectedDirection !== 'custom') return reset();
   if (state.step === 'questions') {
-    const total = state.selectedDirection === 'custom' ? state.customQuestions.length : 5;
+    const total = state.selectedDirection === 'custom' ? state.customQuestions.length : FIXED_QUESTION_COUNT;
     if (total === 0 || state.questionIndex >= total) return reset();
   }
-  if (state.step === 'report' && !state.report) return reset();
+  if (state.step === 'report' && !state.report) {
+    return state.lastReport ? { ...state, report: state.lastReport } : reset();
+  }
   return state;
+}
+
+/**
+ * Keeps a freshly generated free report in this tab right away, so refreshing no
+ * longer throws away a report the reader just waited for. Answers from an earlier
+ * exploration are reset because the underlying report changed.
+ */
+export function saveFreeReportContext(
+  context: { birthInput: z.infer<typeof analysisSchema>; freeReport: Report },
+  storage: Storage = sessionStorage,
+): DeepFlowState {
+  const restored = loadDeepSession(storage);
+  const next: DeepFlowState = {
+    ...createInitialDeepState(restored?.sessionId ?? createSessionId(), context),
+    lastReport: restored?.lastReport ?? null,
+  };
+  saveDeepSession(next, storage);
+  return next;
 }
 
 export function clearDeepSession(storage: Storage = sessionStorage) {

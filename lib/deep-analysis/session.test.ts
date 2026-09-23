@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createInitialDeepState, deepFlowReducer, loadDeepSession, saveDeepSession } from './session';
+import { createInitialDeepState, deepFlowReducer, loadDeepSession, saveDeepSession, saveFreeReportContext } from './session';
 
 const storage = () => {
   const values = new Map<string, string>();
@@ -85,5 +85,56 @@ describe('deep flow session', () => {
     const target = storage();
     saveDeepSession({ ...createInitialDeepState('session-123'), step: 'report' }, target);
     expect(loadDeepSession(target)).toMatchObject({ step: 'direction', selectedDirection: null, report: null });
+  });
+
+  it('keeps the finished report after choosing another direction', () => {
+    const report = {
+      title: '已完成报告', summary: '摘要', keyFindings: ['一', '二'],
+      cards: [
+        { id: 'c1', title: 'A', summary: 'a', details: ['x'], evidence: [] },
+        { id: 'c2', title: 'B', summary: 'b', details: ['y'], evidence: [] },
+      ],
+      risks: [{ title: '风险', detail: '细节', mitigation: '应对' }],
+      nextActions: [{ title: '行动一', detail: '细节', timeframe: '本周' }, { title: '行动二', detail: '细节', timeframe: '下周' }],
+      reflectionQuestions: [], disclaimer: '仅参考。',
+    };
+    const completed = { ...createInitialDeepState('session-123'), selectedDirection: 'work' as const, step: 'report' as const, report, lastReport: report };
+    const next = deepFlowReducer(completed, { type: 'backToDirection' });
+
+    expect(next.step).toBe('direction');
+    expect(next.report).toBeNull();
+    expect(next.lastReport?.title).toBe('已完成报告');
+
+    const target = storage();
+    saveDeepSession(next, target);
+    expect(loadDeepSession(target)?.lastReport?.title).toBe('已完成报告');
+  });
+
+  it('restores a stored report when the live report field is empty', () => {
+    const target = storage();
+    const report = {
+      title: '旧报告', summary: '摘要', keyFindings: ['一', '二'],
+      cards: [
+        { id: 'c1', title: 'A', summary: 'a', details: ['x'], evidence: [] },
+        { id: 'c2', title: 'B', summary: 'b', details: ['y'], evidence: [] },
+      ],
+      risks: [{ title: '风险', detail: '细节', mitigation: '应对' }],
+      nextActions: [{ title: '行动一', detail: '细节', timeframe: '本周' }, { title: '行动二', detail: '细节', timeframe: '下周' }],
+      reflectionQuestions: [], disclaimer: '仅参考。',
+    };
+    saveDeepSession({ ...createInitialDeepState('session-123'), selectedDirection: 'work', step: 'report', report: null, lastReport: report }, target);
+
+    expect(loadDeepSession(target)).toMatchObject({ step: 'report', report: { title: '旧报告' } });
+  });
+
+  it('stores a free report as soon as it is generated', () => {
+    const target = storage();
+    const saved = saveFreeReportContext({
+      birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+      freeReport: { disclaimer: '仅供参考', sections: [{ heading: '核心性格', body: '内容', bullets: [] }] },
+    }, target);
+
+    expect(saved.step).toBe('direction');
+    expect(loadDeepSession(target)?.freeReport?.sections[0]?.heading).toBe('核心性格');
   });
 });

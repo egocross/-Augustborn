@@ -5,7 +5,7 @@ const stageCopy: Record<string, { title: string; note: string }> = {
   validating: { title: '正在完成最后检查', note: '确保报告结构完整且表达客观…' },
 };
 
-export function DeepGeneratingModal({ stage = 'preparing' }: { stage?: string }) {
+export function DeepGeneratingModal({ stage = 'preparing', onCancel }: { stage?: string; onCancel?: () => void }) {
   const copy = stageCopy[stage] ?? stageCopy.preparing;
-  return <div className="deep-generating-overlay"><div aria-label="正在生成深度报告" aria-modal="true" className="generating-modal deep-generating-modal" role="dialog"><span aria-hidden="true" className="generating-orb" /><p aria-live="polite" className="generating-stage">{copy.title}</p><div aria-hidden="true" className="progress-track"><span className="progress-bar" /></div><p className="generating-note">{copy.note}</p></div></div>;
+  return <div className="deep-generating-overlay"><div aria-label="正在生成深度报告" aria-modal="true" className="generating-modal deep-generating-modal" role="dialog"><span aria-hidden="true" className="generating-orb" /><p aria-live="polite" className="generating-stage">{copy.title}</p><div aria-hidden="true" className="progress-track"><span className="progress-bar" /></div><p className="generating-note">{copy.note}</p>{onCancel ? <button className="generating-cancel" onClick={onCancel} type="button">取消生成</button> : null}</div></div>;
 }

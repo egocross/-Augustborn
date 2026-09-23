@@ -1,0 +1,183 @@
+[
+  {
+    "name": "free-session-before-explore",
+    "stored": false
+  },
+  {
+    "name": "free-refresh",
+    "showsForm": 1,
+    "reportVisible": 0
+  },
+  {
+    "name": "feedback-before-tab",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "scrollY": 1123,
+    "dialog": {
+      "x": 28,
+      "y": 163.515625,
+      "w": 334,
+      "h": 299.078125
+    },
+    "overlay": {
+      "x": 12,
+      "y": -1087,
+      "w": 366,
+      "h": 2800.109375
+    },
+    "parentAnimation": "0.34s ease-out both content-in",
+    "focus": "<button class=\"primary-button feedback-success-button\" type=\"button\">完成</button>"
+  },
+  {
+    "name": "feedback-after-tab",
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "scrollY": 2068,
+    "dialog": {
+      "x": 28,
+      "y": -781.484375,
+      "w": 334,
+      "h": 299.078125
+    },
+    "overlay": {
+      "x": 12,
+      "y": -2032,
+      "w": 366,
+      "h": 2800.109375
+    },
+    "parentAnimation": "0.34s ease-out both content-in",
+    "focus": "<button class=\"text-button\" type=\"button\">重新分析</button>"
+  },
+  {
+    "name": "other-city-required",
+    "disabled": true
+  },
+  {
+    "name": "city-separator-typing",
+    "requested": "上海、成都",
+    "actual": "上海成都"
+  },
+  {
+    "name": "city-q3-375",
+    "width": 375,
+    "scrollWidth": 375,
+    "height": 937
+  },
+  {
+    "name": "city-q3-390",
+    "width": 390,
+    "scrollWidth": 390,
+    "height": 923
+  },
+  {
+    "name": "city-q3-430",
+    "width": 430,
+    "scrollWidth": 430,
+    "height": 923
+  },
+  {
+    "name": "selected-option-reflow",
+    "before": {
+      "x": 199.390625,
+      "y": 478.9375,
+      "width": 159.21875,
+      "height": 62.125
+    },
+    "after": {
+      "x": 199.390625,
+      "y": 478.9375,
+      "width": 159.21875,
+      "height": 62.125
+    }
+  },
+  {
+    "name": "exclusive-none",
+    "selected": [
+      "on",
+      "on"
+    ],
+    "count": 2,
+    "canContinue": true
+  },
+  {
+    "name": "optional-buttons",
+    "buttons": [
+      "查看深度报告说明"
+    ]
+  },
+  {
+    "name": "payment-error",
+    "text": "上次操作未完成，你的答案已保留，可以重试。"
+  },
+  {
+    "name": "parse-error",
+    "text": "上次操作未完成，你的答案已保留，可以重试。",
+    "answersRetained": 5
+  },
+  {
+    "name": "error-recovery",
+    "success": true
+  },
+  {
+    "name": "previous-report-after-continue",
+    "text": "报告未找到\n\n这份深度报告已不在当前标签页中\n\n为了保护你的隐私，报告只临时保留在生成它的浏览器标签页内。你可以返回首页重新生成。\n\n返回首页"
+  },
+  {
+    "name": "industry-q1-375",
+    "width": 375,
+    "scrollWidth": 375,
+    "height": 1049
+  },
+  {
+    "name": "industry-q1-390",
+    "width": 390,
+    "scrollWidth": 390,
+    "height": 1007
+  },
+  {
+    "name": "industry-q1-430",
+    "width": 430,
+    "scrollWidth": 430,
+    "height": 1007
+  },
+  {
+    "name": "industry-complete",
+    "success": true
+  },
+  {
+    "name": "collaboration-q1-375",
+    "width": 375,
+    "scrollWidth": 375,
+    "height": 854
+  },
+  {
+    "name": "collaboration-q1-390",
+    "width": 390,
+    "scrollWidth": 390,
+    "height": 854
+  },
+  {
+    "name": "collaboration-q1-430",
+    "width": 430,
+    "scrollWidth": 430,
+    "height": 854
+  },
+  {
+    "name": "collaboration-complete",
+    "success": true
+  },
+  {
+    "name": "base-error",
+    "text": "分析暂时不可用，请稍后重试。",
+    "dateRetained": "1990-05-20",
+    "unknownTimeDisabled": true
+  },
+  {
+    "name": "base-retry",
+    "success": true
+  }
+]

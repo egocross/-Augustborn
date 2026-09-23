@@ -43,6 +43,7 @@ function saveCompletedReport() {
     step: 'report',
     paymentReceipt: 'signed-receipt',
     report,
+    lastReport: report,
   }, window.sessionStorage);
 }
 
@@ -83,4 +84,15 @@ it('offers a safe recovery when no report exists in this tab', async () => {
   expect(await screen.findByText('这份深度报告已不在当前标签页中')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '返回首页' }));
   expect(push).toHaveBeenCalledWith('/');
+});
+
+it('still opens the finished report after choosing another direction', async () => {
+  saveCompletedReport();
+  const { unmount } = render(<DeepReportPage />);
+  fireEvent.click(await screen.findByRole('button', { name: '重新选择探索方向' }));
+  unmount();
+
+  render(<DeepReportPage />);
+
+  expect(await screen.findByRole('heading', { name: '你的职业方向深度分析' })).toBeTruthy();
 });

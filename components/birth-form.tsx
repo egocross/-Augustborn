@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 
 import { FeedbackForm } from '@/components/feedback-form';
 import { GeneratingModal } from '@/components/generating-modal';
 import { ReportView } from '@/components/report-view';
 import { DeepAnalysisEntry } from '@/components/deep-analysis/deep-analysis-entry';
-import { clearDeepSession, loadDeepSession } from '@/lib/deep-analysis/session';
+import { clearDeepSession, loadDeepSession, saveFreeReportContext } from '@/lib/deep-analysis/session';
 import { consumeAnalyzeStream, extractCompleteSections } from '@/lib/analyze-stream';
 import type { Report, ReportSection } from '@/lib/gemini/schema';
 
@@ -34,13 +34,28 @@ const loadingStages = [
   '正在生成报告章节…',
 ];
 
+/** Oldest birth date the calculation supports. */
+const EARLIEST_BIRTH_DATE = '1900-01-01';
+
+const localToday = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+/** The newest allowed birth date never changes during a visit. */
+const subscribeToNothing = () => () => {};
+
 export function BirthForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [report, setReport] = useState<Report | null>(null);
   const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [notice, setNotice] = useState('');
   const [loadingStage, setLoadingStage] = useState(0);
+  const analyzeRef = useRef<AbortController | null>(null);
+  // Empty during server rendering so hydration matches, then the local date.
+  const latestBirthDate = useSyncExternalStore(subscribeToNothing, localToday, () => '');
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -61,12 +76,16 @@ export function BirthForm() {
       return;
     }
 
+    // Advances through the stages and then stays put: a stage should never
+    // travel backwards and imply the work restarted.
     const timer = setInterval(() => {
-      setLoadingStage((current) => (current + 1) % loadingStages.length);
+      setLoadingStage((current) => Math.min(current + 1, loadingStages.length - 1));
     }, 6000);
 
     return () => clearInterval(timer);
   }, [status]);
+
+  useEffect(() => () => analyzeRef.current?.abort(), []);
 
   const [modalMounted, setModalMounted] = useState(false);
   const showModal = status === 'loading' && liveSections.length === 0;
@@ -85,10 +104,19 @@ export function BirthForm() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function cancelAnalyze() {
+    analyzeRef.current?.abort();
+    analyzeRef.current = null;
+    setStatus('idle');
+    setLiveSections([]);
+    setNotice('已取消生成。你可以修改信息后重新开始。');
+  }
+
   async function analyze(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus('loading');
     setErrorMessage('');
+    setNotice('');
     setReport(null);
     setLiveSections([]);
     setLoadingStage(0);
@@ -100,11 +128,15 @@ export function BirthForm() {
       birthRegion: form.birthRegion,
     };
 
+    const controller = new AbortController();
+    analyzeRef.current = controller;
+
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -127,10 +159,22 @@ export function BirthForm() {
 
       setReport(finished);
       setStatus('idle');
+      try {
+        saveFreeReportContext({ birthInput: input, freeReport: finished }, window.sessionStorage);
+      } catch {
+        // Storage can be unavailable in private mode; the report still renders.
+      }
     } catch (error) {
+      if (controller.signal.aborted) {
+        setStatus('idle');
+        setLiveSections([]);
+        return;
+      }
       setStatus('error');
       setLiveSections([]);
       setErrorMessage(error instanceof Error ? error.message : fallbackError);
+    } finally {
+      if (analyzeRef.current === controller) analyzeRef.current = null;
     }
   }
 
@@ -141,10 +185,14 @@ export function BirthForm() {
     setLiveSections([]);
     setStatus('idle');
     setErrorMessage('');
+    setNotice('');
   }
 
   const modal = modalMounted
-    ? createPortal(<GeneratingModal open={showModal} stage={loadingStages[loadingStage]} />, document.body)
+    ? createPortal(
+      <GeneratingModal onCancel={cancelAnalyze} open={showModal} stage={loadingStages[loadingStage]} />,
+      document.body,
+    )
     : null;
 
   if (report || liveSections.length > 0) {
@@ -189,35 +237,38 @@ export function BirthForm() {
         <form className="birth-form" onSubmit={analyze}>
           <fieldset className="form-section">
             <legend>填写出生信息</legend>
-            <p className="form-section-note">三项信息用于生成报告，出生地区为选填。</p>
 
             <div className="field">
-              <label className="field-label" htmlFor="birthDate">
-                出生日期
-              </label>
+              <div className="field-label-row">
+                <label className="field-label" htmlFor="birthDate">出生日期</label>
+                <span className="field-required">必填</span>
+              </div>
               <input
                 aria-describedby="birthDate-hint"
                 id="birthDate"
+                max={latestBirthDate || undefined}
+                min={EARLIEST_BIRTH_DATE}
                 onChange={(changeEvent) => updateField('birthDate', changeEvent.target.value)}
                 required
                 type="date"
                 value={form.birthDate}
               />
               <p className="field-hint" id="birthDate-hint">
-                公历日期，按北京时间填写
+                公历日期，按北京时间填写。
               </p>
             </div>
 
             <div className="field">
-              <label className="field-label" htmlFor="birthTime">
-                出生时间
-              </label>
+              <div className="field-label-row">
+                <label className="field-label" htmlFor="birthTime">出生时间</label>
+                <span className="field-required">必填</span>
+              </div>
               <input
                 aria-describedby="birthTime-hint"
                 disabled={form.timeUnknown}
                 id="birthTime"
                 onChange={(changeEvent) => updateField('birthTime', changeEvent.target.value)}
-                required
+                required={!form.timeUnknown}
                 type="time"
                 value={form.birthTime}
               />
@@ -227,19 +278,20 @@ export function BirthForm() {
                   onChange={(changeEvent) => updateField('timeUnknown', changeEvent.target.checked)}
                   type="checkbox"
                 />
-                不知道准确出生时间
+                <span>不知道准确出生时间</span>
               </label>
               <p className="field-hint" id="birthTime-hint">
                 {form.timeUnknown
                   ? '时间未知时，报告会跳过依赖出生时间的分析。'
-                  : '24 小时制，按北京时间填写；若记不清可勾选上方选项。'}
+                  : '24 小时制，按北京时间填写。'}
               </p>
             </div>
 
             <div className="field">
-              <label className="field-label" htmlFor="birthRegion">
-                出生地区
-              </label>
+              <div className="field-label-row">
+                <label className="field-label" htmlFor="birthRegion">出生地区</label>
+                <span className="field-optional">选填</span>
+              </div>
               <input
                 aria-describedby="birthRegion-hint"
                 id="birthRegion"
@@ -249,7 +301,7 @@ export function BirthForm() {
                 value={form.birthRegion}
               />
               <p className="field-hint" id="birthRegion-hint">
-                选填，仅用于理解你的成长环境带来的偏好。
+                用于理解成长环境带来的偏好。
               </p>
             </div>
           </fieldset>
@@ -260,11 +312,16 @@ export function BirthForm() {
                 {errorMessage}
               </p>
             ) : null}
+            {notice ? (
+              <p className="form-notice" role="status">
+                {notice}
+              </p>
+            ) : null}
             <button className="primary-button" disabled={status === 'loading'} type="submit">
               {status === 'loading' ? '正在生成…' : '生成我的探索报告'}
             </button>
             <p className="privacy-notice">
-              出生信息不写入账户或数据库。为避免刷新丢失，本标签页会临时保存在浏览器 Session 中，关闭标签页后清除。
+              出生信息不会写入账户或数据库。为了让报告在刷新后仍能查看，本标签页会临时保存，关闭标签页后自动清除。
             </p>
           </div>
         </form>

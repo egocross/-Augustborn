@@ -21,7 +21,11 @@ export function DeepReportPage() {
     return <section aria-busy="true" aria-label="正在打开深度报告" className="deep-report-page-loading" />;
   }
 
-  if (state?.step !== 'report' || !state.report) {
+  // The finished report survives “choose another direction”, so the reader can
+  // still reopen what they already paid for instead of losing it.
+  const report = state?.report ?? state?.lastReport ?? null;
+
+  if (!report) {
     return (
       <section className="deep-report-recovery">
         <p className="eyebrow">报告未找到</p>
@@ -49,7 +53,7 @@ export function DeepReportPage() {
         <button className="secondary-button" onClick={() => router.push('/')} type="button">返回基础报告</button>
       </nav>
 
-      <DeepReportView report={state.report} />
+      <DeepReportView report={report} />
 
       <section className="deep-report-page-actions">
         <div>

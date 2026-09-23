@@ -202,3 +202,43 @@ it('keeps a compact entry on the free-report page after a deep report exists', a
   fireEvent.click(openButton);
   expect(push).toHaveBeenCalledWith('/deep-report');
 });
+
+it('explains which step failed and whether paying again is needed', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'work',
+    step: 'payment',
+    paymentReceipt: 'signed-receipt',
+  }, window.sessionStorage);
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(new ReadableStream<Uint8Array>({ start(controller) {
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'error', code: 'parse_failed', message: '报告解析失败，请重试。' })}\n\n`));
+    controller.close();
+  } }), { status: 200 })));
+
+  render(<DeepAnalysisFlow {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: '生成我的深度报告' }));
+
+  expect(await screen.findByText('报告内容整理失败')).toBeTruthy();
+  expect(screen.getByText(/不需要再次付款/)).toBeTruthy();
+  expect(screen.getByText('已完成支付，无需重复付款。')).toBeTruthy();
+});
+
+it('lets the reader step back and edit answers before generating', async () => {
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', props),
+    selectedDirection: 'work',
+    step: 'payment',
+    answers: {
+      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
+      work_q5: { optionIds: ['work_q5_growth'] },
+    },
+  }, window.sessionStorage);
+
+  render(<DeepAnalysisFlow {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: '修改答案' }));
+  expect(screen.getByText('还有什么现实情况希望我们考虑？')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: '上一步' }));
+  expect(screen.getByText('第 5 / 5 题')).toBeTruthy();
+});

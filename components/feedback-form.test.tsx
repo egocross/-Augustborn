@@ -39,6 +39,7 @@ it('submits only the selected accuracy rating', async () => {
 it('shows an expressive success dialog and keeps a compact submitted state after closing', async () => {
   render(<FeedbackForm />);
 
+  fireEvent.click(screen.getByLabelText('5 分'));
   fireEvent.click(screen.getByRole('button', { name: '提交反馈' }));
 
   const dialog = await screen.findByRole('dialog', { name: '谢谢你的反馈' });
@@ -54,6 +55,7 @@ it('shows an expressive success dialog and keeps a compact submitted state after
 it('closes the success dialog with Escape', async () => {
   render(<FeedbackForm />);
 
+  fireEvent.click(screen.getByLabelText('5 分'));
   fireEvent.click(screen.getByRole('button', { name: '提交反馈' }));
   await screen.findByRole('dialog', { name: '谢谢你的反馈' });
 

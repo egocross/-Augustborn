@@ -103,11 +103,11 @@ it('sends the birth date, time and region, then renders the streamed report', as
 
   await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
   expect(await screen.findByRole('button', { name: '开始深入探索' })).toBeTruthy();
-  expect(fetch).toHaveBeenCalledWith('/api/analyze', {
+  expect(fetch).toHaveBeenCalledWith('/api/analyze', expect.objectContaining({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ birthDate: '1977-09-03', birthTime: '13:30', birthRegion: '浙江杭州' }),
-  });
+  }));
 });
 
 it('disables the time input and sends a null birth time when the time is unknown', async () => {
@@ -123,11 +123,11 @@ it('disables the time input and sends a null birth time when the time is unknown
   fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
 
   await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
-  expect(fetch).toHaveBeenCalledWith('/api/analyze', {
+  expect(fetch).toHaveBeenCalledWith('/api/analyze', expect.objectContaining({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ birthDate: '1990-01-02', birthTime: null, birthRegion: '' }),
-  });
+  }));
 });
 
 it('shows a running progress indicator while the report is generating', async () => {
