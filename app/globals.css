@@ -73,9 +73,11 @@ h1, h2, h3, p { margin-top: 0; }
   display: grid;
   place-items: center;
   padding: clamp(1.25rem, 5vw, 2rem);
-  background: rgb(7 11 18 / 42%);
-  -webkit-backdrop-filter: blur(10px) saturate(0.82);
-  backdrop-filter: blur(10px) saturate(0.82);
+  /* This is intentionally opaque: on a phone, a translucent page behind the
+     dialog reads as an uncovered band above and below the card. */
+  background:
+    radial-gradient(34rem 27rem at 50% 44%, rgb(67 108 171 / 38%), transparent 68%),
+    linear-gradient(155deg, #1b2739 0%, #101827 54%, #0c131f 100%);
   /* `dvh` tracks the visible area while Android/iOS browser chrome expands
      and collapses. `inset` remains as the fallback for older browsers. */
   min-height: 100dvh;
@@ -680,9 +682,10 @@ input::placeholder { color: var(--placeholder); }
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  background: rgba(24, 33, 46, 0.34);
+  background:
+    radial-gradient(32rem 25rem at 50% 42%, rgb(72 104 154 / 28%), transparent 70%),
+    linear-gradient(155deg, #1b2739 0%, #101827 54%, #0c131f 100%);
   padding: 1rem;
-  backdrop-filter: blur(12px) saturate(85%);
   animation: feedback-overlay-in 240ms ease-out both;
 }
 
@@ -899,8 +902,9 @@ input::placeholder { color: var(--placeholder); }
   display: grid;
   place-items: center;
   padding: 1.25rem;
-  background: rgb(8 13 21 / 48%);
-  backdrop-filter: blur(16px) saturate(0.82);
+  background:
+    radial-gradient(36rem 28rem at 50% 44%, rgb(67 108 171 / 38%), transparent 68%),
+    linear-gradient(155deg, #1b2739 0%, #101827 54%, #0c131f 100%);
   overscroll-behavior: none;
   touch-action: none;
   animation: overlay-in 300ms ease-out both;
