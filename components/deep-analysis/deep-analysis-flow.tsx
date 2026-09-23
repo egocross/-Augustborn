@@ -293,14 +293,16 @@ export function DeepAnalysisFlow({
     <textarea aria-label="我的问题" disabled={state.step === 'custom-loading'} maxLength={1000} onChange={(event) => dispatch({ type: 'setCustomQuestion', value: event.target.value })} rows={5} value={state.customQuestion} />{state.errorCode && state.step !== 'custom-loading' ? <p className="form-error" role="alert">补充问题暂时无法生成，你的输入已保留，请重试。</p> : null}
     <div className="deep-actions"><button className="secondary-button" onClick={() => dispatch({ type: 'backToDirection' })} type="button">返回</button><button className="primary-button" disabled={state.step === 'custom-loading' || state.customQuestion.trim().length < 2} onClick={prepareCustomQuestions} type="button">{state.step === 'custom-loading' ? '正在判断是否需要补充…' : '继续'}</button></div>
   </section>;
-  if (state.step === 'questions' && question) return <section className="deep-panel question-panel">
+  if (state.step === 'questions' && question) return <section className="deep-panel question-panel question-viewport">
     <p className="step-label">第 {state.questionIndex + 1} / {questions.length} 题</p>
+    <div className="question-scroll-area" key={question.id}>
     <QuestionStep
       answer={currentAnswer}
       onChange={(answer: AnswerValue) => dispatch({ type: 'setAnswer', questionId: question.id, answer })}
       onSingleSelect={() => dispatch({ type: 'nextQuestion', total: questions.length })}
       question={question}
     />
+    </div>
     <div className="deep-actions">
       <button className="secondary-button" onClick={() => dispatch({ type: 'previousQuestion' })} type="button">上一步</button>
       {needsManualContinue ? <button className="primary-button" disabled={!answerReady} onClick={() => dispatch({ type: 'nextQuestion', total: questions.length })} type="button">继续</button> : null}
