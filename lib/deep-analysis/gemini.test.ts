@@ -17,6 +17,7 @@ vi.mock('@google/genai', () => ({
 import { generateCustomQuestions, generateDeepReportStream, parseDynamicQuestions } from './gemini';
 import { createSampleDeepReport } from '../report-provider/sample';
 import type { DeepPromptInput } from './prompts';
+import { DeepReportSchema } from './types';
 
 const question = (id: string) => ({
   id,
@@ -33,6 +34,51 @@ beforeEach(() => {
 });
 
 describe('deep Gemini adapter', () => {
+  it.each(['industry', 'city', 'collaboration'] as const)('generates %s fields with server-owned research and no unnecessary searches', async (directionId) => {
+    const name = directionId === 'city' ? '杭州' : '企业软件服务';
+    const excerpt = `“${name}”的产业资料；统计期2025年，发布日期2026年。`;
+    generateContent.mockResolvedValue({ text: excerpt, candidates: [{ groundingMetadata: {
+      webSearchQueries: [name], groundingChunks: [{ web: { uri: 'https://www.gov.cn/zhengce/article123.htm', title: '官方资料' } }],
+      groundingSupports: [{ segment: { text: excerpt }, groundingChunkIndices: [0] }],
+    } }] });
+    const modelReport = { ...createSampleDeepReport({ directionId, optionalContext: '' }), marketExamples: [
+      { name, evidenceIds: ['market_1'], priority: 2, fitReason: '结合偏好提出验证假设。', boundary: '先核对门槛。', nextStep: '开展一次访谈。' },
+    ] };
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+    const stages: string[] = [];
+    const input: DeepPromptInput = { birthProfile: {}, freeReportSummary: { sections: [] }, directionId, questionnaireVersion: 'v1', answers: {}, optionalContext: '', customQuestion: null, cityContext: null };
+    const stream = generateDeepReportStream(input, { onStage: (stage) => stages.push(stage) });
+    await stream.next();
+    const result = await stream.next();
+    expect(result.done).toBe(true);
+    if (!result.done) throw new Error('Report did not complete');
+    const parsed = DeepReportSchema.parse(result.value);
+    if (directionId === 'collaboration') {
+      expect(parsed.collaborationPlan?.scenarios.length).toBeGreaterThanOrEqual(2);
+      expect(parsed.marketResearch).toBeUndefined();
+      expect(generateContent).not.toHaveBeenCalled();
+    } else {
+      expect(parsed.marketResearch?.examples[0].sources[0].url).toBe('https://www.gov.cn/zhengce/article123.htm');
+      expect(parsed.marketResearch?.status).toBe('sourced');
+      expect(stages[0]).toBe(directionId === 'city' ? 'researching_cities' : 'researching_industries');
+      if (directionId === 'city') expect(parsed.cityPlan?.tiers.map((tier) => tier.priority)).toEqual([1, 2, 3]);
+      else expect(parsed.industryDirections?.groups.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('preserves a city framework with empty examples when the external search fails', async () => {
+    generateContent.mockRejectedValue(new Error('unavailable'));
+    const modelReport = { ...createSampleDeepReport({ directionId: 'city', optionalContext: '' }), marketExamples: [] };
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+    const stream = generateDeepReportStream({ birthProfile: {}, freeReportSummary: { sections: [] }, directionId: 'city', questionnaireVersion: 'v1', answers: {}, optionalContext: '', customQuestion: null, cityContext: null });
+    await stream.next();
+    const result = await stream.next();
+    if (!result.done) throw new Error('Report did not complete');
+    expect(result.value?.cityPlan?.tiers).toHaveLength(3);
+    expect(result.value?.marketResearch?.status).toBe('unavailable');
+    expect(result.value?.marketResearch?.examples).toEqual([]);
+  });
+
   it('returns exploration labels separately from verified jobs after consuming model JSON', async () => {
     generateContent.mockResolvedValue({ text: '', candidates: [] });
     const modelReport = { ...createSampleDeepReport({ directionId: 'work', optionalContext: '' }), jobRecommendations: [] };

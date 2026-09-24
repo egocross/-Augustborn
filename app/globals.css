@@ -938,6 +938,13 @@ input::placeholder { color: var(--placeholder); }
 .work-direction-group p, .work-direction-intersection p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.75; }
 .work-direction-boundary { font-size: 0.9rem; }
 .work-direction-intersection { margin-top: 1.25rem; padding-left: 1rem; border-left: 3px solid var(--accent); overflow-wrap: anywhere; }
+.market-examples { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.city-tier .job-recommendation-list { margin-top: 1rem; }
+.city-tier .city-tier-profile { color: var(--ink); font-weight: 600; }
+.market-source + .market-source { padding-top: 0.6rem; border-top: 1px solid var(--line); }
+.collaboration-scenario dl { margin: 0; }
+.collaboration-scenario dt { margin-top: 0.85rem; font-size: 0.9rem; font-weight: 650; color: var(--ink); }
+.collaboration-scenario dd { margin: 0.25rem 0 0; color: var(--ink-soft); line-height: 1.75; }
 .job-research-heading h3 { margin-bottom: 0; }
 .job-checked-at { margin: 0; color: var(--ink-soft); font-size: 0.8rem; }
 .job-research-note { margin: 0.75rem 0 1.2rem; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.7; }

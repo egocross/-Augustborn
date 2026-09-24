@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import type { DeepReport } from '@/lib/deep-analysis/types';
 import { JobRecommendations } from './job-recommendations';
+import { ExplorationSections } from './exploration-sections';
 
 export function DeepReportView({ report }: { report: DeepReport }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -37,6 +38,7 @@ export function DeepReportView({ report }: { report: DeepReport }) {
     </section> : null}
 
     {report.jobResearch ? <JobRecommendations research={report.jobResearch} /> : null}
+    <ExplorationSections report={report} />
 
     <div className="deep-card-list">{report.cards.map((card, index) => {
       const open = expanded.has(card.id);

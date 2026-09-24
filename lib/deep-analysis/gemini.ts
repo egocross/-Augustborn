@@ -5,8 +5,10 @@ import { z } from 'zod';
 
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_REASONING_EFFORT, type GeminiReasoningEffort } from '@/lib/gemini/config';
 import { createDeepPrompt, type DeepPromptInput } from './prompts';
-import { DeepReportSchema, DynamicQuestionSchema, WorkDirectionsSchema, type DeepReport, type DynamicQuestion } from './types';
+import { CityPlanSchema, CollaborationPlanSchema, DeepReportSchema, DynamicQuestionSchema, WorkDirectionsSchema, type DeepReport, type DynamicQuestion } from './types';
 import { buildJobResearch, researchWorkJobs } from './research/jobs';
+import { buildMarketResearch, researchMarket } from './research/market';
+import { MarketAdviceSchema, type MarketDirection } from './research/market-schema';
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
 const THINKING_LEVELS: Record<GeminiReasoningEffort, ThinkingLevel> = {
@@ -91,6 +93,23 @@ const workReportResponseSchema = {
   required: [...deepReportResponseSchema.required, 'workDirections', 'jobRecommendations'],
 };
 
+const marketReportResponseSchema = (direction: MarketDirection) => {
+  const field = direction === 'industry' ? 'industryDirections' : 'cityPlan';
+  return {
+    ...deepReportResponseSchema,
+    properties: { ...deepReportResponseSchema.properties,
+      [field]: z.toJSONSchema(direction === 'industry' ? WorkDirectionsSchema : CityPlanSchema, { target: 'openapi-3.0' }),
+      marketExamples: z.toJSONSchema(z.array(MarketAdviceSchema).max(direction === 'city' ? 9 : 5), { target: 'openapi-3.0' }),
+    },
+    required: [...deepReportResponseSchema.required, field, 'marketExamples'],
+  };
+};
+const collaborationReportResponseSchema = {
+  ...deepReportResponseSchema,
+  properties: { ...deepReportResponseSchema.properties, collaborationPlan: z.toJSONSchema(CollaborationPlanSchema, { target: 'openapi-3.0' }) },
+  required: [...deepReportResponseSchema.required, 'collaborationPlan'],
+};
+
 const mapError = (error: unknown): never => {
   if (error instanceof DeepAnalysisError) throw error;
   if (error instanceof Error && (error.name === 'AbortError' || error.message.toLowerCase().includes('abort'))) {
@@ -125,13 +144,17 @@ export async function* generateDeepReportStream(
   try {
     if (input.directionId === 'work') options.onStage?.('researching');
     const research = input.directionId === 'work' ? await researchWorkJobs(input.answers, options) : undefined;
+    const marketDirection = input.directionId === 'industry' || input.directionId === 'city' ? input.directionId : undefined;
+    if (marketDirection) options.onStage?.(marketDirection === 'city' ? 'researching_cities' : 'researching_industries');
+    const market = marketDirection ? await researchMarket(marketDirection, input.answers, options) : undefined;
     options.signal?.throwIfAborted();
     options.onStage?.('analyzing');
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const stream = await ai.models.generateContentStream({
       model: GEMINI_MODEL ?? DEFAULT_MODEL,
-      contents: createDeepPrompt(input, research),
-      config: config(research ? workReportResponseSchema : deepReportResponseSchema, options.signal),
+      contents: createDeepPrompt(input, research, market),
+      config: config(research ? workReportResponseSchema : marketDirection ? marketReportResponseSchema(marketDirection)
+        : input.directionId === 'collaboration' ? collaborationReportResponseSchema : deepReportResponseSchema, options.signal),
     });
     let text = '';
     for await (const chunk of stream) {
@@ -142,7 +165,13 @@ export async function* generateDeepReportStream(
     }
     if (!text) throw new DeepAnalysisError('upstream_failed');
     const modelReport = JSON.parse(text);
-    const report = DeepReportSchema.omit({ jobResearch: true }).parse(modelReport);
+    const report = DeepReportSchema.omit({ jobResearch: true, marketResearch: true, workDirections: true, industryDirections: true, cityPlan: true, collaborationPlan: true }).parse(modelReport);
+    if (market) return {
+      ...report,
+      ...(market.direction === 'industry' ? { industryDirections: WorkDirectionsSchema.parse(modelReport.industryDirections) } : { cityPlan: CityPlanSchema.parse(modelReport.cityPlan) }),
+      marketResearch: buildMarketResearch(market, modelReport.marketExamples, input.answers),
+    };
+    if (input.directionId === 'collaboration') return { ...report, collaborationPlan: CollaborationPlanSchema.parse(modelReport.collaborationPlan) };
     return research ? {
       ...report,
       workDirections: WorkDirectionsSchema.parse(modelReport.workDirections),

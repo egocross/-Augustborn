@@ -1,6 +1,7 @@
 import type { BaziChart } from '@/lib/bazi/types';
 import type { DeepPromptInput } from '@/lib/deep-analysis/prompts';
 import type { DeepReport, DirectionId, DynamicQuestion } from '@/lib/deep-analysis/types';
+import { sampleExploration } from './sample-exploration';
 
 const SAMPLE_NOTE = '当前为本地示例内容，未调用 Gemini API。';
 
@@ -91,6 +92,7 @@ export function createSampleDeepReport(input: Pick<DeepPromptInput, 'directionId
 
   return {
     title: `${copy.title}（本地示例）`,
+    ...sampleExploration(input.directionId),
     ...(input.directionId === 'work' ? { workDirections: {
       groups: [
         { title: '把想法变成内容', tags: ['内容策划', '文案策划', '新媒体编辑', '视频策划'], rationale: '示例：如果基础报告提示表达倾向，且现实经历中也有内容产出，可以从这些任务开始验证。', boundary: '核对作品要求、修改频率和交付节奏；喜欢表达不等于已经具备专业能力。' },

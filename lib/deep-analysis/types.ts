@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { JobResearchSchema } from './research/schema';
+import { MarketResearchSchema } from './research/market-schema';
 
 export const DirectionIdSchema = z.enum(['work', 'industry', 'city', 'collaboration', 'custom']);
 export type DirectionId = z.infer<typeof DirectionIdSchema>;
@@ -55,9 +56,32 @@ export const WorkDirectionsSchema = z.object({
   })).min(2).max(3),
   intersection: z.string().min(1).max(600),
 });
+export const CityPlanSchema = z.object({
+  tiers: z.array(z.object({
+    priority: z.number().int().min(1).max(3),
+    profile: z.string().min(1).max(200),
+    rationale: z.string().min(1).max(500),
+    boundary: z.string().min(1).max(400),
+  })).length(3).refine((tiers) => new Set(tiers.map((tier) => tier.priority)).size === 3, 'Each priority must appear once'),
+  intersection: z.string().min(1).max(600),
+});
+export const CollaborationPlanSchema = WorkDirectionsSchema.extend({
+  scenarios: z.array(z.object({
+    title: z.string().min(1).max(80),
+    yourRole: z.string().min(1).max(400),
+    partnerRole: z.string().min(1).max(400),
+    sharedDecision: z.string().min(1).max(400),
+    trial: z.string().min(1).max(500),
+    redFlags: z.array(z.string().min(1).max(200)).min(1).max(3),
+  })).min(2).max(4),
+});
 export const DeepReportSchema = z.object({
   workDirections: WorkDirectionsSchema.optional(),
   jobResearch: JobResearchSchema.optional(),
+  industryDirections: WorkDirectionsSchema.optional(),
+  cityPlan: CityPlanSchema.optional(),
+  collaborationPlan: CollaborationPlanSchema.optional(),
+  marketResearch: MarketResearchSchema.optional(),
   title: z.string().min(1).max(100),
   summary: z.string().min(1).max(2_000),
   keyFindings: z.array(z.string().min(1).max(500)).min(2).max(5),

@@ -4,8 +4,25 @@ import { afterEach, expect, it } from 'vitest';
 import { DeepReportView } from './deep-report-view';
 import type { JobResearch } from '@/lib/deep-analysis/research/schema';
 import { DeepReportSchema } from '@/lib/deep-analysis/types';
+import { createSampleDeepReport } from '@/lib/report-provider/sample';
 
 afterEach(cleanup);
+
+it.each([
+  ['industry', '先拓宽你的行业选择'],
+  ['city', '按你的条件，分三步看城市'],
+  ['collaboration', '哪些能力能与你形成互补？'],
+] as const)('renders the %s exploration structure from a persisted report', (directionId, heading) => {
+  const parsed = DeepReportSchema.parse(createSampleDeepReport({ directionId, optionalContext: '' }));
+  const { container } = render(<DeepReportView report={parsed} />);
+  expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
+  if (directionId === 'city') expect(container.querySelectorAll('.city-tier')).toHaveLength(3);
+  if (directionId === 'collaboration') {
+    expect(screen.getAllByText('你负责').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('对方负责').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('先试一次合作').length).toBeGreaterThanOrEqual(2);
+  }
+});
 
 const workDirections = {
   groups: [
