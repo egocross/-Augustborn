@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_REASONING_EFFORT, type GeminiReasoningEffort } from '@/lib/gemini/config';
 import { createDeepPrompt, type DeepPromptInput } from './prompts';
 import { DeepReportSchema, DynamicQuestionSchema, type DeepReport, type DynamicQuestion } from './types';
+import { buildJobResearch, researchWorkJobs } from './research/jobs';
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
 const THINKING_LEVELS: Record<GeminiReasoningEffort, ThinkingLevel> = {
@@ -69,6 +70,26 @@ const config = (responseJsonSchema: object, signal?: AbortSignal) => ({
   ...(signal ? { abortSignal: signal } : {}),
 });
 
+const workReportResponseSchema = {
+  ...deepReportResponseSchema,
+  properties: {
+    ...deepReportResponseSchema.properties,
+    jobRecommendations: {
+      type: 'array', maxItems: 5,
+      items: {
+        type: 'object',
+        properties: {
+          evidenceId: { type: 'string' }, title: { type: 'string' },
+          searchKeywords: { type: 'array', items: { type: 'string' } },
+          fitReason: { type: 'string' }, entryGap: { type: 'string' }, nextStep: { type: 'string' },
+        },
+        required: ['evidenceId', 'title', 'searchKeywords', 'fitReason', 'entryGap', 'nextStep'],
+      },
+    },
+  },
+  required: [...deepReportResponseSchema.required, 'jobRecommendations'],
+};
+
 const mapError = (error: unknown): never => {
   if (error instanceof DeepAnalysisError) throw error;
   if (error instanceof Error && (error.name === 'AbortError' || error.message.toLowerCase().includes('abort'))) {
@@ -98,14 +119,18 @@ export async function generateCustomQuestions(
 
 export async function* generateDeepReportStream(
   input: DeepPromptInput,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; onStage?: (stage: string) => void } = {},
 ): AsyncGenerator<string, DeepReport | undefined> {
   try {
+    if (input.directionId === 'work') options.onStage?.('researching');
+    const research = input.directionId === 'work' ? await researchWorkJobs(input.answers, options) : undefined;
+    options.signal?.throwIfAborted();
+    options.onStage?.('analyzing');
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const stream = await ai.models.generateContentStream({
       model: GEMINI_MODEL ?? DEFAULT_MODEL,
-      contents: createDeepPrompt(input),
-      config: config(deepReportResponseSchema, options.signal),
+      contents: createDeepPrompt(input, research),
+      config: config(research ? workReportResponseSchema : deepReportResponseSchema, options.signal),
     });
     let text = '';
     for await (const chunk of stream) {
@@ -115,7 +140,9 @@ export async function* generateDeepReportStream(
       }
     }
     if (!text) throw new DeepAnalysisError('upstream_failed');
-    return DeepReportSchema.parse(JSON.parse(text));
+    const modelReport = JSON.parse(text);
+    const report = DeepReportSchema.omit({ jobResearch: true }).parse(modelReport);
+    return research ? { ...report, jobResearch: buildJobResearch(research, modelReport.jobRecommendations) } : report;
   } catch (error) {
     if (error instanceof SyntaxError || error instanceof z.ZodError) throw new DeepAnalysisError('parse_failed');
     return mapError(error);

@@ -102,4 +102,18 @@ describe('POST /api/deep-analysis/report', () => {
     ]);
     expect(events.at(-1)).toEqual({ type: 'report', report });
   });
+
+  it('delivers and persists server-validated research from the generator return value', async () => {
+    const verified = { ...report, jobResearch: { status: 'unavailable', checkedAt: '2026-09-24T08:00:00.000Z', note: '无可靠来源', recommendations: [] } };
+    generate.mockImplementation(async function* (_input, options) {
+      options.onStage?.('researching');
+      yield JSON.stringify({ ...report, jobRecommendations: [{ title: '未经校验的名称' }] });
+      return verified;
+    });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const events = await readEvents(await POST(request(valid)));
+    expect(events).toContainEqual({ type: 'status', stage: 'researching' });
+    expect(events.at(-1)).toEqual({ type: 'report', report: verified });
+    expect(persist).toHaveBeenLastCalledWith(expect.objectContaining({ reportResult: verified }));
+  });
 });

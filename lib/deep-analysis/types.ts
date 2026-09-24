@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JobResearchSchema } from './research/schema';
 
 export const DirectionIdSchema = z.enum(['work', 'industry', 'city', 'collaboration', 'custom']);
 export type DirectionId = z.infer<typeof DirectionIdSchema>;
@@ -46,6 +47,7 @@ export type DynamicQuestion = z.infer<typeof DynamicQuestionSchema>;
 
 const boundedText = z.string().min(1).max(1_500);
 export const DeepReportSchema = z.object({
+  jobResearch: JobResearchSchema.optional(),
   title: z.string().min(1).max(100),
   summary: z.string().min(1).max(2_000),
   keyFindings: z.array(z.string().min(1).max(500)).min(2).max(5),

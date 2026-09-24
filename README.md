@@ -76,6 +76,20 @@ ALIPAY_RETURN_URL=https://your-public-preview.example.com/explore
 
 所有模型调用都收在 `lib/report-provider` 这一层，路由只依赖该层的 `streamBaseReport`、`streamDeepReport` 与 `createCustomQuestions`，替换供应商不需要改动请求处理、流式传输和校验逻辑。
 
+## 工作方向的招聘来源
+
+正式生成工作方向报告时，后台先通过 Gemini 的 Google Search 工具检索招聘实例，再把带引用的证据交给报告模型。目标为 3–5 个真实职位名称，每项提供搜索关键词、适配理由、待核对门槛、验证动作、招聘来源链接和查询日期。行业、城市等其他方向暂不启用此检索步骤。
+
+- 沿用 `GEMINI_API_KEY` 和 `GEMINI_MODEL`，无需新的搜索密钥；模型与账号需支持 Google Search grounding。检索是额外一次模型调用，可能产生搜索和模型用量费用。
+- 搜索只接收工作问卷的固定选项文字，不接收出生信息、基础报告或自由补充文本。完整现实补充仅用于后续报告分析。
+- 工作报告接收完整题目与所选选项，保留“排斥”和“偏好”的含义；招聘资料未说明的差旅、工时等条件需要向招聘方确认，不从岗位名称推断。
+- 来源从 API 的 grounding metadata 获取；仅接受已执行搜索、有引用对应文本、且指向支持的招聘网站职位详情页的来源。Google 引用跳转仅在白名单范围内解析，不跟随任意 URL。
+- 最终职位名必须出现在对应引用文本中。来源 URL 和查询时间由服务端加入；无来源、重复、过期或无法核对的项会被丢弃。少于三项时明确说明，不强行补齐；搜索超时或不可用时保留方向报告，并显示来源缺失状态。
+- 查询日期不是职位发布时间；搜索索引可能滞后，不保证仍可投递。报告展示 Google 返回的搜索建议（隔离 iframe）及招聘实例链接，用户应在招聘页面确认状态。
+- `REPORT_PROVIDER=sample` 不检索、不调用 Gemini、不伪造招聘实例。旧报告仍可读取；只有重新生成的工作报告会出现招聘来源模块。
+
+检索指令在 `lib/deep-analysis/prompts/job-research.ts`，推荐写作要求在 `lib/deep-analysis/prompts/work.ts`，来源校验在 `lib/deep-analysis/research/jobs.ts`。
+
 ## 支付边界
 
 `PAYMENT_PROVIDER=mock` 保留本地快速测试。`PAYMENT_PROVIDER=alipay_sandbox` 使用支付宝手机网站支付：服务端创建订单，跳转沙箱收银台，异步回调验签并校验 App ID、卖家 ID、订单号、金额和交易状态后，才签发绑定 Session 和方向的短期报告凭证。支付宝 `return_url` 只用于返回页面，不作为付款成功依据。

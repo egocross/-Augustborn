@@ -91,6 +91,12 @@ export function createSampleDeepReport(input: Pick<DeepPromptInput, 'directionId
 
   return {
     title: `${copy.title}（本地示例）`,
+    ...(input.directionId === 'work' ? { jobResearch: {
+      status: 'sample' as const,
+      checkedAt: new Date().toISOString(),
+      note: '当前为流程预览，未查询招聘网站。使用正式报告生成时，会在这里显示有来源支持的职位推荐。',
+      recommendations: [],
+    } } : {}),
     summary: `这份报告聚焦${copy.focus}。结论会综合你填写的出生信息、基础报告、校准答案${context ? '以及你补充的现实情况' : ''}，用于验证方向，而不是给出唯一答案。`,
     keyFindings: [
       '你更容易在反馈周期短、结果可被看见的事情上持续投入。',

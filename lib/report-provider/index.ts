@@ -29,7 +29,7 @@ export async function* streamBaseReport(chart: BaziChart): AsyncGenerator<string
 
 export async function* streamDeepReport(
   input: DeepPromptInput,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; onStage?: (stage: string) => void } = {},
 ): AsyncGenerator<string, DeepReport | undefined> {
   if (getReportProvider() === 'sample') {
     return yield* streamSampleDeepReport(input);

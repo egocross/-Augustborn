@@ -64,11 +64,18 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (event: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const abortController = new AbortController();
+      const onRequestAbort = () => abortController.abort();
+      request.signal.addEventListener('abort', onRequestAbort, { once: true });
+      if (request.signal.aborted) onRequestAbort();
+      const send = (event: unknown) => {
+        if (request.signal.aborted) return;
+        try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)); }
+        catch { abortController.abort(); }
+      };
       const safePersist = async (event: Parameters<typeof dependencies.persist>[0]) => {
         try { await dependencies.persist(event); } catch { /* Optional persistence never blocks delivery. */ }
       };
-      const abortController = new AbortController();
       const deadline = setTimeout(() => abortController.abort(), 240_000);
       const heartbeat = setInterval(() => send({ type: 'heartbeat' }), 15_000);
       const baseEvent = {
@@ -85,12 +92,13 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
           freeReportSummary: createFreeReportSummary(input.freeReport), directionId: input.selectedDirection,
           questionnaireVersion: input.questionnaireVersion, answers: input.answers,
           optionalContext: input.optionalContext, customQuestion: input.customQuestion, cityContext: null,
-        }, { signal: abortController.signal });
+        }, { signal: abortController.signal, onStage: (stage) => send({ type: 'status', stage }) });
         let text = '';
+        let verifiedReport;
         let receivedFirstChunk = false;
         while (true) {
           const next = await iterator.next();
-          if (next.done) break;
+          if (next.done) { verifiedReport = next.value; break; }
           if (!receivedFirstChunk) {
             receivedFirstChunk = true;
             send({ type: 'status', stage: 'structuring' });
@@ -98,7 +106,8 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
           text += next.value;
         }
         send({ type: 'status', stage: 'validating' });
-        const report = DeepReportSchema.parse(JSON.parse(text));
+        // The adapter's final value contains server-validated sources; raw model chunks do not.
+        const report = DeepReportSchema.parse(verifiedReport ?? JSON.parse(text));
         await safePersist({ ...baseEvent, reportStatus: 'complete', reportResult: report });
         send({ type: 'report', report });
       } catch (error) {
@@ -106,7 +115,9 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
         await safePersist({ ...baseEvent, reportStatus: 'failed', reportResult: null });
         send({ type: 'error', code, message: code === 'timeout' ? '生成超时，请重试。' : '深度报告生成失败，请重试。' });
       } finally {
-        clearTimeout(deadline); clearInterval(heartbeat); controller.close();
+        clearTimeout(deadline); clearInterval(heartbeat);
+        request.signal.removeEventListener('abort', onRequestAbort);
+        try { controller.close(); } catch { /* Client may have cancelled the stream. */ }
       }
     },
   });

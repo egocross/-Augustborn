@@ -28,4 +28,11 @@ describe('createDeepPrompt', () => {
     expect(prompt).toContain('我要不要转岗？');
     expect(prompt).toContain('不要强行归入四个标准方向');
   });
+
+  it('carries question meaning with work answers instead of making the model infer option IDs', () => {
+    const prompt = createDeepPrompt({ ...payload, directionId: 'work', answers: { work_q4: { optionIds: ['work_q4_travel'] } } });
+    expect(prompt).toContain('你最不希望长期处于哪种工作状态？');
+    expect(prompt).toContain('"answers":["经常出差"]');
+    expect(prompt).not.toContain('work_q4_travel');
+  });
 });
