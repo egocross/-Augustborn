@@ -46,7 +46,17 @@ export const DynamicQuestionSchema = z.object({
 export type DynamicQuestion = z.infer<typeof DynamicQuestionSchema>;
 
 const boundedText = z.string().min(1).max(1_500);
+export const WorkDirectionsSchema = z.object({
+  groups: z.array(z.object({
+    title: z.string().min(1).max(80),
+    tags: z.array(z.string().min(1).max(40)).min(3).max(5),
+    rationale: z.string().min(1).max(500),
+    boundary: z.string().min(1).max(300),
+  })).min(2).max(3),
+  intersection: z.string().min(1).max(600),
+});
 export const DeepReportSchema = z.object({
+  workDirections: WorkDirectionsSchema.optional(),
   jobResearch: JobResearchSchema.optional(),
   title: z.string().min(1).max(100),
   summary: z.string().min(1).max(2_000),

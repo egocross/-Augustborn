@@ -14,7 +14,9 @@ vi.mock('@google/genai', () => ({
   ThinkingLevel: { LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH' },
 }));
 
-import { generateCustomQuestions, parseDynamicQuestions } from './gemini';
+import { generateCustomQuestions, generateDeepReportStream, parseDynamicQuestions } from './gemini';
+import { createSampleDeepReport } from '../report-provider/sample';
+import type { DeepPromptInput } from './prompts';
 
 const question = (id: string) => ({
   id,
@@ -31,6 +33,31 @@ beforeEach(() => {
 });
 
 describe('deep Gemini adapter', () => {
+  it('returns exploration labels separately from verified jobs after consuming model JSON', async () => {
+    generateContent.mockResolvedValue({ text: '', candidates: [] });
+    const modelReport = { ...createSampleDeepReport({ directionId: 'work', optionalContext: '' }), jobRecommendations: [] };
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+    const input: DeepPromptInput = { birthProfile: {}, freeReportSummary: { sections: [] }, directionId: 'work', questionnaireVersion: 'v1', answers: {}, optionalContext: '', customQuestion: null, cityContext: null };
+    const stream = generateDeepReportStream(input);
+    await stream.next();
+    const result = await stream.next();
+    expect(result.done).toBe(true);
+    if (!result.done) throw new Error('Report did not complete');
+    expect(result.value?.workDirections?.groups.flatMap((group) => group.tags)).toContain('内容策划');
+    expect(result.value?.jobResearch?.status).toBe('unavailable');
+    expect(result.value?.jobResearch?.recommendations).toEqual([]);
+  });
+
+  it('requires grouped directions for new work reports even when recruitment search is unavailable', async () => {
+    generateContent.mockResolvedValue({ text: '', candidates: [] });
+    const modelReport = { ...createSampleDeepReport({ directionId: 'city', optionalContext: '' }), jobRecommendations: [] };
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+    const input: DeepPromptInput = { birthProfile: {}, freeReportSummary: { sections: [] }, directionId: 'work', questionnaireVersion: 'v1', answers: {}, optionalContext: '', customQuestion: null, cityContext: null };
+    const stream = generateDeepReportStream(input);
+    await stream.next();
+    await expect(stream.next()).rejects.toMatchObject({ code: 'parse_failed' });
+  });
+
   it('accepts zero or three-to-five dynamic questions and rejects every other count', () => {
     expect(parseDynamicQuestions([])).toEqual([]);
     expect(() => parseDynamicQuestions([question('custom_q1')])).toThrow();

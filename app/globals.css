@@ -930,6 +930,14 @@ input::placeholder { color: var(--placeholder); }
 .disclosure-button span { font-size: 1.35rem; font-weight: 400; }
 .card-details { padding-top: 1rem; color: var(--ink-soft); }
 .job-research-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem 1rem; }
+.work-direction-groups { display: grid; gap: 1rem; }
+.work-direction-group { min-width: 0; padding: clamp(1rem, 3vw, 1.4rem); border: 1px solid var(--line); border-radius: 1rem; overflow-wrap: anywhere; }
+.work-directions h4 { margin: 0 0 0.75rem; font-size: 1rem; }
+.work-directions .work-direction-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; list-style: none; }
+.work-direction-tags li { max-width: 100%; padding: 0.3rem 0.65rem; border-radius: 0.4rem; background: rgb(147 171 204 / 16%); color: var(--ink); font-size: 0.9rem; line-height: 1.6; }
+.work-direction-group p, .work-direction-intersection p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.75; }
+.work-direction-boundary { font-size: 0.9rem; }
+.work-direction-intersection { margin-top: 1.25rem; padding-left: 1rem; border-left: 3px solid var(--accent); overflow-wrap: anywhere; }
 .job-research-heading h3 { margin-bottom: 0; }
 .job-checked-at { margin: 0; color: var(--ink-soft); font-size: 0.8rem; }
 .job-research-note { margin: 0.75rem 0 1.2rem; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.7; }

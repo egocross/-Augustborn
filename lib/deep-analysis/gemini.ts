@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_REASONING_EFFORT, type GeminiReasoningEffort } from '@/lib/gemini/config';
 import { createDeepPrompt, type DeepPromptInput } from './prompts';
-import { DeepReportSchema, DynamicQuestionSchema, type DeepReport, type DynamicQuestion } from './types';
+import { DeepReportSchema, DynamicQuestionSchema, WorkDirectionsSchema, type DeepReport, type DynamicQuestion } from './types';
 import { buildJobResearch, researchWorkJobs } from './research/jobs';
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
@@ -74,6 +74,7 @@ const workReportResponseSchema = {
   ...deepReportResponseSchema,
   properties: {
     ...deepReportResponseSchema.properties,
+    workDirections: z.toJSONSchema(WorkDirectionsSchema, { target: 'openapi-3.0' }),
     jobRecommendations: {
       type: 'array', maxItems: 5,
       items: {
@@ -87,7 +88,7 @@ const workReportResponseSchema = {
       },
     },
   },
-  required: [...deepReportResponseSchema.required, 'jobRecommendations'],
+  required: [...deepReportResponseSchema.required, 'workDirections', 'jobRecommendations'],
 };
 
 const mapError = (error: unknown): never => {
@@ -142,7 +143,11 @@ export async function* generateDeepReportStream(
     if (!text) throw new DeepAnalysisError('upstream_failed');
     const modelReport = JSON.parse(text);
     const report = DeepReportSchema.omit({ jobResearch: true }).parse(modelReport);
-    return research ? { ...report, jobResearch: buildJobResearch(research, modelReport.jobRecommendations) } : report;
+    return research ? {
+      ...report,
+      workDirections: WorkDirectionsSchema.parse(modelReport.workDirections),
+      jobResearch: buildJobResearch(research, modelReport.jobRecommendations),
+    } : report;
   } catch (error) {
     if (error instanceof SyntaxError || error instanceof z.ZodError) throw new DeepAnalysisError('parse_failed');
     return mapError(error);

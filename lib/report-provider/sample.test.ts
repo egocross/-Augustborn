@@ -52,6 +52,13 @@ describe('sample report content', () => {
     }
   });
 
+  it('offers broad work labels in previews without presenting them as sourced jobs or adding them to other directions', () => {
+    const work = DeepReportSchema.parse(createSampleDeepReport({ directionId: 'work', optionalContext: '' }));
+    expect(work.workDirections?.groups.flatMap((group) => group.tags)).toContain('内容策划');
+    expect(work.jobResearch?.recommendations).toEqual([]);
+    expect(DeepReportSchema.parse(createSampleDeepReport({ directionId: 'city', optionalContext: '' })).workDirections).toBeUndefined();
+  });
+
   it('produces custom follow-up questions that satisfy the shipped schema', () => {
     const questions = createSampleCustomQuestions({ customQuestion: '我要不要转岗？' });
     expect(questions).toHaveLength(3);

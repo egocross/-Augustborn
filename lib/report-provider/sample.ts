@@ -91,7 +91,14 @@ export function createSampleDeepReport(input: Pick<DeepPromptInput, 'directionId
 
   return {
     title: `${copy.title}（本地示例）`,
-    ...(input.directionId === 'work' ? { jobResearch: {
+    ...(input.directionId === 'work' ? { workDirections: {
+      groups: [
+        { title: '把想法变成内容', tags: ['内容策划', '文案策划', '新媒体编辑', '视频策划'], rationale: '示例：如果基础报告提示表达倾向，且现实经历中也有内容产出，可以从这些任务开始验证。', boundary: '核对作品要求、修改频率和交付节奏；喜欢表达不等于已经具备专业能力。' },
+        { title: '把信息变成判断', tags: ['用户研究', '市场研究', '数据分析', '竞品分析'], rationale: '示例：若你愿意追问原因、整理资料，可以尝试以调研和分析为主的任务。', boundary: '数据工具、访谈方法与研究经验需要单独确认。' },
+        { title: '把方案推进落地', tags: ['项目协调', '活动策划', '产品运营', '用户运营'], rationale: '示例：若你做过组织协调，也能接受跨团队沟通，可以探索有明确交付和反馈的工作。', boundary: '先确认沟通强度、业绩指标和出差要求是否符合自己的限制。' },
+      ],
+      intersection: '示例交集：从用户问题出发，把调研发现转成内容或活动方案，再观察反馈。可先完成一份小型用户访谈与内容提案，比较自己更愿意持续做哪部分任务；这不是必须同时掌握所有标签。',
+    }, jobResearch: {
       status: 'sample' as const,
       checkedAt: new Date().toISOString(),
       note: '当前为流程预览，未查询招聘网站。使用正式报告生成时，会在这里显示有来源支持的职位推荐。',

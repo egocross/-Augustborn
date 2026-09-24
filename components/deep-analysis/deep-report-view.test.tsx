@@ -1,8 +1,19 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, expect, it } from 'vitest';
 
 import { DeepReportView } from './deep-report-view';
 import type { JobResearch } from '@/lib/deep-analysis/research/schema';
+import { DeepReportSchema } from '@/lib/deep-analysis/types';
+
+afterEach(cleanup);
+
+const workDirections = {
+  groups: [
+    { title: '把想法变成内容', tags: ['内容策划', '文案策划', '新媒体编辑', '视频策划'], rationale: '表达偏好需要用作品验证。', boundary: '先核对修改频率与交付节奏。' },
+    { title: '把信息变成判断', tags: ['用户研究', '市场研究', '数据分析', '竞品分析'], rationale: '独立分析是值得验证的线索。', boundary: '分析工具熟练度尚不明确。' },
+  ],
+  intersection: '尝试把用户研究结果转成内容选题，用一个小项目检验两类任务。',
+};
 
 const report = {
   title: '你的职业方向深度分析', summary: '先聚焦能长期复利的问题解决型工作。', keyFindings: ['优先专注', '避免高频切换'],
@@ -22,6 +33,25 @@ it('renders model-defined cards and lets the reader expand details', () => {
   expect(screen.getAllByRole('button', { name: /展开阅读/ })).toHaveLength(3);
   fireEvent.click(screen.getAllByRole('button', { name: /展开阅读/ })[0]);
   expect(screen.getByText('先验证日常任务')).toBeTruthy();
+});
+
+it('preserves broad directions through report validation and renders them before recruitment evidence', () => {
+  const parsed = DeepReportSchema.parse({ ...report, workDirections, jobResearch: {
+    status: 'unavailable', checkedAt: '2026-09-25T08:00:00.000Z', note: '未取得招聘证据。', recommendations: [],
+  } });
+  const { container } = render(<DeepReportView report={parsed} />);
+  expect(screen.getByText('内容策划')).toBeTruthy();
+  expect(screen.getByText('分析工具熟练度尚不明确。')).toBeTruthy();
+  expect(screen.getByText(workDirections.intersection)).toBeTruthy();
+  expect(container.querySelectorAll('.work-direction-tags li')).toHaveLength(8);
+  const headings = screen.getAllByRole('heading').map((heading) => heading.textContent);
+  expect(headings.indexOf('先拓宽你的工作方向')).toBeLessThan(headings.indexOf('可以从这些职位开始找'));
+  expect(screen.queryByRole('button', { name: '内容策划' })).toBeNull();
+});
+
+it('rejects malformed direction groups without breaking reports saved before this feature', () => {
+  expect(DeepReportSchema.safeParse(report).success).toBe(true);
+  expect(DeepReportSchema.safeParse({ ...report, workDirections: { ...workDirections, groups: [{ ...workDirections.groups[0], tags: [] }] } }).success).toBe(false);
 });
 
 it('shows source-linked jobs with expandable requirements and isolated search suggestions', () => {
