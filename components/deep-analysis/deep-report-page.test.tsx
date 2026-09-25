@@ -53,17 +53,8 @@ it('renders the completed report from this tab without exposing birth data in th
 
   expect(await screen.findByRole('heading', { name: '你的职业方向深度分析' })).toBeTruthy();
   expect(screen.getByText('先看结论')).toBeTruthy();
-  expect(screen.getByRole('button', { name: '返回基础报告' })).toBeTruthy();
+  expect(screen.queryByRole('navigation', { name: '报告操作' })).toBeNull();
   expect(screen.getByRole('button', { name: '重新选择探索方向' })).toBeTruthy();
-});
-
-it('returns to the free report without deleting the completed report', async () => {
-  saveCompletedReport();
-  render(<DeepReportPage />);
-
-  fireEvent.click(await screen.findByRole('button', { name: '返回基础报告' }));
-  expect(push).toHaveBeenCalledWith('/');
-  expect(loadDeepSession(window.sessionStorage)?.report?.title).toBe(report.title);
 });
 
 it('resets only the paid flow and returns to the exploration picker', async () => {

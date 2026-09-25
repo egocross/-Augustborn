@@ -45,14 +45,6 @@ export function DeepReportPage() {
 
   return (
     <div className="deep-report-page">
-      <nav aria-label="报告操作" className="deep-report-toolbar">
-        <div className="deep-report-toolbar-copy">
-          <p className="eyebrow">个人专项探索</p>
-          <p>报告已完成，你可以按自己的节奏阅读。</p>
-        </div>
-        <button className="secondary-button" onClick={() => router.push('/')} type="button">返回基础报告</button>
-      </nav>
-
       <DeepReportView report={report} />
 
       <section className="deep-report-page-actions">
