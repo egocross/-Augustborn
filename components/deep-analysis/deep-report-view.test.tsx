@@ -52,7 +52,7 @@ it('renders model-defined cards and lets the reader expand details', () => {
   expect(screen.getByText('先验证日常任务')).toBeTruthy();
 });
 
-it('preserves broad directions through report validation and renders them before recruitment evidence', () => {
+it('preserves broad directions and places them with recruitment evidence after analysis and actions', () => {
   const parsed = DeepReportSchema.parse({ ...report, workDirections, jobResearch: {
     status: 'unavailable', checkedAt: '2026-09-25T08:00:00.000Z', note: '未取得招聘证据。', recommendations: [],
   } });
@@ -61,8 +61,11 @@ it('preserves broad directions through report validation and renders them before
   expect(screen.getByText('分析工具熟练度尚不明确。')).toBeTruthy();
   expect(screen.getByText(workDirections.intersection)).toBeTruthy();
   expect(container.querySelectorAll('.work-direction-tags li')).toHaveLength(8);
-  const headings = screen.getAllByRole('heading').map((heading) => heading.textContent);
-  expect(headings.indexOf('先拓宽你的工作方向')).toBeLessThan(headings.indexOf('可以从这些职位开始找'));
+  const headings = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
+  expect(headings).toEqual([
+    '先看结论', '优先方向', '排除条件', '验证方法', '需要特别注意', '接下来可以怎么做',
+    '可以进一步探索的工作方向', '可以从这些职位开始找', '建议你继续思考',
+  ]);
   expect(screen.queryByRole('button', { name: '内容策划' })).toBeNull();
 });
 

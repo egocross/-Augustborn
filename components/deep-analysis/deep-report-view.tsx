@@ -25,19 +25,6 @@ export function DeepReportView({ report }: { report: DeepReport }) {
       <ul className="finding-list">{report.keyFindings.map((finding) => <li key={finding}>{finding}</li>)}</ul>
     </section>
 
-    {report.workDirections ? <section className="deep-report-block work-directions">
-      <h3>先拓宽你的工作方向</h3>
-      <p className="job-research-note">这些标签帮助你扩展搜索，不代表已核实的在招岗位；可结合实际职责与门槛继续筛选。</p>
-      <div className="work-direction-groups">{report.workDirections.groups.map((group, index) => <section className="work-direction-group" key={`${index}-${group.title}`}>
-        <h4>{group.title}</h4>
-        <ul className="work-direction-tags" aria-label={`${group.title}的搜索标签`}>{group.tags.map((tag, tagIndex) => <li key={`${tagIndex}-${tag}`}>{tag}</li>)}</ul>
-        <p>{group.rationale}</p>
-        <p className="work-direction-boundary"><strong>先核对：</strong>{group.boundary}</p>
-      </section>)}</div>
-      <div className="work-direction-intersection"><h4>这些方向的交集在哪里？</h4><p>{report.workDirections.intersection}</p></div>
-    </section> : null}
-
-    {report.jobResearch ? <JobRecommendations research={report.jobResearch} /> : null}
     <ExplorationSections report={report} />
 
     <div className="deep-card-list">{report.cards.map((card, index) => {
@@ -60,6 +47,20 @@ export function DeepReportView({ report }: { report: DeepReport }) {
       <h3>接下来可以怎么做</h3>
       <ol>{report.nextActions.map((action) => <li key={action.title}><span>{action.timeframe}</span><strong>{action.title}</strong><p>{action.detail}</p></li>)}</ol>
     </section>
+
+    {report.workDirections ? <section className="deep-report-block work-directions">
+      <h3>可以进一步探索的工作方向</h3>
+      <p className="job-research-note">这些标签帮助你扩展搜索，不代表已核实的在招岗位；可结合实际职责与门槛继续筛选。</p>
+      <div className="work-direction-groups">{report.workDirections.groups.map((group, index) => <section className="work-direction-group" key={`${index}-${group.title}`}>
+        <h4>{group.title}</h4>
+        <ul className="work-direction-tags" aria-label={`${group.title}的搜索标签`}>{group.tags.map((tag, tagIndex) => <li key={`${tagIndex}-${tag}`}>{tag}</li>)}</ul>
+        <p>{group.rationale}</p>
+        <p className="work-direction-boundary"><strong>先核对：</strong>{group.boundary}</p>
+      </section>)}</div>
+      <div className="work-direction-intersection"><h4>这些方向的交集在哪里？</h4><p>{report.workDirections.intersection}</p></div>
+    </section> : null}
+
+    {report.jobResearch ? <JobRecommendations research={report.jobResearch} /> : null}
 
     {report.reflectionQuestions.length ? <section className="deep-report-block"><h3>建议你继续思考</h3><ul>{report.reflectionQuestions.map((question) => <li key={question}>{question}</li>)}</ul></section> : null}
 
