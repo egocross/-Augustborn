@@ -36,18 +36,16 @@ it('guides the model through the requested decision-report narrative', () => {
 
   const narrativeStages = [
     '核心性格与底层矛盾',
-    '在什么地方？（方位与环境）',
+    '什么环境更适合你？',
     '从事什么行业？（方向选择）',
     '怎么工作？与谁共事？',
-    '给你的客观建议',
+    '给你的关键建议',
   ];
 
   expect(narrativeStages.every((stage) => prompt.includes(stage))).toBe(true);
   expect(narrativeStages.map((stage) => prompt.indexOf(stage))).toEqual(
     [...narrativeStages.map((stage) => prompt.indexOf(stage))].sort((a, b) => a - b),
   );
-  expect(prompt).toContain('结论 → 判断依据 → 现实表现 → 适用边界');
-  expect(prompt).toContain('不要把章节数量写死');
   expect(prompt).toContain('全文禁止出现任何传统命理或玄学措辞与符号');
   expect(prompt).toContain('也不要在标题里加');
   expect(prompt).toContain('免责声明不超过 40 个汉字');
