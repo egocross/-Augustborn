@@ -62,3 +62,24 @@ it('replaces a long model disclaimer with the concise product disclaimer', () =>
   ).toBeTruthy();
   expect(queryByText(/\u8fd9是一段很长的模型免责声明/)).toBeNull();
 });
+
+it('renders **bold** runs as emphasis instead of literal asterisks', () => {
+  const { container } = render(
+    <ReportView
+      report={{
+        disclaimer: '',
+        sections: [
+          {
+            heading: '核心性格与底层矛盾',
+            body: '**日主能量偏弱**，需要外部支持。',
+            bullets: ['**盘面最大特征：**卯酉相冲带来撕扯。'],
+          },
+        ],
+      }}
+    />,
+  );
+
+  const strongs = Array.from(container.querySelectorAll('strong')).map((node) => node.textContent);
+  expect(strongs).toEqual(['日主能量偏弱', '盘面最大特征：']);
+  expect(container.textContent).not.toContain('**');
+});

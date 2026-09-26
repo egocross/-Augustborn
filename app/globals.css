@@ -468,44 +468,6 @@ input::placeholder { color: var(--placeholder); }
 
 .report-view { overflow: hidden; }
 
-.report-outline {
-  display: grid;
-  gap: 0.5rem;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-muted);
-  padding: 1.1rem clamp(1.25rem, 4vw, 2.25rem) 1.15rem;
-}
-
-.report-outline-title {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.report-outline ol { display: grid; margin: 0; padding: 0; list-style: none; counter-reset: outline; }
-.report-outline li { counter-increment: outline; }
-
-.report-outline a {
-  display: flex;
-  min-height: 2.35rem;
-  align-items: center;
-  gap: 0.6rem;
-  color: var(--ink);
-  font-size: 0.92rem;
-  text-decoration: none;
-}
-
-.report-outline a::before {
-  content: counter(outline, decimal-leading-zero);
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.report-outline a:hover { color: var(--accent-hover); text-decoration: underline; }
-
 .report-sections { display: grid; }
 
 .report-section {
@@ -1083,7 +1045,6 @@ input::placeholder { color: var(--placeholder); }
   .birth-form { gap: 1.4rem; }
   .report-section { grid-template-columns: 1fr; gap: 0.3rem; padding: 1.4rem 1.15rem; }
   .section-number { padding-top: 0; }
-  .report-outline { padding-inline: 1.15rem; }
   .form-actions { justify-items: stretch; }
   .primary-button { width: 100%; }
   .feedback-panel { grid-template-columns: 1fr; gap: 0.8rem; padding: 1rem; }
