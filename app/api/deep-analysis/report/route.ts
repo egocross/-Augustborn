@@ -7,7 +7,7 @@ import { verifyPaymentReceipt } from '@/lib/deep-analysis/payment';
 import { persistDeepSession } from '@/lib/deep-analysis/persistence';
 import { streamDeepReport } from '@/lib/report-provider';
 import { createBirthSummary, createFreeReportSummary } from '@/lib/deep-analysis/summaries';
-import { DeepAnswersSchema, DeepReportSchema, DirectionIdSchema, DynamicQuestionSchema } from '@/lib/deep-analysis/types';
+import { DeepAnswersSchema, DeepReportSchema, DirectionIdSchema, DynamicQuestionSchema, QuestionnaireVersionSchema } from '@/lib/deep-analysis/types';
 import { ReportSchema } from '@/lib/gemini/schema';
 import { analysisSchema } from '@/lib/validation';
 
@@ -16,7 +16,7 @@ export const maxDuration = 300;
 const RequestSchema = z.object({
   sessionId: z.string().min(8).max(100), paymentReceipt: z.string().min(10).max(5000),
   birthInput: analysisSchema, freeReport: ReportSchema, selectedDirection: DirectionIdSchema,
-  questionnaireVersion: z.literal('v1'), answers: DeepAnswersSchema,
+  questionnaireVersion: QuestionnaireVersionSchema, answers: DeepAnswersSchema,
   optionalContext: z.string().max(2000), customQuestion: z.string().max(1000).nullable(),
   customQuestions: z.array(DynamicQuestionSchema).max(5),
 }).strict();
@@ -51,7 +51,7 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
 
   const answerResult = input.selectedDirection === 'custom'
     ? { success: validateCustomAnswers(input.customQuestions, input.answers) }
-    : validateDirectionAnswers(input.selectedDirection, input.answers);
+    : validateDirectionAnswers(input.selectedDirection, input.answers, input.questionnaireVersion);
   if (!answerResult.success || (input.selectedDirection === 'custom' && !input.customQuestion?.trim())) {
     return Response.json({ code: 'invalid_input', error: '问卷答案不完整。' }, { status: 400 });
   }

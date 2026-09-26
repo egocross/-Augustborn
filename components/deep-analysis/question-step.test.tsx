@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 
-import { QUESTION_BANK_V1 } from '@/lib/deep-analysis/questions';
+import { QUESTION_BANK_V1, QUESTION_BANK_V2 } from '@/lib/deep-analysis/questions';
 import { QuestionStep } from './question-step';
 
 afterEach(() => cleanup());
@@ -73,4 +73,13 @@ it('keeps the city separators a reader types', () => {
 it('shows how many choices are selected when a multi-select limit applies', () => {
   render(<QuestionStep answer={{ optionIds: ['city_q3_jobs'] }} onChange={vi.fn()} question={QUESTION_BANK_V1.city[2]} />);
   expect(screen.getByText('已选择 1 / 3 项')).toBeTruthy();
+});
+
+it('shows the explanatory line on questions that need one', () => {
+  const { container, rerender } = render(<QuestionStep answer={{}} onChange={vi.fn()} question={QUESTION_BANK_V2.work[1]} />);
+  expect(screen.getByText('回看做过的工作或学习任务，你更接近哪种感受？')).toBeTruthy();
+  expect(container.querySelector('.question-description')?.textContent).toBe('按自己的实际体验选择；做得来，也可能不想长期做。');
+
+  rerender(<QuestionStep answer={{}} onChange={vi.fn()} question={QUESTION_BANK_V2.work[2]} />);
+  expect(container.querySelector('.question-description')?.textContent).toBe('可以参考工作、学习或生活中的具体体验；顺手不一定代表愿意长期做。');
 });

@@ -71,8 +71,10 @@ it('completes free report to work direction to paid deep report', async () => {
   await createFreeReport();
   fireEvent.click(screen.getByRole('button', { name: /我适合做什么工作/ }));
   fireEvent.click(screen.getByLabelText('学生'));
-  await screen.findByText('过去你主要做过哪些类型的事情？');
-  for (const label of ['内容创作', '提出新的点子', '高度重复', '快速成长']) {
+  await screen.findByText('回看做过的工作或学习任务，你更接近哪种感受？');
+  fireEvent.click(screen.getByLabelText('做得来，但长期很消耗'));
+  await screen.findByText('哪些事情你做起来会感觉更自然？');
+  for (const label of ['提出新的点子', '高度重复', '快速成长']) {
     fireEvent.click(screen.getByLabelText(label)); fireEvent.click(continueButton());
   }
   await finishAndGenerate();

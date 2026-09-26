@@ -51,7 +51,21 @@ it('moves to the next question immediately after a standard single-choice answer
 
   fireEvent.click(screen.getByRole('radio', { name: '学生' }));
   expect(await screen.findByText('第 2 / 5 题')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('radio', { name: '做得来，但长期很消耗' }));
+  expect(await screen.findByText('第 3 / 5 题')).toBeTruthy();
   expect(screen.getByRole('button', { name: '继续' })).toBeTruthy();
+});
+
+it('asks how past experience felt instead of what the reader used to do', async () => {
+  render(<DeepAnalysisFlow {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: /我适合做什么工作/ }));
+
+  fireEvent.click(screen.getByRole('radio', { name: '学生' }));
+
+  expect(await screen.findByText('回看做过的工作或学习任务，你更接近哪种感受？')).toBeTruthy();
+  expect(screen.getByText('按自己的实际体验选择；做得来，也可能不想长期做。')).toBeTruthy();
+  expect(screen.queryByText('过去你主要做过哪些类型的事情？')).toBeNull();
 });
 
 it('restores stored progress after mount instead of losing answers', async () => {
@@ -105,7 +119,7 @@ it('saves a completed report and opens the dedicated report page', async () => {
     step: 'payment',
     paymentReceipt: 'signed-receipt',
     answers: {
-      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q1: { optionIds: ['work_q1_student'] }, work_experience: { optionIds: ['work_experience_change'] },
       work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
       work_q5: { optionIds: ['work_q5_growth'] },
     },
@@ -148,7 +162,7 @@ it('resumes a returned Alipay order when the stored session lost the order id', 
     selectedDirection: 'work',
     step: 'payment',
     answers: {
-      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q1: { optionIds: ['work_q1_student'] }, work_experience: { optionIds: ['work_experience_change'] },
       work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
       work_q5: { optionIds: ['work_q5_growth'] },
     },
@@ -177,7 +191,7 @@ it('confirms a returned sandbox order with the server before generating the repo
     step: 'payment',
     paymentOrderId: '07a6ec32-8a87-4e77-9f24-fd807084b8f6',
     answers: {
-      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q1: { optionIds: ['work_q1_student'] }, work_experience: { optionIds: ['work_experience_change'] },
       work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
       work_q5: { optionIds: ['work_q5_growth'] },
     },
@@ -238,7 +252,7 @@ it('lets the reader step back and edit answers before generating', async () => {
     selectedDirection: 'work',
     step: 'payment',
     answers: {
-      work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+      work_q1: { optionIds: ['work_q1_student'] }, work_experience: { optionIds: ['work_experience_change'] },
       work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
       work_q5: { optionIds: ['work_q5_growth'] },
     },

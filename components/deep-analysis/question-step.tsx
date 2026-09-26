@@ -37,6 +37,7 @@ function QuestionFields({ question, answer, onChange, onSingleSelect }: Question
   const [supplementaryText, setSupplementaryText] = useState(() => (answer.supplementaryValue ?? []).join('、'));
   const selected = answer.optionIds ?? [];
   const optionLayout = (question.options?.length ?? 0) >= COMPACT_LAYOUT_MIN_OPTIONS ? 'compact' : 'standard';
+  const description = 'description' in question ? question.description : undefined;
   const supplementaryField = 'supplementaryField' in question ? question.supplementaryField : undefined;
   const showSupplementaryField = supplementaryField
     ? !supplementaryField.showWhenOptionId || selected.includes(supplementaryField.showWhenOptionId)
@@ -71,11 +72,13 @@ function QuestionFields({ question, answer, onChange, onSingleSelect }: Question
 
   if (question.type === 'text') return <div className="question-content">
     <label className="question-title" htmlFor={question.id}>{question.text}</label>
+    {description ? <p className="question-description">{description}</p> : null}
     <textarea id={question.id} maxLength={200} onChange={(event) => onChange({ ...answer, textValue: event.target.value })} rows={4} value={answer.textValue ?? ''} />
   </div>;
 
   return <fieldset className="question-content">
     <legend className="question-title">{question.text}</legend>
+    {description ? <p className="question-description">{description}</p> : null}
     <div className="question-meta">
       <p className="question-hint">{selectionHint(question)}</p>
       {question.maxSelect ? <p className="question-hint question-counter">已选择 {selected.length} / {question.maxSelect} 项</p> : null}

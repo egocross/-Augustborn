@@ -3,7 +3,7 @@ import { GoogleGenAI, ThinkingLevel, type GenerateContentResponse } from '@googl
 import { GEMINI_API_KEY, GEMINI_MODEL } from '@/lib/gemini/config';
 import { createMarketResearchPrompt } from '../prompts/market-research';
 import type { DeepAnswers } from '../types';
-import { QUESTION_BANK_V1 } from '../questions';
+import { getFixedQuestions } from '../questions';
 import { MarketAdviceSchema, MarketResearchSchema, type MarketDirection, type MarketEvidence } from './market-schema';
 
 export function marketSource(value: string) {
@@ -89,7 +89,7 @@ export function buildMarketResearch(research: MarketEvidence, modelAdvice: unkno
   const localOnly = research.direction === 'city' && answers.city_q2?.optionIds?.includes('city_q2_current');
   const currentAnswer = answers.city_q1;
   const currentCities = currentAnswer?.optionIds?.includes('city_q1_other') ? currentAnswer.supplementaryValue ?? []
-    : QUESTION_BANK_V1.city[0].options?.filter((option) => currentAnswer?.optionIds?.includes(option.id)).map((option) => option.label) ?? [];
+    : getFixedQuestions('city')[0].options?.filter((option) => currentAnswer?.optionIds?.includes(option.id)).map((option) => option.label) ?? [];
   const cityName = (value: string) => normalize(value).replace(/市$/, '');
   for (const value of Array.isArray(modelAdvice) ? modelAdvice.slice(0, 15) : []) {
     const parsed = MarketAdviceSchema.safeParse(value);

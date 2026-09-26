@@ -10,7 +10,7 @@ const report = {
   reflectionQuestions: [], disclaimer: '仅供探索。',
 };
 const validAnswers = {
-  work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+  work_q1: { optionIds: ['work_q1_student'] }, work_experience: { optionIds: ['work_experience_change'] },
   work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
   work_q5: { optionIds: ['work_q5_growth'] },
 };
@@ -18,7 +18,7 @@ const valid = {
   sessionId: 'session-12345678', paymentReceipt: 'signed-receipt',
   birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
   freeReport: { disclaimer: '只供参考', sections: [{ heading: '性格', body: '内容', bullets: [] }] },
-  selectedDirection: 'work', questionnaireVersion: 'v1', answers: validAnswers,
+  selectedDirection: 'work', questionnaireVersion: 'v2', answers: validAnswers,
   optionalContext: '', customQuestion: null, customQuestions: [],
 };
 const request = (body: unknown) => new Request('http://localhost/api/deep-analysis/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -39,6 +39,27 @@ describe('POST /api/deep-analysis/report', () => {
   it('rejects direct API answers above maxSelect before calling Gemini', async () => {
     const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
     const response = await POST(request({ ...valid, answers: { ...validAnswers, work_q4: { optionIds: ['work_q4_repetitive', 'work_q4_social', 'work_q4_isolated', 'work_q4_controlled'] } } }));
+    expect(response.status).toBe(400);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('still validates answers captured on the previous questionnaire', async () => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const events = await readEvents(await POST(request({
+      ...valid,
+      questionnaireVersion: 'v1',
+      answers: {
+        work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
+        work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
+        work_q5: { optionIds: ['work_q5_growth'] },
+      },
+    })));
+    expect(events.at(-1)).toEqual({ type: 'report', report });
+  });
+
+  it('rejects answers that belong to a different questionnaire version', async () => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const response = await POST(request({ ...valid, questionnaireVersion: 'v1' }));
     expect(response.status).toBe(400);
     expect(generate).not.toHaveBeenCalled();
   });

@@ -5,7 +5,8 @@ import { analysisSchema } from '@/lib/validation';
 import { DeepAnswersSchema, DeepReportSchema, DirectionIdSchema, DynamicQuestionSchema, type DeepAnswers, type DeepReport, type DirectionId, type DynamicQuestion } from './types';
 
 export const DEEP_SESSION_KEY = 'jianvia.deep-analysis';
-export const SESSION_VERSION = 1 as const;
+/** Bumped so a session answering the previous questionnaire is not reused. */
+export const SESSION_VERSION = 2 as const;
 
 export type DeepStep = 'direction' | 'custom-question' | 'custom-loading' | 'questions' | 'optional-context' | 'payment' | 'generating' | 'report';
 export type DeepFlowState = {

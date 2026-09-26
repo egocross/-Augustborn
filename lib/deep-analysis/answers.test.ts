@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isDirectionComplete, validateDirectionAnswers } from './answers';
 
-const validWorkAnswers = {
+const workAnswersV1 = {
   work_q1: { optionIds: ['work_q1_employed_change'] },
   work_q2: { optionIds: ['work_q2_content', 'work_q2_design'] },
   work_q3: { optionIds: ['work_q3_ideas'] },
@@ -10,15 +10,40 @@ const validWorkAnswers = {
   work_q5: { optionIds: ['work_q5_growth', 'work_q5_balance'] },
 };
 
+const workAnswersV2 = {
+  work_q1: { optionIds: ['work_q1_employed_change'] },
+  work_experience: { optionIds: ['work_experience_capable_drained'] },
+  work_q3: { optionIds: ['work_q3_ideas'] },
+  work_q4: { optionIds: ['work_q4_repetitive', 'work_q4_controlled'] },
+  work_q5: { optionIds: ['work_q5_growth', 'work_q5_balance'] },
+};
+
 describe('validateDirectionAnswers', () => {
-  it('accepts a complete valid answer set', () => {
-    expect(validateDirectionAnswers('work', validWorkAnswers).success).toBe(true);
-    expect(isDirectionComplete('work', validWorkAnswers)).toBe(true);
+  it('accepts a complete answer set for the current questionnaire', () => {
+    expect(validateDirectionAnswers('work', workAnswersV2).success).toBe(true);
+    expect(isDirectionComplete('work', workAnswersV2)).toBe(true);
+  });
+
+  it('still accepts answers captured on the previous questionnaire', () => {
+    expect(validateDirectionAnswers('work', workAnswersV1, 'v1').success).toBe(true);
+    expect(isDirectionComplete('work', workAnswersV1, 'v1')).toBe(true);
+  });
+
+  it('rejects answers that do not belong to the version being validated', () => {
+    expect(validateDirectionAnswers('work', workAnswersV2, 'v1').success).toBe(false);
+    expect(validateDirectionAnswers('work', workAnswersV1, 'v2').success).toBe(false);
+  });
+
+  it('rejects an incomplete answer set', () => {
+    const incomplete: Record<string, unknown> = { ...workAnswersV2 };
+    delete incomplete.work_experience;
+
+    expect(validateDirectionAnswers('work', incomplete).success).toBe(false);
   });
 
   it('rejects more than the configured multi-select limit', () => {
     const result = validateDirectionAnswers('work', {
-      ...validWorkAnswers,
+      ...workAnswersV2,
       work_q4: {
         optionIds: [
           'work_q4_repetitive',
@@ -33,10 +58,10 @@ describe('validateDirectionAnswers', () => {
   });
 
   it.each([
-    ['missing required answer', { ...validWorkAnswers, work_q1: undefined }],
-    ['unknown question', { ...validWorkAnswers, injected: { optionIds: ['x'] } }],
-    ['unknown option', { ...validWorkAnswers, work_q1: { optionIds: ['unknown'] } }],
-    ['wrong single-select shape', { ...validWorkAnswers, work_q1: { optionIds: [] } }],
+    ['missing required answer', { ...workAnswersV2, work_q1: undefined }],
+    ['unknown question', { ...workAnswersV2, injected: { optionIds: ['x'] } }],
+    ['unknown option', { ...workAnswersV2, work_q1: { optionIds: ['unknown'] } }],
+    ['wrong single-select shape', { ...workAnswersV2, work_q1: { optionIds: [] } }],
   ])('rejects %s', (_label, answers) => {
     expect(validateDirectionAnswers('work', answers).success).toBe(false);
   });

@@ -1,16 +1,20 @@
-import { QUESTION_BANK_V1 } from './questions';
-import { AnswerValueSchema, type DeepAnswers, type FixedDirectionId } from './types';
+import { getFixedQuestions } from './questions';
+import { AnswerValueSchema, type DeepAnswers, type FixedDirectionId, type QuestionnaireVersion } from './types';
 
 export type AnswerValidationResult =
   | { success: true; data: DeepAnswers }
   | { success: false; error: string };
 
-export function validateDirectionAnswers(directionId: FixedDirectionId, input: unknown): AnswerValidationResult {
+/**
+ * Questions are resolved from the version the reader actually answered, so an
+ * answer set submitted before a questionnaire change still validates.
+ */
+export function validateDirectionAnswers(directionId: FixedDirectionId, input: unknown, version?: QuestionnaireVersion): AnswerValidationResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     return { success: false, error: '答案格式无效。' };
   }
 
-  const questions = QUESTION_BANK_V1[directionId];
+  const questions = getFixedQuestions(directionId, version);
   const source = input as Record<string, unknown>;
   const knownIds = new Set(questions.map((question) => question.id));
   if (Object.keys(source).some((id) => !knownIds.has(id))) {
@@ -66,6 +70,6 @@ export function validateDirectionAnswers(directionId: FixedDirectionId, input: u
   return { success: true, data: normalized };
 }
 
-export function isDirectionComplete(directionId: FixedDirectionId, answers: unknown): boolean {
-  return validateDirectionAnswers(directionId, answers).success;
+export function isDirectionComplete(directionId: FixedDirectionId, answers: unknown, version?: QuestionnaireVersion): boolean {
+  return validateDirectionAnswers(directionId, answers, version).success;
 }

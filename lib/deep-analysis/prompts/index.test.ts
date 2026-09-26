@@ -5,7 +5,7 @@ import { createDeepPrompt } from './index';
 const payload = {
   birthProfile: { timeKnown: true, pillars: { day: '乙卯' } },
   freeReportSummary: { sections: [{ heading: '性格', summary: '冷静', bullets: [] }] },
-  questionnaireVersion: 'v1' as const,
+  questionnaireVersion: 'v2' as const,
   answers: { work_q1: { optionIds: ['work_q1_student'] } },
   optionalContext: '',
   customQuestion: null,
@@ -34,5 +34,27 @@ describe('createDeepPrompt', () => {
     expect(prompt).toContain('你最不希望长期处于哪种工作状态？');
     expect(prompt).toContain('"answers":["经常出差"]');
     expect(prompt).not.toContain('work_q4_travel');
+  });
+
+  it('describes past experience as an evaluation of how it felt, not a role list', () => {
+    const prompt = createDeepPrompt({ ...payload, directionId: 'work', answers: { work_experience: { optionIds: ['work_experience_capable_drained'] } } });
+    expect(prompt).toContain('回看做过的工作或学习任务，你更接近哪种感受？');
+    expect(prompt).toContain('做得来，但长期很消耗');
+    expect(prompt).not.toContain('work_experience_capable_drained');
+  });
+
+  it('still describes answers captured on the previous questionnaire', () => {
+    const prompt = createDeepPrompt({
+      ...payload, questionnaireVersion: 'v1', directionId: 'work',
+      answers: { work_q2: { optionIds: ['work_q2_content'] } },
+    });
+    expect(prompt).toContain('过去你主要做过哪些类型的事情？');
+    expect(prompt).toContain('内容创作');
+  });
+
+  it('tells the model that past roles do not prove a direction fits', () => {
+    const prompt = createDeepPrompt({ ...payload, directionId: 'work' });
+    expect(prompt).toContain('不能证明这个方向适合长期做');
+    expect(prompt).toContain('现在容易进入');
   });
 });

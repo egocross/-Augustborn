@@ -1,6 +1,6 @@
-import type { DirectionId, FixedDirectionId, FixedQuestion } from './types';
+import type { DirectionId, FixedDirectionId, FixedQuestion, QuestionnaireVersion } from './types';
 
-export const QUESTIONNAIRE_VERSION = 'v1' as const;
+export const QUESTIONNAIRE_VERSION = 'v2' as const;
 
 export const DIRECTIONS: ReadonlyArray<{ id: DirectionId; title: string; description: string }> = [
   { id: 'work', title: '我适合做什么工作', description: '聚焦日常任务、优势用法与职业角色' },
@@ -83,3 +83,32 @@ export const QUESTION_BANK_V1: Record<FixedDirectionId, FixedQuestion[]> = {
     ]) }),
   ],
 };
+
+// Keep the original bank intact: answers in an existing session must retain
+// the meaning of the questions the reader actually saw.
+export const QUESTION_BANK_V2: Record<FixedDirectionId, FixedQuestion[]> = {
+  ...QUESTION_BANK_V1,
+  work: [
+    QUESTION_BANK_V1.work[0],
+    question({
+      id: 'work_experience', directionId: 'work', type: 'single', required: true,
+      text: '回看做过的工作或学习任务，你更接近哪种感受？',
+      description: '按自己的实际体验选择；做得来，也可能不想长期做。',
+      options: options([
+        ['work_experience_retain', '有想继续做的事情'],
+        ['work_experience_capable_drained', '做得来，但长期很消耗'],
+        ['work_experience_mixed', '有些愿意继续，有些想摆脱'],
+        ['work_experience_change', '大多不适合，想尝试新方向'],
+        ['work_experience_limited', '经历较少，还没找到感觉'],
+        ['work_experience_uncertain', '暂时说不清'],
+      ]),
+    }),
+    { ...QUESTION_BANK_V1.work[2], description: '可以参考工作、学习或生活中的具体体验；顺手不一定代表愿意长期做。' },
+    QUESTION_BANK_V1.work[3],
+    QUESTION_BANK_V1.work[4],
+  ],
+};
+
+export function getFixedQuestions(direction: FixedDirectionId, version: QuestionnaireVersion = QUESTIONNAIRE_VERSION): FixedQuestion[] {
+  return (version === 'v1' ? QUESTION_BANK_V1 : QUESTION_BANK_V2)[direction];
+}

@@ -30,6 +30,12 @@ describe('deep flow session', () => {
     expect(loadDeepSession(target)).toMatchObject({ sessionId: 'session-123', selectedDirection: 'city', step: 'questions' });
   });
 
+  it('drops a session saved before the questionnaire changed', () => {
+    const target = storage();
+    target.setItem('jianvia.deep-analysis', JSON.stringify({ version: 1, state: {} }));
+    expect(loadDeepSession(target)).toBeNull();
+  });
+
   it('preserves answers and paid receipt when generation fails', () => {
     const paidState = {
       ...createInitialDeepState('session-123'), step: 'generating' as const,

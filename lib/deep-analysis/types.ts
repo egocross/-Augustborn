@@ -5,6 +5,8 @@ import { MarketResearchSchema } from './research/market-schema';
 export const DirectionIdSchema = z.enum(['work', 'industry', 'city', 'collaboration', 'custom']);
 export type DirectionId = z.infer<typeof DirectionIdSchema>;
 export type FixedDirectionId = Exclude<DirectionId, 'custom'>;
+export const QuestionnaireVersionSchema = z.enum(['v1', 'v2']);
+export type QuestionnaireVersion = z.infer<typeof QuestionnaireVersionSchema>;
 
 export const QuestionOptionSchema = z.object({ id: z.string().min(1), label: z.string().min(1) });
 export const SupplementaryFieldSchema = z.object({
@@ -20,6 +22,7 @@ export const FixedQuestionSchema = z.object({
   directionId: z.enum(['work', 'industry', 'city', 'collaboration']),
   type: z.enum(['single', 'multi', 'text']),
   text: z.string().min(1),
+  description: z.string().min(1).optional(),
   options: z.array(QuestionOptionSchema).optional(),
   required: z.boolean(),
   maxSelect: z.number().int().positive().optional(),

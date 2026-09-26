@@ -4,7 +4,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Report } from '@/lib/gemini/schema';
-import { QUESTION_BANK_V1 } from '@/lib/deep-analysis/questions';
+import { getFixedQuestions, QUESTIONNAIRE_VERSION } from '@/lib/deep-analysis/questions';
 import { createFreeReportSummary } from '@/lib/deep-analysis/summaries';
 import { consumeDeepReportStream, DeepStreamError } from '@/lib/deep-analysis/stream';
 import { createInitialDeepState, deepFlowReducer, loadDeepSession, saveDeepSession } from '@/lib/deep-analysis/session';
@@ -115,7 +115,7 @@ export function DeepAnalysisFlow({
 
   const questions = useMemo(() => state.selectedDirection === 'custom'
     ? state.customQuestions
-    : state.selectedDirection ? QUESTION_BANK_V1[state.selectedDirection as FixedDirectionId] : [], [state.selectedDirection, state.customQuestions]);
+    : state.selectedDirection ? getFixedQuestions(state.selectedDirection as FixedDirectionId) : [], [state.selectedDirection, state.customQuestions]);
   const question = questions[state.questionIndex];
   const currentAnswer = question ? state.answers[question.id] ?? {} : {};
   const supplementaryField = question && 'supplementaryField' in question ? question.supplementaryField : undefined;
@@ -164,7 +164,7 @@ export function DeepAnalysisFlow({
     dispatch({ type: 'generationStarted', receipt });
 
     try {
-      const response = await fetch('/api/deep-analysis/report', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ sessionId: state.sessionId, paymentReceipt: receipt, birthInput, freeReport, selectedDirection: state.selectedDirection, questionnaireVersion: 'v1', answers: state.answers, optionalContext: state.optionalContext, customQuestion: state.selectedDirection === 'custom' ? state.customQuestion : null, customQuestions: state.customQuestions }) });
+      const response = await fetch('/api/deep-analysis/report', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ sessionId: state.sessionId, paymentReceipt: receipt, birthInput, freeReport, selectedDirection: state.selectedDirection, questionnaireVersion: QUESTIONNAIRE_VERSION, answers: state.answers, optionalContext: state.optionalContext, customQuestion: state.selectedDirection === 'custom' ? state.customQuestion : null, customQuestions: state.customQuestions }) });
       if (!response.ok || !response.body) { const payload = await response.json().catch(() => ({})); throw new Error(payload.code || 'upstream_failed'); }
       const report = await consumeDeepReportStream(response.body, { onStatus: setGenerationStage });
       const completedState = {

@@ -1,9 +1,9 @@
-import { QUESTION_BANK_V1 } from '../questions';
-import type { DeepAnswers, FixedDirectionId } from '../types';
+import { getFixedQuestions } from '../questions';
+import type { DeepAnswers, FixedDirectionId, QuestionnaireVersion } from '../types';
 import type { MarketDirection } from '../research/market-schema';
 
-export function describeDirectionAnswers(direction: FixedDirectionId, answers: DeepAnswers) {
-  return QUESTION_BANK_V1[direction].map((question) => ({
+export function describeDirectionAnswers(direction: FixedDirectionId, answers: DeepAnswers, version?: QuestionnaireVersion) {
+  return getFixedQuestions(direction, version).map((question) => ({
     question: question.text,
     answers: question.options?.filter((option) => answers[question.id]?.optionIds?.includes(option.id)).map((option) => option.label) ?? [],
     ...(answers[question.id]?.textValue ? { text: answers[question.id].textValue } : {}),
@@ -12,8 +12,8 @@ export function describeDirectionAnswers(direction: FixedDirectionId, answers: D
 }
 
 /** Search receives fixed preferences and declared city names, never birth data or personal narratives. */
-export function createMarketResearchPrompt(direction: MarketDirection, answers: DeepAnswers, today: string) {
-  const preferences = describeDirectionAnswers(direction, answers).map(({ question, answers: selected }) => ({ question, answers: selected }));
+export function createMarketResearchPrompt(direction: MarketDirection, answers: DeepAnswers, today: string, version?: QuestionnaireVersion) {
+  const preferences = describeDirectionAnswers(direction, answers, version).map(({ question, answers: selected }) => ({ question, answers: selected }));
   const cities = direction === 'city' ? ['city_q1', 'city_q2'].flatMap((id) => (answers[id]?.supplementaryValue ?? [])
     .flatMap((value) => value.split(/[、,，;；\s]+/)).map((value) => value.trim())
     .filter((value) => /^[\p{Script=Han}·]{2,16}$/u.test(value))).slice(0, 6) : [];

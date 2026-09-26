@@ -1,12 +1,12 @@
 import 'server-only';
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import type { DeepAnswers, DeepReport, DirectionId } from './types';
+import type { DeepAnswers, DeepReport, DirectionId, QuestionnaireVersion } from './types';
 
 export type DeepSessionEvent = {
   id: string;
   selectedDirection: DirectionId;
-  questionnaireVersion: 'v1';
+  questionnaireVersion: QuestionnaireVersion;
   answers: DeepAnswers;
   optionalContext: string;
   customQuestion: string | null;
