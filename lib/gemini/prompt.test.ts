@@ -31,26 +31,26 @@ it('keeps the product request line verbatim', () => {
   );
 });
 
-it('carries the consultant role and the non-flattering objective', () => {
+it('carries the independent thinking partner role and the no-flattery objective', () => {
   const prompt = createReportPrompt(chart);
 
-  expect(prompt).toContain('人生规划顾问');
-  expect(prompt).toContain('迷信');
+  expect(prompt).toContain('独立思考伙伴');
+  expect(prompt).toContain('拒绝情绪迎合');
   expect(prompt).toContain('宿命论');
-  expect(prompt).toContain('绝对客观与冷酷');
-  expect(prompt).toContain('现代语境映射');
-  expect(prompt).toContain('闭环思维');
+  expect(prompt).toContain('抓取核心变量');
+  expect(prompt).toContain('逻辑翻译与映射');
+  expect(prompt).toContain('输出可执行动作');
 });
 
 it('guides the model through the requested decision-report narrative', () => {
   const prompt = createReportPrompt(chart);
 
   const narrativeStages = [
-    '核心性格与底层矛盾',
-    '在什么地方？（方位与环境）',
-    '从事什么行业？（方向选择）',
-    '怎么工作？与谁共事？',
-    '给你的客观建议',
+    '核心格局',
+    '地利（去哪里）',
+    '天时（从事什么行业与工作）',
+    '人和（与谁共事、找什么合伙人）',
+    '给你的底层决策建议',
   ];
 
   expect(narrativeStages.every((stage) => prompt.includes(stage))).toBe(true);
@@ -59,15 +59,14 @@ it('guides the model through the requested decision-report narrative', () => {
   );
 
   for (const label of [
-    '日主能量',
-    '盘面最大特征',
-    '用神方位',
-    '城市属性建议',
-    '格局转化',
-    '五行行业标签',
-    '交集点',
-    '组织形态',
-    '搭档选择',
+    '不破不立',
+    '喜忌',
+    '核心竞争力',
+    '互补',
+    '48 小时冷却期',
+    '专业壁垒',
+    '大后期发力',
+    '总结：',
   ]) {
     expect(prompt).toContain(label);
   }
@@ -101,8 +100,7 @@ it('bounds how an unknown birth time and a birth region may be used', () => {
 it('keeps the traditional terminology the product now asks for', () => {
   const prompt = createReportPrompt(chart);
 
-  expect(prompt).toContain('十神');
-  expect(prompt).toContain('用神');
   expect(prompt).toContain('冲合刑害');
-  expect(prompt).toContain('每处关键术语后要跟一句人话解释');
+  expect(prompt).toContain('喜用');
+  expect(prompt).toContain('人话解释');
 });
