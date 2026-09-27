@@ -64,7 +64,7 @@ it('puts the direction map after the conclusions and recruitment evidence right 
   const headings = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
   expect(headings).toEqual([
     '先看结论', '可以进一步探索的工作方向', '优先方向', '排除条件', '验证方法',
-    '可以从这些职位开始找', '需要特别注意', '接下来可以怎么做', '建议你继续思考',
+    '可以从这些职位开始找', '需要特别注意', '当前唯一优先行动', '辅助行动', '建议你继续思考',
   ]);
   expect(screen.queryByRole('button', { name: '内容策划' })).toBeNull();
 });
@@ -74,7 +74,7 @@ it('rejects malformed direction groups without breaking reports saved before thi
   expect(DeepReportSchema.safeParse({ ...report, workDirections: { ...workDirections, groups: [{ ...workDirections.groups[0], tags: [] }] } }).success).toBe(false);
 });
 
-it('shows source-linked jobs with expandable requirements and isolated search suggestions', () => {
+it('shows source-linked jobs with expandable requirements and no third-party iframe', () => {
   const jobResearch: JobResearch = {
     status: 'limited', checkedAt: '2026-09-24T08:00:00.000Z', note: '本次只有一个可靠招聘来源。',
     recommendations: [{ title: '产品运营', searchKeywords: ['产品运营'], fitReason: '根据运营经历优先探索。', entryGap: '核对经验要求。', nextStep: '准备一个项目案例。',
@@ -84,7 +84,30 @@ it('shows source-linked jobs with expandable requirements and isolated search su
   const { container } = render(<DeepReportView report={{ ...report, jobResearch }} />);
   expect(screen.getByRole('heading', { name: '可以从这些职位开始找' })).toBeTruthy();
   expect(screen.getByRole('link', { name: /在猎聘查看产品运营/ }).getAttribute('href')).toBe(jobResearch.recommendations[0].source.url);
-  expect(container.querySelector('iframe')?.getAttribute('sandbox')).not.toContain('allow-scripts');
-  expect(container.querySelector('iframe')?.getAttribute('sandbox')).not.toContain('allow-same-origin');
+  expect(container.querySelector('iframe')).toBeNull();
   expect(container.querySelector('details summary')?.textContent).toBe('查看门槛与下一步');
+});
+
+it('renders the calibration, ranking, exclusion and validation modules', () => {
+  const parsed = DeepReportSchema.parse({
+    ...report,
+    calibration: { constraints: ['更愿意处理复杂问题，而不是长期重复执行', '希望保留较高自主性'], narrowing: '方向因此收窄为知识型、可积累的岗位。' },
+    directionRanking: [
+      { priority: 'primary', title: '知识产品设计', whyKept: '命理线索与现实答案同时指向知识结构化与独立判断。', roleFit: ['课程结构设计'], taskFit: ['需求研究', '内容产品化'], notFit: ['纯销售'] },
+      { priority: 'watch', title: '研究型内容策划', whyKept: '可作为观察方向。', roleFit: ['内容策划'], taskFit: ['深度研究'], notFit: ['追热点'] },
+    ],
+    excludedDirections: [{ title: '纯销售', reason: '需要持续高频陌生沟通，与现实约束不匹配。', basis: 'both' }],
+    workSplit: { youOwn: ['研究', '结构设计'], partnerOwns: ['销售', '商务'] },
+    validationPlan: { task: '做一个最小知识产品测试', weeks: [{ label: '第1周', detail: '选一个具体问题。' }, { label: '第2周', detail: '做成最小交付物。' }], successCriteria: ['至少 5 人真实体验'], fallbackNote: '验证失败不等于方向不适合。' },
+    nextAction: { title: '确定一个具体问题', detail: '写下你要解决的第一个问题。', timeframe: '明天' },
+  });
+  render(<DeepReportView report={parsed} />);
+  expect(screen.getByRole('heading', { name: '本次校准发生了什么' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '这次筛选后的最终排序' })).toBeTruthy();
+  expect(screen.getByText('第一优先方向')).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '这次被降低或排除的方向' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '最适合你的工作组合' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '未来 30 天唯一验证任务' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '当前唯一优先行动' })).toBeTruthy();
+  expect(screen.queryByText('可以进一步探索的工作方向')).toBeNull();
 });

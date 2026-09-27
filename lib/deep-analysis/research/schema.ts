@@ -12,6 +12,10 @@ export const JobAdviceSchema = z.object({
   fitReason: z.string().min(1).max(800),
   entryGap: z.string().min(1).max(800),
   nextStep: z.string().min(1).max(600),
+  coreWork: z.string().min(1).max(200).optional(),
+  dailyTasks: z.array(z.string().min(1).max(80)).max(4).optional(),
+  fitParts: z.array(z.string().min(1).max(140)).max(3).optional(),
+  risk: z.string().min(1).max(200).optional(),
 });
 
 export const JobResearchSchema = z.object({

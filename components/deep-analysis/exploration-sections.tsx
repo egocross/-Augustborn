@@ -33,12 +33,6 @@ function ResearchNote({ research }: { research?: MarketResearch }) {
   </div>;
 }
 
-function SearchSuggestions({ html }: { html?: string }) {
-  if (!html) return null;
-  const document = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; base-uri 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${html}</body></html>`;
-  return <iframe className="job-search-suggestions" title="Google 搜索建议" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" srcDoc={document} />;
-}
-
 const tierTitles: Record<number, string> = { 1: '第一梯队 · 优先探索', 2: '第二梯队 · 条件匹配后考虑', 3: '第三梯队 · 暂作备选' };
 
 export function ExplorationSections({ report }: { report: DeepReport }) {
@@ -49,7 +43,6 @@ export function ExplorationSections({ report }: { report: DeepReport }) {
       <div className="market-examples"><h3>结合公开资料，看几个具体方向</h3>
         <ResearchNote research={report.marketResearch} /><SourceExamples examples={report.marketResearch?.examples ?? []} />
       </div>
-      <SearchSuggestions html={report.marketResearch?.searchSuggestionsHtml} />
     </section> : null}
     {report.cityPlan ? <section className="deep-report-block work-directions city-directions">
       <h3>按你的条件，分三步看城市</h3><p className="job-research-note">梯队表示你的探索优先级，不是城市实力或一二三线排名。没有足够证据时，不为凑数推荐城市。</p>
@@ -63,7 +56,6 @@ export function ExplorationSections({ report }: { report: DeepReport }) {
         </section>;
       })}</div>
       <div className="work-direction-intersection"><h4>先验证条件，再决定城市</h4><p>{report.cityPlan.intersection}</p></div>
-      <SearchSuggestions html={report.marketResearch?.searchSuggestionsHtml} />
     </section> : null}
     {report.collaborationPlan ? <section className="deep-report-block work-directions collaboration-directions">
       <h3>哪些能力能与你形成互补？</h3><p className="job-research-note">看实际行为与任务分工，不给人贴固定性格标签。能力互补，也需要共同目标和相互尊重。</p>

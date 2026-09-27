@@ -78,6 +78,42 @@ export const CollaborationPlanSchema = WorkDirectionsSchema.extend({
     redFlags: z.array(z.string().min(1).max(200)).min(1).max(3),
   })).min(2).max(4),
 });
+export const CalibrationSummarySchema = z.object({
+  constraints: z.array(z.string().min(1).max(120)).min(1).max(5),
+  narrowing: z.string().min(1).max(400),
+});
+
+export const DirectionRankSchema = z.object({
+  priority: z.enum(['primary', 'secondary', 'watch']),
+  title: z.string().min(1).max(60),
+  whyKept: z.string().min(1).max(300),
+  roleFit: z.array(z.string().min(1).max(60)).min(1).max(5),
+  taskFit: z.array(z.string().min(1).max(60)).min(1).max(5),
+  notFit: z.array(z.string().min(1).max(60)).min(1).max(5),
+});
+
+export const ExcludedDirectionSchema = z.object({
+  title: z.string().min(1).max(60),
+  reason: z.string().min(1).max(300),
+  basis: z.enum(['profile', 'answers', 'both']).optional(),
+});
+
+export const WorkSplitSchema = z.object({
+  youOwn: z.array(z.string().min(1).max(40)).min(1).max(6),
+  partnerOwns: z.array(z.string().min(1).max(40)).max(6),
+  note: z.string().min(1).max(200).optional(),
+});
+
+export const ValidationPlanSchema = z.object({
+  task: z.string().min(1).max(120),
+  weeks: z.array(z.object({
+    label: z.string().min(1).max(20),
+    detail: z.string().min(1).max(200),
+  })).min(2).max(5),
+  successCriteria: z.array(z.string().min(1).max(120)).min(1).max(5),
+  fallbackNote: z.string().min(1).max(200).optional(),
+});
+
 export const DeepReportSchema = z.object({
   workDirections: WorkDirectionsSchema.optional(),
   jobResearch: JobResearchSchema.optional(),
@@ -86,6 +122,16 @@ export const DeepReportSchema = z.object({
   collaborationPlan: CollaborationPlanSchema.optional(),
   marketResearch: MarketResearchSchema.optional(),
   title: z.string().min(1).max(100),
+  calibration: CalibrationSummarySchema.optional(),
+  directionRanking: z.array(DirectionRankSchema).min(1).max(5).optional(),
+  excludedDirections: z.array(ExcludedDirectionSchema).max(5).optional(),
+  workSplit: WorkSplitSchema.optional(),
+  validationPlan: ValidationPlanSchema.optional(),
+  nextAction: z.object({
+    title: z.string().min(1).max(100),
+    detail: boundedText,
+    timeframe: z.string().min(1).max(80),
+  }).optional(),
   summary: z.string().min(1).max(2_000),
   keyFindings: z.array(z.string().min(1).max(500)).min(2).max(5),
   cards: z.array(z.object({
@@ -99,6 +145,7 @@ export const DeepReportSchema = z.object({
     title: z.string().min(1).max(100),
     detail: boundedText,
     mitigation: boundedText,
+    signal: z.string().min(1).max(200).optional(),
   })).min(1).max(4),
   nextActions: z.array(z.object({
     title: z.string().min(1).max(100),
