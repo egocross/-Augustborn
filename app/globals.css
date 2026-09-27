@@ -495,30 +495,25 @@ input::placeholder { color: var(--placeholder); }
 
 .report-section h2 { margin-bottom: 0.7rem; }
 
-.report-claim {
-  margin: 0;
-  border-left: 3px solid var(--accent);
-  padding-left: 0.8rem;
-  color: var(--ink);
-  font-size: 1.04rem;
-  font-weight: 600;
-  line-height: 1.7;
+.report-opening {
+  padding: clamp(1.5rem, 4vw, 2rem) clamp(1.25rem, 4vw, 2.25rem);
+  border-bottom: 1px solid var(--line);
 }
 
-.report-detail { margin: 0; color: var(--ink-soft); line-height: 1.85; }
-.report-claim + .report-detail { margin-top: 0.9rem; }
+.report-body { margin: 0; color: var(--ink); line-height: 1.85; }
+.report-body + .report-body { margin-top: 0.9rem; }
 
 .report-points {
   display: grid;
   gap: 0.55rem;
   margin: 1.15rem 0 0;
-  padding-left: 1.2rem;
-  list-style: disc;
-  color: var(--ink-soft);
+  padding-left: 1.25rem;
+  list-style: circle;
+  color: var(--ink);
   line-height: 1.7;
 }
 
-.report-points li::marker { color: var(--accent); }
+.report-points li::marker { color: var(--muted); }
 
 .report-disclaimer,
 .report-pending {
