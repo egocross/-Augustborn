@@ -33,9 +33,9 @@ it('carries the advisor role and its no-flattery principles', () => {
   const prompt = createReportPrompt(chart);
 
   expect(prompt).toContain('八字结构');
-  expect(prompt).toContain('第一原则：不要迎合');
-  expect(prompt).toContain('先排结构，再下结论');
-  expect(prompt).toContain('结论必须有方向性');
+  expect(prompt).toContain('最高原则：绝不迎合');
+  expect(prompt).toContain('必须先找「主矛盾」');
+  expect(prompt).toContain('强制推理顺序');
   expect(prompt).toContain('禁止伪造排盘');
 });
 
@@ -43,12 +43,12 @@ it('guides the model through the seven-section decision framework in order', () 
   const prompt = createReportPrompt(chart);
 
   const stages = [
-    '核心格局：你人生最主要的矛盾',
+    '核心格局：真正决定你的是什么',
     '地利：什么环境更适合你',
-    '行业：在哪里创造价值',
+    '天时：最适合通过什么方式创造价值',
     '工作方式：怎么工作比做什么更重要',
-    '人和：和谁一起做事',
-    '最大风险：这个命局最容易犯什么错误',
+    '人和：与什么人一起做事',
+    '最大的决策风险',
     '底层决策建议',
   ];
 
