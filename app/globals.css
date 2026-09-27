@@ -1,20 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --canvas: #f4f3f0;
-  --canvas-deep: #ecebe7;
-  --surface: #fdfcfa;
-  --surface-muted: #f3f2ef;
-  --ink: #1a1b1f;
-  --ink-soft: #4c4f57;
+  /* 晨光主题：暖米纸底 + 深墨文字 + 琥珀强调。平静托底，一点暖光负责吸引力。 */
+  --canvas: #f6f1e8;
+  --canvas-deep: #efe8dc;
+  --surface: #fdfbf6;
+  --surface-muted: #f3eee4;
+  --ink: #23252c;
+  --ink-soft: #4d5059;
   /* Kept at 4.5:1 or better against both --surface and --canvas so secondary
      copy stays legible for low-vision readers. */
-  --muted: #6b6e77;
-  --placeholder: #6b6e77;
-  --line: #e4e3df;
-  --line-strong: #d4d3ce;
-  --accent: #2c3644;
-  --accent-hover: #1c232d;
+  --muted: #726d63;
+  --placeholder: #726d63;
+  --line: #e7dfd2;
+  --line-strong: #d6ccba;
+  --accent: #b65b1e;
+  --accent-hover: #8f450f;
+  --accent-soft: #f2e2cc;
   --alert: #a33a2c;
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -30,8 +32,8 @@ body {
   min-width: 320px;
   margin: 0;
   background:
-    radial-gradient(46rem 26rem at 92% -12%, rgb(158 172 197 / 20%), transparent 68%),
-    radial-gradient(34rem 24rem at -10% 8%, rgb(216 205 192 / 26%), transparent 70%),
+    radial-gradient(46rem 26rem at 92% -12%, rgb(238 178 116 / 22%), transparent 68%),
+    radial-gradient(34rem 24rem at -10% 8%, rgb(214 193 161 / 30%), transparent 70%),
     var(--canvas);
   background-attachment: fixed;
   color: var(--ink);
@@ -76,8 +78,8 @@ h1, h2, h3, p { margin-top: 0; }
   /* This is intentionally opaque: on a phone, a translucent page behind the
      dialog reads as an uncovered band above and below the card. */
   background:
-    radial-gradient(34rem 27rem at 50% 44%, rgb(67 108 171 / 38%), transparent 68%),
-    linear-gradient(155deg, #1b2739 0%, #101827 54%, #0c131f 100%);
+    radial-gradient(34rem 27rem at 50% 44%, rgb(240 166 86 / 32%), transparent 68%),
+    linear-gradient(155deg, #262241 0%, #181527 54%, #110f20 100%);
   /* `dvh` tracks the visible area while Android/iOS browser chrome expands
      and collapses. `inset` remains as the fallback for older browsers. */
   min-height: 100dvh;
@@ -96,8 +98,8 @@ h1, h2, h3, p { margin-top: 0; }
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 28px;
   background:
-    radial-gradient(circle at 50% -22%, rgb(100 145 218 / 22%), transparent 48%),
-    linear-gradient(145deg, rgb(28 36 51 / 94%), rgb(13 18 28 / 96%));
+    radial-gradient(circle at 50% -22%, rgb(240 166 86 / 22%), transparent 48%),
+    linear-gradient(145deg, rgb(40 35 60 / 94%), rgb(20 16 34 / 96%));
   -webkit-backdrop-filter: blur(28px) saturate(1.3);
   backdrop-filter: blur(28px) saturate(1.3);
   box-shadow:
@@ -118,11 +120,11 @@ h1, h2, h3, p { margin-top: 0; }
   width: 96px;
   height: 96px;
   border-radius: var(--radius-pill);
-  background: radial-gradient(circle at 34% 28%, #f2f8ff 0%, #bcd9ff 24%, #6ba6fb 52%, #2f74e8 78%, #1c53c4 100%);
+  background: radial-gradient(circle at 34% 28%, #fff6e3 0%, #ffd9a0 24%, #f5a34c 52%, #d97b2a 78%, #a84f12 100%);
   box-shadow:
-    0 0 44px -6px rgb(74 144 250 / 60%),
-    0 0 96px -18px rgb(74 144 250 / 45%),
-    inset 0 -14px 28px rgb(21 71 168 / 35%),
+    0 0 44px -6px rgb(245 163 76 / 60%),
+    0 0 96px -18px rgb(245 163 76 / 45%),
+    inset 0 -14px 28px rgb(140 74 20 / 35%),
     inset 0 12px 22px rgb(255 255 255 / 55%);
   animation: orb-breathe 4.4s ease-in-out infinite;
 }
@@ -139,7 +141,7 @@ h1, h2, h3, p { margin-top: 0; }
   inset: -16%;
   background:
     radial-gradient(circle at 32% 32%, rgb(255 255 255 / 92%), rgb(255 255 255 / 0%) 44%),
-    radial-gradient(circle at 70% 64%, rgb(133 193 255 / 85%), rgb(133 193 255 / 0%) 46%);
+    radial-gradient(circle at 70% 64%, rgb(255 205 128 / 85%), rgb(255 205 128 / 0%) 46%);
   animation: orb-swirl 7.5s linear infinite;
 }
 
@@ -147,7 +149,7 @@ h1, h2, h3, p { margin-top: 0; }
   inset: 8%;
   background:
     radial-gradient(circle at 64% 28%, rgb(255 255 255 / 72%), rgb(255 255 255 / 0%) 42%),
-    radial-gradient(circle at 38% 72%, rgb(43 111 232 / 60%), rgb(43 111 232 / 0%) 52%);
+    radial-gradient(circle at 38% 72%, rgb(214 111 38 / 60%), rgb(214 111 38 / 0%) 52%);
   animation: orb-swirl-reverse 9.5s linear infinite;
 }
 
@@ -175,8 +177,8 @@ h1, h2, h3, p { margin-top: 0; }
 }
 
 .generating-modal .progress-bar {
-  background: linear-gradient(90deg, transparent, #73aefc, #c5dbff, transparent);
-  box-shadow: 0 0 14px rgb(86 157 255 / 62%);
+  background: linear-gradient(90deg, transparent, #ffb86b, #ffe0b0, transparent);
+  box-shadow: 0 0 14px rgb(255 178 96 / 62%);
 }
 
 @keyframes overlay-in {
@@ -297,13 +299,13 @@ legend {
   transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 
-.birth-form input:hover:not(:disabled) { border-color: #c2c6ce; }
+.birth-form input:hover:not(:disabled) { border-color: #c0b39c; }
 
 .birth-form input:focus,
 .birth-form input:focus-visible {
   border-color: var(--accent);
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgb(44 54 68 / 12%);
+  box-shadow: 0 0 0 3px rgb(182 91 30 / 14%);
   outline: none;
 }
 
@@ -645,8 +647,8 @@ input::placeholder { color: var(--placeholder); }
   display: grid;
   place-items: center;
   background:
-    radial-gradient(32rem 25rem at 50% 42%, rgb(72 104 154 / 28%), transparent 70%),
-    linear-gradient(155deg, #1b2739 0%, #101827 54%, #0c131f 100%);
+    radial-gradient(32rem 25rem at 50% 42%, rgb(240 166 86 / 30%), transparent 70%),
+    linear-gradient(155deg, #262241 0%, #181527 54%, #110f20 100%);
   padding: 1rem;
   animation: feedback-overlay-in 240ms ease-out both;
 }
@@ -753,7 +755,7 @@ input::placeholder { color: var(--placeholder); }
   align-items: end;
   gap: clamp(1.25rem, 4vw, 2.5rem);
   background:
-    radial-gradient(circle at 100% 0%, rgb(147 171 204 / 16%), transparent 46%),
+    radial-gradient(circle at 100% 0%, rgb(238 178 116 / 20%), transparent 46%),
     var(--surface);
 }
 .deep-entry-panel > div { display: grid; gap: 0.7rem; }
@@ -774,7 +776,7 @@ input::placeholder { color: var(--placeholder); }
   cursor: pointer;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-.direction-card:hover { transform: translateY(-2px); border-color: #aeb6c1; box-shadow: 0 18px 30px -26px rgb(25 35 50 / 55%); }
+.direction-card:hover { transform: translateY(-2px); border-color: #c9bdaa; box-shadow: 0 18px 30px -26px rgb(25 35 50 / 55%); }
 .direction-card-copy { display: grid; gap: 0.3rem; min-width: 0; }
 .direction-card strong { font-size: 0.98rem; line-height: 1.45; }
 .direction-card-copy > span { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
@@ -809,18 +811,18 @@ input::placeholder { color: var(--placeholder); }
   color: var(--ink-soft);
   transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
-.option-card input:checked + span { border-color: var(--accent); background: #e9edf2; color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
+.option-card input:checked + span { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
 .option-grid[data-layout='compact'] .option-card span {
   min-height: 3rem;
   gap: 0.65rem;
-  background: #f7f7f5;
+  background: #faf6ee;
   padding: 0.62rem 0.75rem;
   font-size: 0.9rem;
   line-height: 1.4;
 }
-.option-grid[data-layout='compact'] .option-card:hover span { border-color: #aeb6c1; background: #fbfbf9; }
+.option-grid[data-layout='compact'] .option-card:hover span { border-color: #c9bdaa; background: #fdfaf4; }
 .option-grid[data-layout='compact'] .option-card input:checked + span {
-  background: #e9edf2;
+  background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .option-grid[data-layout='compact'] .option-card input:checked + span::after {
@@ -843,7 +845,7 @@ input::placeholder { color: var(--placeholder); }
 .supplementary-field { display: grid; gap: 0.45rem; color: var(--ink-soft); font-size: 0.88rem; font-weight: 600; }
 .supplementary-hint { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
 .supplementary-field input { min-height: 3.1rem; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface-muted); padding: 0.7rem 0.9rem; font-weight: 400; }
-.supplementary-field input:focus { border-color: var(--accent); outline: 3px solid rgb(44 54 68 / 10%); }
+.supplementary-field input:focus { border-color: var(--accent); outline: 3px solid rgb(182 91 30 / 12%); }
 .deep-panel textarea {
   width: 100%;
   resize: vertical;
@@ -853,7 +855,7 @@ input::placeholder { color: var(--placeholder); }
   padding: 0.85rem 1rem;
   line-height: 1.7;
 }
-.deep-panel textarea:focus { border-color: var(--accent); outline: 3px solid rgb(44 54 68 / 10%); }
+.deep-panel textarea:focus { border-color: var(--accent); outline: 3px solid rgb(182 91 30 / 12%); }
 .deep-actions { display: flex; justify-content: space-between; gap: 0.75rem; }
 .price-label { margin: 0; font-size: 2rem; font-weight: 650; letter-spacing: -0.03em; }
 .mock-note { margin: 0; color: var(--muted); font-size: 0.8rem; }
@@ -867,8 +869,8 @@ input::placeholder { color: var(--placeholder); }
   place-items: center;
   padding: 1.25rem;
   background:
-    radial-gradient(36rem 28rem at 50% 44%, rgb(67 108 171 / 38%), transparent 68%),
-    linear-gradient(155deg, #1b2739 0%, #101827 54%, #0c131f 100%);
+    radial-gradient(36rem 28rem at 50% 44%, rgb(240 166 86 / 32%), transparent 68%),
+    linear-gradient(155deg, #262241 0%, #181527 54%, #110f20 100%);
   overscroll-behavior: none;
   touch-action: none;
   animation: overlay-in 300ms ease-out both;
@@ -876,14 +878,14 @@ input::placeholder { color: var(--placeholder); }
 .deep-generating-modal { width: min(100%, 25rem); }
 
 .deep-report-view { overflow: hidden; }
-.deep-report-hero { display: grid; gap: 0.85rem; padding: clamp(1.6rem, 5vw, 2.5rem); background: radial-gradient(circle at 90% 0%, rgb(147 171 204 / 18%), transparent 45%); }
+.deep-report-hero { display: grid; gap: 0.85rem; padding: clamp(1.6rem, 5vw, 2.5rem); background: radial-gradient(circle at 90% 0%, rgb(238 178 116 / 22%), transparent 45%); }
 .deep-report-hero h2 { margin: 0; font-size: clamp(1.6rem, 4.8vw, 2.25rem); }
 .deep-report-hero > p:last-child { margin: 0; color: var(--ink-soft); line-height: 1.85; }
 .finding-panel, .deep-report-block { border-top: 1px solid var(--line); padding: clamp(1.35rem, 4vw, 2rem); }
 .finding-panel h3, .deep-report-block h3, .deep-report-card h3 { margin: 0 0 0.85rem; font-size: 1.05rem; }
 .finding-panel ul, .deep-report-block ul { display: grid; gap: 0.55rem; margin: 0; padding-left: 1.2rem; list-style: disc; color: var(--ink-soft); }
 .finding-panel ul li::marker, .deep-report-block ul li::marker { color: var(--accent); }
-.finding-panel { background: linear-gradient(180deg, rgb(147 171 204 / 12%), transparent 72%); }
+.finding-panel { background: linear-gradient(180deg, rgb(238 178 116 / 14%), transparent 72%); }
 .deep-report-block-warning { background: rgb(163 58 44 / 4%); }
 .deep-card-list { display: grid; border-top: 1px solid var(--line); }
 .deep-report-card { padding: clamp(1.35rem, 4vw, 2rem); border-bottom: 1px solid var(--line); }
@@ -897,7 +899,7 @@ input::placeholder { color: var(--placeholder); }
 .work-direction-group { min-width: 0; padding: clamp(1rem, 3vw, 1.4rem); border: 1px solid var(--line); border-radius: 1rem; overflow-wrap: anywhere; }
 .work-directions h4 { margin: 0 0 0.75rem; font-size: 1rem; }
 .work-directions .work-direction-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; list-style: none; }
-.work-direction-tags li { max-width: 100%; padding: 0.3rem 0.65rem; border-radius: 0.4rem; background: rgb(147 171 204 / 16%); color: var(--ink); font-size: 0.9rem; line-height: 1.6; }
+.work-direction-tags li { max-width: 100%; padding: 0.3rem 0.65rem; border-radius: 0.4rem; background: var(--accent-soft); color: var(--ink); font-size: 0.9rem; line-height: 1.6; }
 .work-direction-group p, .work-direction-intersection p { margin: 0.8rem 0 0; color: var(--ink-soft); line-height: 1.75; }
 .work-direction-boundary { font-size: 0.9rem; }
 .work-direction-intersection { margin-top: 1.25rem; padding-left: 1rem; border-left: 3px solid var(--accent); overflow-wrap: anywhere; }
@@ -912,7 +914,7 @@ input::placeholder { color: var(--placeholder); }
 .job-checked-at { margin: 0; color: var(--ink-soft); font-size: 0.8rem; }
 .job-research-note { margin: 0.75rem 0 1.2rem; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.7; }
 .job-recommendation-list { display: grid; gap: 1rem; }
-.job-recommendation-card { min-width: 0; padding: clamp(1rem, 3vw, 1.4rem); border: 1px solid var(--line); border-radius: 1rem; background: rgb(238 241 245 / 45%); overflow-wrap: anywhere; }
+.job-recommendation-card { min-width: 0; padding: clamp(1rem, 3vw, 1.4rem); border: 1px solid var(--line); border-radius: 1rem; background: rgb(243 228 207 / 45%); overflow-wrap: anywhere; }
 .job-recommendation-card h4 { margin: 0 0 0.65rem; font-size: 1.12rem; font-weight: 650; }
 .job-recommendation-card > p { margin: 0.65rem 0; color: var(--ink-soft); line-height: 1.75; }
 .job-search-keywords { font-size: 0.86rem; }
@@ -974,7 +976,7 @@ input::placeholder { color: var(--placeholder); }
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background:
-    radial-gradient(circle at 100% 0%, rgb(147 171 204 / 18%), transparent 46%),
+    radial-gradient(circle at 100% 0%, rgb(238 178 116 / 20%), transparent 46%),
     var(--surface);
   box-shadow: var(--shadow-soft);
   padding: clamp(1.4rem, 4vw, 2rem);
