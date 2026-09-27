@@ -7,7 +7,7 @@ import { ReportSchema } from '@/lib/gemini/schema';
 import { createSampleBaseReport, createSampleCustomQuestions, createSampleDeepReport } from './sample';
 import { getReportProvider, usesSampleReports } from './config';
 
-const chart = createChart({ birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '江苏南京' });
+const chart = createChart({ birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '江苏南京', calendarType: 'solar' as const, isLeapMonth: false });
 
 afterEach(() => {
   delete process.env.REPORT_PROVIDER;

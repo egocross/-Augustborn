@@ -136,7 +136,7 @@ describe('deep flow session', () => {
   it('stores a free report as soon as it is generated', () => {
     const target = storage();
     const saved = saveFreeReportContext({
-      birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+      birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
       freeReport: { disclaimer: '仅供参考', sections: [{ heading: '核心性格', body: '内容', bullets: [] }] },
     }, target);
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { LunarYear } from 'lunar-typescript';
 
 import { FeedbackForm } from '@/components/feedback-form';
 import { GeneratingModal } from '@/components/generating-modal';
@@ -16,6 +17,8 @@ type FormState = {
   birthTime: string;
   birthRegion: string;
   timeUnknown: boolean;
+  calendarType: 'solar' | 'lunar';
+  isLeapMonth: boolean;
 };
 
 const initialFormState: FormState = {
@@ -23,6 +26,8 @@ const initialFormState: FormState = {
   birthTime: '',
   birthRegion: '',
   timeUnknown: false,
+  calendarType: 'solar',
+  isLeapMonth: false,
 };
 
 const fallbackError = '报告暂时无法生成，请稍后重试。';
@@ -36,6 +41,25 @@ const loadingStages = [
 
 /** Oldest birth date the calculation supports. */
 const EARLIEST_BIRTH_DATE = '1900-01-01';
+
+const LUNAR_MONTH_NAMES = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月'];
+const LUNAR_YEARS = Array.from({ length: 2100 - 1900 + 1 }, (_, index) => 1900 + index);
+
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+type LunarMonthOption = { key: string; label: string; days: number };
+
+function lunarMonthOptions(year: number): LunarMonthOption[] {
+  return LunarYear.fromYear(year).getMonthsInYear().map((month) => {
+    const monthNumber = Math.abs(month.getMonth());
+    const isLeap = month.isLeap();
+    return {
+      key: `${monthNumber}${isLeap ? 'L' : ''}`,
+      label: `${isLeap ? '闰' : ''}${LUNAR_MONTH_NAMES[monthNumber - 1]}`,
+      days: month.getDayCount(),
+    };
+  });
+}
 
 const localToday = () => {
   const now = new Date();
@@ -116,6 +140,30 @@ export function BirthForm() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function setCalendarType(calendarType: 'solar' | 'lunar') {
+    setForm((current) => ({ ...current, calendarType }));
+  }
+
+  function selectLunarYear(year: number) {
+    setForm((current) => ({ ...current, birthDate: `${year}-01-01`, isLeapMonth: false }));
+  }
+
+  function selectLunarMonth(key: string) {
+    const isLeap = key.endsWith('L');
+    const month = Number(isLeap ? key.slice(0, -1) : key);
+    setForm((current) => {
+      const year = current.birthDate.slice(0, 4) || String(new Date().getFullYear());
+      return { ...current, birthDate: `${year}-${pad2(month)}-01`, isLeapMonth: isLeap };
+    });
+  }
+
+  function selectLunarDay(day: number) {
+    setForm((current) => {
+      const [year, month] = current.birthDate.split('-');
+      return { ...current, birthDate: `${year}-${month}-${pad2(day)}` };
+    });
+  }
+
   function cancelAnalyze() {
     analyzeRef.current?.abort();
     analyzeRef.current = null;
@@ -139,6 +187,8 @@ export function BirthForm() {
       birthDate: form.birthDate,
       birthTime: form.timeUnknown || form.birthTime === '' ? null : form.birthTime,
       birthRegion: form.birthRegion,
+      calendarType: form.calendarType,
+      isLeapMonth: form.isLeapMonth,
     };
 
     const controller = new AbortController();
@@ -222,7 +272,13 @@ export function BirthForm() {
         {report ? (
           <>
             <DeepAnalysisEntry
-              birthInput={{ birthDate: form.birthDate, birthTime: form.timeUnknown || !form.birthTime ? null : form.birthTime, birthRegion: form.birthRegion }}
+              birthInput={{
+                birthDate: form.birthDate,
+                birthTime: form.timeUnknown || !form.birthTime ? null : form.birthTime,
+                birthRegion: form.birthRegion,
+                calendarType: form.calendarType,
+                isLeapMonth: form.isLeapMonth,
+              }}
               freeReport={report}
             />
             <FeedbackForm />
@@ -235,6 +291,11 @@ export function BirthForm() {
       </div>
     );
   }
+
+  const [lunarYear, lunarMonth, lunarDay] = form.birthDate ? form.birthDate.split('-').map(Number) : [0, 0, 0];
+  const lunarMonthKey = lunarMonth ? `${lunarMonth}${form.isLeapMonth ? 'L' : ''}` : '';
+  const lunarMonths = lunarYear ? lunarMonthOptions(lunarYear) : [];
+  const lunarMonthDays = lunarMonths.find((option) => option.key === lunarMonthKey)?.days ?? 0;
 
   return (
     <div className={showModal ? 'birth-flow is-generating' : 'birth-flow'}>
@@ -256,18 +317,78 @@ export function BirthForm() {
                 <label className="field-label" htmlFor="birthDate">出生日期</label>
                 <span className="field-required">必填</span>
               </div>
-              <input
-                aria-describedby="birthDate-hint"
-                id="birthDate"
-                max={latestBirthDate || undefined}
-                min={EARLIEST_BIRTH_DATE}
-                onChange={(changeEvent) => updateField('birthDate', changeEvent.target.value)}
-                required
-                type="date"
-                value={form.birthDate}
-              />
+
+              <div className="calendar-toggle" role="radiogroup" aria-label="日历类型">
+                <button
+                  aria-pressed={form.calendarType === 'solar'}
+                  className={form.calendarType === 'solar' ? 'is-active' : ''}
+                  onClick={() => setCalendarType('solar')}
+                  type="button"
+                >
+                  公历
+                </button>
+                <button
+                  aria-pressed={form.calendarType === 'lunar'}
+                  className={form.calendarType === 'lunar' ? 'is-active' : ''}
+                  onClick={() => setCalendarType('lunar')}
+                  type="button"
+                >
+                  农历
+                </button>
+              </div>
+
+              {form.calendarType === 'solar' ? (
+                <input
+                  aria-describedby="birthDate-hint"
+                  id="birthDate"
+                  max={latestBirthDate || undefined}
+                  min={EARLIEST_BIRTH_DATE}
+                  onChange={(changeEvent) => updateField('birthDate', changeEvent.target.value)}
+                  required
+                  type="date"
+                  value={form.birthDate}
+                />
+              ) : (
+                <div className="lunar-date-grid" role="group" aria-label="农历出生日期">
+                  <select
+                    aria-label="农历年份"
+                    onChange={(changeEvent) => selectLunarYear(Number(changeEvent.target.value))}
+                    required
+                    value={lunarYear || ''}
+                  >
+                    <option disabled value="">年份</option>
+                    {LUNAR_YEARS.map((year) => <option key={year} value={year}>{year}</option>)}
+                  </select>
+                  <select
+                    aria-label="农历月份"
+                    disabled={!lunarYear}
+                    onChange={(changeEvent) => selectLunarMonth(changeEvent.target.value)}
+                    required
+                    value={lunarMonthKey}
+                  >
+                    <option disabled value="">月份</option>
+                    {lunarMonths.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                  </select>
+                  <select
+                    aria-label="农历日期"
+                    disabled={!lunarMonthKey}
+                    onChange={(changeEvent) => selectLunarDay(Number(changeEvent.target.value))}
+                    required
+                    value={lunarDay || ''}
+                  >
+                    <option disabled value="">日</option>
+                    {Array.from({ length: lunarMonthDays }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="calendar-notice" role="note">
+                <span className="calendar-notice-icon" aria-hidden="true">⚠️</span>
+                <p><strong>身份证上的出生日期是公历。</strong>按身份证填写请保持「公历」；只有你填写的是农历生日时，才选择「农历」。</p>
+              </div>
+
               <p className="field-hint" id="birthDate-hint">
-                公历日期，按北京时间填写。
+                {form.calendarType === 'solar' ? '公历日期，按北京时间填写。' : '农历日期，闰月请选择带「闰」字的月份。'}
               </p>
             </div>
 

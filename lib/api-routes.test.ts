@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdmin }));
 import { POST as analyze } from '../app/api/analyze/route';
 import { POST as feedback } from '../app/api/feedback/route';
 
-const validAnalysis = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '浙江杭州' };
+const validAnalysis = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '浙江杭州', calendarType: 'solar', isLeapMonth: false };
 const report = {
   sections: [{ heading: '观察', body: '内容', bullets: [] }],
   disclaimer: '仅供参考',

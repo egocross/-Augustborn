@@ -7,7 +7,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 import { createInitialDeepState, loadDeepSession, saveDeepSession } from '@/lib/deep-analysis/session';
 import { DeepAnalysisEntry } from './deep-analysis-entry';
 
-const birthInput = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' };
+const birthInput = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false };
 const freeReport = {
   disclaimer: '仅供参考',
   sections: [{ heading: '标题', body: '正文', bullets: [] }],

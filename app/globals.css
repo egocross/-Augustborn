@@ -314,6 +314,65 @@ input::placeholder { color: var(--placeholder); }
 
 .field-hint { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.6; }
 
+.calendar-toggle {
+  display: inline-flex;
+  padding: 0.2rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+.calendar-toggle button {
+  min-height: 2.4rem;
+  padding: 0.45rem 0.95rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.calendar-toggle button.is-active { background: var(--accent); color: #f8f8f6; }
+
+.calendar-notice {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgb(182 91 30 / 28%);
+  border-radius: var(--radius-md);
+  background: rgb(182 91 30 / 7%);
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.calendar-notice-icon { line-height: 1.25; }
+.calendar-notice p { margin: 0; }
+.calendar-notice strong { color: var(--ink); font-weight: 650; }
+
+.lunar-date-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+
+.birth-form select {
+  width: 100%;
+  min-height: 3.1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 0.65rem 0.7rem;
+  color: var(--ink);
+  font-size: 1rem;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+.birth-form select:disabled { color: var(--muted); opacity: 0.6; }
+.birth-form select:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgb(182 91 30 / 14%);
+  outline: none;
+}
+
 .field-required,
 .field-optional {
   border-radius: var(--radius-pill);

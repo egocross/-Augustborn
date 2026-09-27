@@ -12,8 +12,7 @@ import type { AnswerValue, FixedDirectionId } from '@/lib/deep-analysis/types';
 import { DirectionPicker } from './direction-picker';
 import { DeepGeneratingModal } from './deep-generating-modal';
 import { QuestionStep } from './question-step';
-
-type BirthInput = { birthDate: string; birthTime: string | null; birthRegion: string };
+import type { BirthInput } from '@/lib/validation';
 
 const paymentTitles = {
   work: '你的职业方向深度分析已经准备好',

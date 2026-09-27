@@ -3,14 +3,17 @@ import type { Report } from '@/lib/gemini/schema';
 
 const clip = (value: string, limit: number) => value.trim().slice(0, limit);
 
-export type BirthSummary = Pick<BaziChart, 'timeKnown' | 'pillars' | 'hourBranch' | 'fiveElements'>;
+export type BirthSummary = Pick<BaziChart, 'timeKnown' | 'pillars' | 'hourBranch' | 'surfaceFiveElements'>;
 
-export function createBirthSummary(_input: BaziInput, chart: BaziChart): BirthSummary {
+export function createBirthSummary(
+  _input: BaziInput,
+  chart: Pick<BaziChart, 'timeKnown' | 'pillars' | 'hourBranch' | 'surfaceFiveElements'>,
+): BirthSummary {
   return {
     timeKnown: chart.timeKnown,
     pillars: chart.pillars,
     hourBranch: chart.hourBranch,
-    fiveElements: chart.fiveElements,
+    surfaceFiveElements: chart.surfaceFiveElements,
   };
 }
 

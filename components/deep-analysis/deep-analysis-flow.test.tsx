@@ -8,7 +8,7 @@ import { createInitialDeepState, loadDeepSession, saveDeepSession } from '@/lib/
 import { DeepAnalysisFlow } from './deep-analysis-flow';
 
 const props = {
-  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
   freeReport: { disclaimer: '只供参考', sections: [{ heading: '性格', body: '内容', bullets: [] }] },
   price: '¥29.90',
 };

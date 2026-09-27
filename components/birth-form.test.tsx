@@ -53,7 +53,7 @@ afterEach(() => {
 it('does not read session storage during its hydration-sensitive initial render', () => {
   saveDeepSession({
     ...createInitialDeepState('session-12345678'),
-    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
     freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
   }, window.sessionStorage);
 
@@ -65,7 +65,7 @@ it('does not read session storage during its hydration-sensitive initial render'
 it('keeps direction choices off the free report and opens a separate exploration page', async () => {
   saveDeepSession({
     ...createInitialDeepState('session-12345678'),
-    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
     freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
   }, window.sessionStorage);
 
@@ -82,7 +82,7 @@ it('keeps direction choices off the free report and opens a separate exploration
 it('presents deep exploration before the secondary feedback action', async () => {
   saveDeepSession({
     ...createInitialDeepState('session-12345678'),
-    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
     freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
   }, window.sessionStorage);
 
@@ -111,7 +111,7 @@ it('sends the birth date, time and region, then renders the streamed report', as
   expect(fetch).toHaveBeenCalledWith('/api/analyze', expect.objectContaining({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ birthDate: '1977-09-03', birthTime: '13:30', birthRegion: '浙江杭州' }),
+    body: JSON.stringify({ birthDate: '1977-09-03', birthTime: '13:30', birthRegion: '浙江杭州', calendarType: 'solar', isLeapMonth: false }),
   }));
 });
 
@@ -142,7 +142,7 @@ it('disables the time input and sends a null birth time when the time is unknown
   expect(fetch).toHaveBeenCalledWith('/api/analyze', expect.objectContaining({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ birthDate: '1990-01-02', birthTime: null, birthRegion: '' }),
+    body: JSON.stringify({ birthDate: '1990-01-02', birthTime: null, birthRegion: '', calendarType: 'solar', isLeapMonth: false }),
   }));
 });
 

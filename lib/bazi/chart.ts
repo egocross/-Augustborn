@@ -1,4 +1,4 @@
-import { Solar } from 'lunar-typescript';
+import { Lunar, Solar } from 'lunar-typescript';
 import type { BaziChart, BaziInput, BaziPillars, FiveElement, FiveElements } from './types';
 
 const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
@@ -28,6 +28,8 @@ const ELEMENT_BY_PILLAR_CHARACTER: Readonly<Record<string, FiveElement>> = {
   戌: '土',
   亥: '水',
 };
+
+const pad2 = (value: number) => String(value).padStart(2, '0');
 
 export function hourBranch(hour: number) {
   return BRANCHES[Math.floor(((hour + 1) % 24) / 2)];
@@ -65,7 +67,17 @@ export function createChart(input: BaziInput): BaziChart {
   const timeKnown = input.birthTime !== null;
   const [hour, minute] = input.birthTime ? input.birthTime.split(':').map(Number) : [12, 0];
 
-  const lunar = Solar.fromYmdHms(year, month, day, hour, minute, 0).getLunar();
+  let solar: Solar;
+  let lunar: Lunar;
+  if (input.calendarType === 'lunar') {
+    const lunarMonth = input.isLeapMonth ? -Math.abs(month) : month;
+    lunar = Lunar.fromYmdHms(year, lunarMonth, day, hour, minute, 0);
+    solar = lunar.getSolar();
+  } else {
+    solar = Solar.fromYmdHms(year, month, day, hour, minute, 0);
+    lunar = solar.getLunar();
+  }
+
   const eightChar = lunar.getEightChar();
   eightChar.setSect(2);
 
@@ -78,11 +90,15 @@ export function createChart(input: BaziInput): BaziChart {
   };
 
   return {
-    solarDate: lunar.getSolar().toYmd(),
+    inputCalendarType: input.calendarType,
+    inputBirthDate: input.birthDate,
+    isLeapMonth: input.calendarType === 'lunar' && input.isLeapMonth === true,
+    solarDate: solar.toYmd(),
+    lunarDate: `${lunar.getYear()}-${pad2(Math.abs(lunar.getMonth()))}-${pad2(lunar.getDay())}`,
     birthRegion: input.birthRegion?.trim() || null,
     timeKnown,
     pillars,
     hourBranch: timeKnown ? hourBranch(hour) : null,
-    fiveElements: countElements(pillars),
+    surfaceFiveElements: countElements(pillars),
   };
 }

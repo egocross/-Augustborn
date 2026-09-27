@@ -4,14 +4,12 @@ import { createBirthSummary, createFreeReportSummary } from './summaries';
 
 describe('deep analysis summaries', () => {
   it('does not include raw birth fields in the persistable summary', () => {
-    const input = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州滨江' };
+    const input = { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州滨江', calendarType: 'solar' as const };
     const chart = {
-      solarDate: input.birthDate,
-      birthRegion: input.birthRegion,
       timeKnown: true,
       pillars: { year: '丁巳', month: '庚戌', day: '乙卯', hour: '癸未' },
       hourBranch: '未',
-      fiveElements: { '木': 2, '火': 2, '土': 2, '金': 1, '水': 1 },
+      surfaceFiveElements: { '木': 2, '火': 2, '土': 2, '金': 1, '水': 1 },
     } as const;
 
     const summary = createBirthSummary(input, chart);

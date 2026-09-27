@@ -8,7 +8,7 @@ import { createInitialDeepState, loadDeepSession, saveDeepSession } from '@/lib/
 import { DeepReportPage } from './deep-report-page';
 
 const context = {
-  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
   freeReport: { disclaimer: '仅供参考', sections: [{ heading: '核心性格', body: '内容', bullets: [] }] },
 };
 

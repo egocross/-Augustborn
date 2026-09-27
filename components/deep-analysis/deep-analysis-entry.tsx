@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation';
 
 import type { Report } from '@/lib/gemini/schema';
 import { createInitialDeepState, saveDeepSession } from '@/lib/deep-analysis/session';
-
-type BirthInput = { birthDate: string; birthTime: string | null; birthRegion: string };
+import type { BirthInput } from '@/lib/validation';
 
 export function DeepAnalysisEntry({ birthInput, freeReport }: { birthInput: BirthInput; freeReport: Report }) {
   const router = useRouter();

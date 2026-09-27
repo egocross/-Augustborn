@@ -16,7 +16,7 @@ const validAnswers = {
 };
 const valid = {
   sessionId: 'session-12345678', paymentReceipt: 'signed-receipt',
-  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州' },
+  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
   freeReport: { disclaimer: '只供参考', sections: [{ heading: '性格', body: '内容', bullets: [] }] },
   selectedDirection: 'work', questionnaireVersion: 'v2', answers: validAnswers,
   optionalContext: '', customQuestion: null, customQuestions: [],
