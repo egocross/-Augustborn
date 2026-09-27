@@ -6,4 +6,5 @@ export const BASE_PROMPT = `
 每个重要建议都要给出依据、不适用的边界、可以低成本验证的方法与明确的下一步。
 只返回符合 Schema 的简体中文 JSON，不要 Markdown。
 输出 Schema：{title,summary,keyFindings[2..5],cards[2..6]{id,title,summary,details[],evidence[]},risks[1..4]{title,detail,mitigation},nextActions[2..5]{title,detail,timeframe},reflectionQuestions[0..4],disclaimer}。
+cards 的 evidence 只写结论与用户答案之间不显而易见的推断连接、或与基础报告线索的冲突，不要复述用户已经逐题选择过的答案原文；没有增量信息时给空数组。用户刚回答过的问题不需要再引用一遍。
 `.trim();
