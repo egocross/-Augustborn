@@ -37,3 +37,11 @@ it('starts a fresh career calibration with the signed base report', () => {
   expect(nextSession?.baseReportSnapshotToken).toBe('v1.digest.signature');
   expect(push).toHaveBeenCalledWith('/explore');
 });
+
+it('keeps an unsigned restored base report readable but blocks career generation', () => {
+  render(<DeepAnalysisEntry freeReport={freeReport} baseReportSnapshotToken="" />);
+
+  expect(screen.getByText(/基础报告仍可阅读/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: '请重新生成基础报告' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '开始职业专项分析' })).toBeNull();
+});

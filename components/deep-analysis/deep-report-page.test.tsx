@@ -4,12 +4,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
-import { createInitialDeepState, loadDeepSession, saveDeepSession } from '@/lib/deep-analysis/session';
+import { createInitialDeepState, saveDeepSession } from '@/lib/deep-analysis/session';
 import { DeepReportPage } from './deep-report-page';
 
 const context = {
-  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
   freeReport: { disclaimer: '仅供参考', sections: [{ heading: '核心性格', body: '内容', bullets: [] }] },
+  baseReportSnapshotToken: 'v1.digest.signature',
 };
 
 const report = {
@@ -39,11 +39,9 @@ afterEach(() => cleanup());
 function saveCompletedReport() {
   saveDeepSession({
     ...createInitialDeepState('session-12345678', context),
-    selectedDirection: 'work',
     step: 'report',
     paymentReceipt: 'signed-receipt',
     report,
-    lastReport: report,
   }, window.sessionStorage);
 }
 
@@ -54,19 +52,8 @@ it('renders the completed report from this tab without exposing birth data in th
   expect(await screen.findByRole('heading', { name: '你的职业方向深度分析' })).toBeTruthy();
   expect(screen.getByText('先看结论')).toBeTruthy();
   expect(screen.queryByRole('navigation', { name: '报告操作' })).toBeNull();
-  expect(screen.getByRole('button', { name: '重新选择探索方向' })).toBeTruthy();
-});
-
-it('resets only the paid flow and returns to the exploration picker', async () => {
-  saveCompletedReport();
-  render(<DeepReportPage />);
-
-  fireEvent.click(await screen.findByRole('button', { name: '重新选择探索方向' }));
-  expect(push).toHaveBeenCalledWith('/explore');
-  const saved = loadDeepSession(window.sessionStorage);
-  expect(saved?.step).toBe('direction');
-  expect(saved?.report).toBeNull();
-  expect(saved?.freeReport?.sections[0]?.heading).toBe('核心性格');
+  expect(screen.queryByText('继续探索')).toBeNull();
+  expect(screen.queryByRole('button', { name: /探索方向/ })).toBeNull();
 });
 
 it('offers a safe recovery when no report exists in this tab', async () => {
@@ -75,15 +62,4 @@ it('offers a safe recovery when no report exists in this tab', async () => {
   expect(await screen.findByText('这份深度报告已不在当前标签页中')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '返回首页' }));
   expect(push).toHaveBeenCalledWith('/');
-});
-
-it('still opens the finished report after choosing another direction', async () => {
-  saveCompletedReport();
-  const { unmount } = render(<DeepReportPage />);
-  fireEvent.click(await screen.findByRole('button', { name: '重新选择探索方向' }));
-  unmount();
-
-  render(<DeepReportPage />);
-
-  expect(await screen.findByRole('heading', { name: '你的职业方向深度分析' })).toBeTruthy();
 });

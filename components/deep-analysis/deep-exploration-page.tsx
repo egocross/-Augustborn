@@ -30,7 +30,7 @@ export function DeepExplorationPage({ price, paymentMode = 'mock' }: { price: st
     );
   }
 
-  if (!session?.birthInput || !session.freeReport) {
+  if (!session?.freeReport) {
     return (
       <section className="deep-exploration-recovery">
         <p className="eyebrow">探索尚未开始</p>
@@ -45,9 +45,26 @@ export function DeepExplorationPage({ price, paymentMode = 'mock' }: { price: st
     );
   }
 
+  if (!session.baseReportSnapshotToken) {
+    return (
+      <section className="deep-exploration-recovery">
+        <p className="eyebrow">需要更新基础报告</p>
+        <h1>基础报告仍可阅读，但暂时不能进入职业专项分析</h1>
+        <p>这份旧报告没有职业专项校验凭证。请返回首页重新生成基础报告后再继续。</p>
+        <button className="primary-button" onClick={() => router.push('/')} type="button">请重新生成基础报告</button>
+      </section>
+    );
+  }
+
   return (
     <div className="deep-exploration-page">
-      <DeepAnalysisFlow birthInput={session.birthInput} freeReport={session.freeReport} paymentMode={paymentMode} price={price} returnedOrderId={returnedOrderId} />
+      <DeepAnalysisFlow
+        baseReportSnapshotToken={session.baseReportSnapshotToken}
+        freeReport={session.freeReport}
+        paymentMode={paymentMode}
+        price={price}
+        returnedOrderId={returnedOrderId}
+      />
     </div>
   );
 }

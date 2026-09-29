@@ -194,6 +194,22 @@ describe('career session persistence and migration', () => {
     });
   });
 
+  it('keeps an unsigned v2 base report readable without reopening the old flow', () => {
+    const target = storage();
+    target.setItem('jianvia.deep-analysis', JSON.stringify({
+      version: 2,
+      state: {
+        sessionId: 'legacy-session', step: 'direction', freeReport,
+        birthInput: { birthDate: '1987-09-25' }, selectedDirection: null,
+      },
+    }));
+
+    expect(loadDeepSession(target)).toMatchObject({
+      sessionId: 'legacy-session', step: 'intro', freeReport,
+      baseReportSnapshotToken: null, answers: {},
+    });
+  });
+
   it('discards v2 drafts and legacy direction state so removed flows cannot reopen', () => {
     const target = storage();
     target.setItem('jianvia.deep-analysis', JSON.stringify({

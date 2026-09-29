@@ -88,7 +88,7 @@ export function BirthForm() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const restored = loadDeepSession(window.sessionStorage);
-      if (!restored?.freeReport || !restored.baseReportSnapshotToken) return;
+      if (!restored?.freeReport) return;
       setReport(restored.freeReport);
       setBaseReportSnapshotToken(restored.baseReportSnapshotToken);
     }, 0);

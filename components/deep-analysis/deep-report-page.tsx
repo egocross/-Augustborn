@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { deepFlowReducer, loadDeepSession, saveDeepSession, type DeepFlowState } from '@/lib/deep-analysis/session';
+import { loadDeepSession, type DeepFlowState } from '@/lib/deep-analysis/session';
 import { DeepReportView } from './deep-report-view';
 
 export function DeepReportPage() {
@@ -21,9 +21,7 @@ export function DeepReportPage() {
     return <section aria-busy="true" aria-label="正在打开深度报告" className="deep-report-page-loading" />;
   }
 
-  // The finished report survives “choose another direction”, so the reader can
-  // still reopen what they already paid for instead of losing it.
-  const report = state?.report ?? state?.lastReport ?? null;
+  const report = state?.report ?? null;
 
   if (!report) {
     return (
@@ -36,25 +34,9 @@ export function DeepReportPage() {
     );
   }
 
-  function chooseAnotherDirection() {
-    if (!state) return;
-    const resetState = deepFlowReducer(state, { type: 'backToDirection' });
-    saveDeepSession(resetState, window.sessionStorage);
-    router.push('/explore');
-  }
-
   return (
     <div className="deep-report-page">
       <DeepReportView report={report} />
-
-      <section className="deep-report-page-actions">
-        <div>
-          <p className="eyebrow">继续探索</p>
-          <h2>还有其他问题想弄清楚？</h2>
-          <p>返回探索页，选择另一个方向继续回答。</p>
-        </div>
-        <button className="primary-button" onClick={chooseAnotherDirection} type="button">重新选择探索方向</button>
-      </section>
     </div>
   );
 }

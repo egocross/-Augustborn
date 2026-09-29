@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 
 import type { Report } from '@/lib/gemini/schema';
-import { createInitialCareerState, saveDeepSession } from '@/lib/deep-analysis/session';
+import { clearDeepSession, createInitialCareerState, saveDeepSession } from '@/lib/deep-analysis/session';
 
 export function DeepAnalysisEntry({
   baseReportSnapshotToken,
@@ -13,6 +13,22 @@ export function DeepAnalysisEntry({
   freeReport: Report;
 }) {
   const router = useRouter();
+
+  if (!baseReportSnapshotToken) {
+    return (
+      <section className="deep-panel deep-entry-panel">
+        <div>
+          <p className="eyebrow">职业专项分析</p>
+          <h2>请更新这份基础报告</h2>
+          <p className="deep-lead">基础报告仍可阅读，但这份旧报告没有职业专项校验凭证。</p>
+        </div>
+        <button className="primary-button" onClick={() => {
+          clearDeepSession(window.sessionStorage);
+          router.push('/');
+        }} type="button">请重新生成基础报告</button>
+      </section>
+    );
+  }
 
   function openExploration() {
     const sessionId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -31,7 +47,7 @@ export function DeepAnalysisEntry({
         <h2>把基础倾向放进现实条件里校准</h2>
         <p className="deep-lead">用 2–4 分钟确认收入、地点、时间与职业资本，再收窄值得验证的职业方向。</p>
       </div>
-      <button className="primary-button" disabled={!baseReportSnapshotToken} onClick={openExploration} type="button">开始职业专项分析</button>
+      <button className="primary-button" onClick={openExploration} type="button">开始职业专项分析</button>
     </section>
   );
 }

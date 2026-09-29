@@ -117,8 +117,10 @@ export type DeepFlowAction =
   | { type: 'restore'; state: DeepFlowState }
   | { type: 'beginQuestions' }
   | { type: 'setAnswer'; questionId: string; answer: CareerDraftAnswer }
+  | { type: 'setAnswerAndAdvance'; questionId: string; answer: CareerDraftAnswer }
   | { type: 'nextQuestion' }
   | { type: 'previousQuestion' }
+  | { type: 'goToQuestion'; sectionIndex: number; questionIndex: number }
   | { type: 'editSummary' }
   | { type: 'confirmSummary'; calibration: CareerCalibration }
   | { type: 'paymentStarted'; orderId: string }
@@ -149,6 +151,12 @@ export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): D
         errorCode: null,
       };
     }
+    case 'setAnswerAndAdvance': {
+      const answered = deepFlowReducer(state, {
+        type: 'setAnswer', questionId: action.questionId, answer: action.answer,
+      });
+      return deepFlowReducer(answered, { type: 'nextQuestion' });
+    }
     case 'nextQuestion': {
       const answers = pruneHiddenCareerAnswers(state.answers);
       const cursors = visibleCursors(answers);
@@ -166,6 +174,11 @@ export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): D
         ? { ...state, step: 'questions', ...previous, errorCode: null }
         : { ...state, step: 'intro', sectionIndex: 0, questionIndex: 0, errorCode: null };
     }
+    case 'goToQuestion':
+      return {
+        ...state, step: 'questions', sectionIndex: action.sectionIndex,
+        questionIndex: action.questionIndex, errorCode: null,
+      };
     case 'editSummary': {
       const cursors = visibleCursors(state.answers);
       const last = cursors.at(-1);
@@ -211,20 +224,25 @@ const normalizeRestoredState = (state: DeepFlowState): DeepFlowState | null => {
   return state;
 };
 
-const migrateLegacyCompletedReport = (value: unknown): DeepFlowState | null => {
+const migrateLegacyState = (value: unknown): DeepFlowState | null => {
   if (!value || typeof value !== 'object') return null;
   const state = value as Record<string, unknown>;
-  const parsedReport = DeepReportSchema.safeParse(state.report ?? state.lastReport);
-  if (!parsedReport.success) return null;
   const sessionId = typeof state.sessionId === 'string' && state.sessionId.length >= 8
     ? state.sessionId
     : createSessionId();
-  return {
-    ...createInitialCareerState(sessionId),
-    step: 'report',
-    report: parsedReport.data,
-    readOnlyLegacy: true,
-  };
+  const parsedReport = DeepReportSchema.safeParse(state.report ?? state.lastReport);
+  if (parsedReport.success) {
+    return {
+      ...createInitialCareerState(sessionId),
+      step: 'report',
+      report: parsedReport.data,
+      readOnlyLegacy: true,
+    };
+  }
+  const parsedFreeReport = ReportSchema.safeParse(state.freeReport);
+  return parsedFreeReport.success
+    ? createInitialCareerState(sessionId, { freeReport: parsedFreeReport.data })
+    : null;
 };
 
 export function loadDeepSession(storage: Storage = sessionStorage): DeepFlowState | null {
@@ -232,7 +250,7 @@ export function loadDeepSession(storage: Storage = sessionStorage): DeepFlowStat
     const raw = storage.getItem(DEEP_SESSION_KEY);
     if (!raw) return null;
     const envelope = JSON.parse(raw) as { version?: unknown; state?: unknown };
-    if (envelope.version === 2) return migrateLegacyCompletedReport(envelope.state);
+    if (envelope.version === 2) return migrateLegacyState(envelope.state);
     if (envelope.version !== SESSION_VERSION) return null;
     const parsed = DeepFlowStateSchema.safeParse(envelope.state);
     return parsed.success ? normalizeRestoredState(parsed.data) : null;
