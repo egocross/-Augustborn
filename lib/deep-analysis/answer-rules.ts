@@ -8,6 +8,12 @@ export const EXCLUSIVE_OPTION_IDS: ReadonlySet<string> = new Set([
   'work_q4_none',
   'city_q5_none',
   'collaboration_q4_none',
+  'responsibility_none',
+  'capital_none',
+  'work_constraint_none',
+  'income_model_any',
+  'income_model_uncertain',
+  'employment_type_any',
 ]);
 
 export type OptionToggleResult =

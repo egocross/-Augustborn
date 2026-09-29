@@ -34,6 +34,18 @@ describe('option toggling', () => {
   it('unselects an already selected option', () => {
     expect(toggleOptionId(['work_q4_travel'], 'work_q4_travel')).toEqual({ kind: 'replace', optionIds: [] });
   });
+
+  it('applies career-calibration placeholder exclusivity', () => {
+    expect(toggleOptionId(
+      ['responsibility_family_expenses'],
+      'responsibility_none',
+    )).toEqual({ kind: 'replace', optionIds: ['responsibility_none'] });
+
+    expect(toggleOptionId(
+      ['capital_none'],
+      'capital_programming',
+    )).toEqual({ kind: 'replace', optionIds: ['capital_programming'] });
+  });
 });
 
 describe('supplementary values', () => {
