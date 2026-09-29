@@ -5,7 +5,8 @@ import { GEMINI_API_KEY, GEMINI_MODEL } from '@/lib/gemini/config';
 import { createJobResearchPrompt } from '../prompts/job-research';
 import type { CareerResearchContext } from '../career-pipeline';
 import { CareerMarketEvidenceSchema, type CareerMarketEvidence } from '../career-pipeline';
-import type { DeepAnswers } from '../types';
+import { MarketEvidenceSchema, type DeepAnswers, type MarketEvidence } from '../types';
+import type { CareerValidationSearchResult } from './career-validation';
 import { JobAdviceSchema, JobResearchSchema, type WorkResearch } from './schema';
 
 const recruitmentSites = [
@@ -44,6 +45,123 @@ export async function resolveRecruitmentSource(value: string, signal?: AbortSign
     current = new URL(location, url).href;
   }
   return null;
+}
+
+function safePublicHttpsUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return null;
+    if (/^(?:localhost|\d{1,3}(?:\.\d{1,3}){3}|\[.*\])$/i.test(url.hostname)) return null;
+    return url;
+  } catch { return null; }
+}
+
+async function resolveGroundedSource(value: string, signal?: AbortSignal): Promise<URL | null> {
+  let current = value;
+  for (let hop = 0; hop < 3; hop += 1) {
+    const url = safePublicHttpsUrl(current);
+    if (!url) return null;
+    if (url.hostname !== 'vertexaisearch.cloud.google.com'
+      || !url.pathname.startsWith('/grounding-api-redirect/')) return url;
+    const timeout = AbortSignal.timeout(6000);
+    const response = await fetch(url, {
+      redirect: 'manual', cache: 'no-store',
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    });
+    await response.body?.cancel();
+    const location = response.headers.get('location');
+    if (![301, 302, 303, 307, 308].includes(response.status) || !location) return null;
+    current = new URL(location, url).href;
+  }
+  return null;
+}
+
+function classifySource(url: URL): MarketEvidence['sourceType'] {
+  if (recruitmentSource(url.href)) return 'job_posting';
+  if (url.hostname === 'gov.cn' || url.hostname.endsWith('.gov.cn')) return 'official';
+  if (/(?:career|careers|job|jobs|join|zhaopin|recruit)/i.test(url.pathname)) return 'company_career';
+  return 'other';
+}
+
+export async function collectCareerValidationEvidence(
+  result: Pick<GenerateContentResponse, 'text' | 'candidates'>,
+  signal?: AbortSignal,
+): Promise<{ evidence: MarketEvidence[]; queries: string[] }> {
+  const metadata = result.candidates?.[0]?.groundingMetadata;
+  const text = result.text ?? '';
+  const queries = (metadata?.webSearchQueries ?? []).filter(Boolean).slice(0, 4);
+  if (!queries.length || !metadata?.groundingSupports?.length) return { evidence: [], queries };
+  const chunks = metadata.groundingChunks ?? [];
+  const indices = [...new Set(metadata.groundingSupports.flatMap((support) => support.groundingChunkIndices ?? []))]
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < chunks.length).slice(0, 20);
+  const resolved = new Map<number, URL | null>();
+  await Promise.all(indices.map(async (index) => {
+    const uri = chunks[index]?.web?.uri;
+    if (!uri) return;
+    try { resolved.set(index, await resolveGroundedSource(uri, signal)); }
+    catch { resolved.set(index, null); }
+  }));
+  const evidence: MarketEvidence[] = [];
+  for (const support of metadata.groundingSupports) {
+    const fact = support.segment?.text?.trim();
+    if (!fact || fact.length > 800 || !text.includes(fact)) continue;
+    for (const index of support.groundingChunkIndices ?? []) {
+      const url = resolved.get(index);
+      const web = chunks[index]?.web;
+      if (!url || !web) continue;
+      const recruitment = recruitmentSource(url.href);
+      const item = MarketEvidenceSchema.safeParse({
+        sourceType: classifySource(url),
+        title: (web.title || recruitment?.site || url.hostname).slice(0, 300),
+        source: recruitment?.site || url.hostname,
+        url: url.href,
+        fact,
+      });
+      if (!item.success || evidence.some((existing) => existing.url === item.data.url && existing.fact === fact)) continue;
+      evidence.push(item.data);
+      if (evidence.length >= 20) break;
+    }
+    if (evidence.length >= 20) break;
+  }
+  return { evidence, queries };
+}
+
+export async function searchCareerValidationMarket(
+  careerName: string,
+  queries: string[],
+  options: { signal?: AbortSignal } = {},
+): Promise<CareerValidationSearchResult> {
+  const checkedAt = new Date().toISOString();
+  const timeout = AbortSignal.timeout(55_000);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  try {
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    const result = await ai.models.generateContent({
+      model: GEMINI_MODEL ?? 'gemini-3.1-pro-preview',
+      contents: `请使用 Google 搜索核对“${careerName}”在当前中国就业市场的真实工作内容与入场门槛。\n必须围绕以下检索词：\n${queries.map((query) => `- ${query}`).join('\n')}\n只陈述来源支持的事实；不要输出薪资统计、岗位数量、增长率或没有来源的资格要求。`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        maxOutputTokens: 5000,
+        abortSignal: signal,
+      },
+    });
+    const collected = await collectCareerValidationEvidence(result, signal);
+    return {
+      checkedAt,
+      queries: collected.queries.length ? collected.queries : queries,
+      evidence: collected.evidence,
+      ...(collected.evidence.length ? {} : { failure: 'no_sources' as const }),
+    };
+  } catch {
+    options.signal?.throwIfAborted();
+    return {
+      checkedAt,
+      queries,
+      evidence: [],
+      failure: timeout.aborted ? 'timeout' : 'unavailable',
+    };
+  }
 }
 
 export async function collectJobEvidence(
