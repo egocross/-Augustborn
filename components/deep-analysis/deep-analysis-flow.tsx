@@ -4,6 +4,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Report } from '@/lib/gemini/schema';
+import { trackCareerEvent } from '@/lib/analytics/career-events';
 import {
   normalizeCareerCalibration,
   validateCareerDraft,
@@ -101,6 +102,8 @@ export function DeepAnalysisFlow({
   const [paymentBusy, setPaymentBusy] = useState(false);
   const autoGenerationOrderRef = useRef<string | null>(null);
   const generationControllerRef = useRef<AbortController | null>(null);
+  const calibrationStartedAtRef = useRef<number | null>(null);
+  const completionTrackedRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -138,8 +141,21 @@ export function DeepAnalysisFlow({
   function changeAnswer(answer: CareerDraftAnswer) {
     if (!question) return;
     setQuestionError(null);
+    const elapsedMs = Math.max(0, Date.now() - (calibrationStartedAtRef.current ?? Date.now()));
+    trackCareerEvent('career_question_answered', {
+      questionId: question.id,
+      section: question.section,
+      skipped: answer.optionIds.length === 0,
+      elapsedMs,
+    });
     const isOther = Boolean(question.other && answer.optionIds.includes(question.other.optionId));
     if (question.type === 'single' && !isOther) {
+      const answers = { ...state.answers, [question.id]: answer };
+      const nextVisible = getVisibleCareerQuestions(answers);
+      if (nextVisible.at(-1)?.id === question.id && !completionTrackedRef.current) {
+        completionTrackedRef.current = true;
+        trackCareerEvent('career_calibration_completed', { elapsedMs });
+      }
       dispatch({ type: 'setAnswerAndAdvance', questionId: question.id, answer });
     } else {
       dispatch({ type: 'setAnswer', questionId: question.id, answer });
@@ -150,6 +166,12 @@ export function DeepAnalysisFlow({
     if (!question || !answerReady(question, currentAnswer)) {
       setQuestionError(question?.other?.inputType === 'currency' ? '请输入有效金额' : '请先完成当前问题');
       return;
+    }
+    if (visibleQuestions.at(-1)?.id === question.id && !completionTrackedRef.current) {
+      completionTrackedRef.current = true;
+      trackCareerEvent('career_calibration_completed', {
+        elapsedMs: Math.max(0, Date.now() - (calibrationStartedAtRef.current ?? Date.now())),
+      });
     }
     dispatch({ type: 'nextQuestion' });
   }
@@ -179,6 +201,9 @@ export function DeepAnalysisFlow({
     let timedOut = false;
     const timer = window.setTimeout(() => { timedOut = true; controller.abort(); }, 255_000);
     setGenerationStage('preparing');
+    trackCareerEvent('career_report_generation_started', {
+      elapsedMs: Math.max(0, Date.now() - (calibrationStartedAtRef.current ?? Date.now())),
+    });
     dispatch({ type: 'generationStarted', receipt });
 
     try {
@@ -200,6 +225,9 @@ export function DeepAnalysisFlow({
       const report = await consumeDeepReportStream(response.body, { onStatus: setGenerationStage });
       const completedState = { ...state, paymentReceipt: receipt, report, step: 'report' as const, errorCode: null };
       saveDeepSession(completedState, window.sessionStorage);
+      trackCareerEvent('career_report_generated', {
+        elapsedMs: Math.max(0, Date.now() - (calibrationStartedAtRef.current ?? Date.now())),
+      });
       dispatch({ type: 'restore', state: completedState });
       router.push('/deep-report');
     } catch (error) {
@@ -290,7 +318,12 @@ export function DeepAnalysisFlow({
       <p className="eyebrow">职业现实校准</p>
       <h1>把基础倾向放进现实条件里校准</h1>
       <p className="deep-lead">约 2–4 分钟。我们会按顺序确认现实约束、职业资本与当前优先级，再收敛值得验证的职业方向。</p>
-      <button className="primary-button" onClick={() => dispatch({ type: 'beginQuestions' })} type="button">开始现实校准</button>
+      <button className="primary-button" onClick={() => {
+        calibrationStartedAtRef.current = Date.now();
+        completionTrackedRef.current = false;
+        trackCareerEvent('career_calibration_started');
+        dispatch({ type: 'beginQuestions' });
+      }} type="button">开始现实校准</button>
     </section>
   );
   if (state.step === 'questions' && question) return (
@@ -329,7 +362,12 @@ export function DeepAnalysisFlow({
     );
     return <CareerCalibrationSummary
       calibration={calibration}
-      onConfirm={() => dispatch({ type: 'confirmSummary', calibration })}
+      onConfirm={() => {
+        trackCareerEvent('career_summary_confirmed', {
+          elapsedMs: Math.max(0, Date.now() - (calibrationStartedAtRef.current ?? Date.now())),
+        });
+        dispatch({ type: 'confirmSummary', calibration });
+      }}
       onEdit={() => dispatch({ type: 'editSummary' })}
     />;
   }

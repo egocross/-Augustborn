@@ -865,6 +865,17 @@ input::placeholder { color: var(--placeholder); }
   color: var(--ink-soft);
   transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
+.option-card.selected > span { padding-right: 5.25rem; }
+.option-card small {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  color: var(--accent-hover);
+  font-size: 0.72rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
 .option-card input:checked + span { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
 .option-grid[data-layout='compact'] .option-card span {
   min-height: 3rem;
@@ -913,6 +924,113 @@ input::placeholder { color: var(--placeholder); }
 .deep-actions { display: flex; justify-content: space-between; gap: 0.75rem; }
 .price-label { margin: 0; font-size: 2rem; font-weight: 650; letter-spacing: -0.03em; }
 .mock-note { margin: 0; color: var(--muted); font-size: 0.8rem; }
+
+/* Career reality calibration ------------------------------------------ */
+
+.career-intro-panel,
+.career-summary-panel,
+.career-stage-progress,
+.career-report-view,
+.career-report-view * { min-width: 0; }
+
+.career-intro-panel {
+  min-height: min(34rem, calc(100dvh - 2rem));
+  align-content: center;
+  background:
+    radial-gradient(circle at 92% 8%, rgb(238 178 116 / 24%), transparent 38%),
+    var(--surface);
+}
+.career-intro-panel h1 { margin: 0; font-size: clamp(1.65rem, 5vw, 2.35rem); line-height: 1.25; letter-spacing: -0.03em; }
+.career-intro-panel .primary-button { justify-self: start; }
+
+.career-stage-progress { display: grid; gap: 0.2rem; }
+.career-stage-progress p { margin: 0; }
+.career-stage-progress p:last-child { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+
+.question-other-field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.question-other-field input {
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;
+  font-weight: 400;
+}
+.question-other-field input:focus-visible { border-color: var(--accent); outline: 3px solid rgb(182 91 30 / 16%); }
+
+.career-summary-panel { align-content: start; }
+.career-summary-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.career-summary-list li {
+  border-left: 3px solid var(--accent);
+  border-radius: 0 12px 12px 0;
+  background: var(--surface-muted);
+  padding: 0.7rem 0.85rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.career-capital-report dl,
+.career-hypothesis-card dl { margin: 0; }
+.career-capital-report dl { display: grid; gap: 0.65rem; }
+.career-capital-report dl > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.45fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.65rem;
+}
+.career-capital-report dt,
+.career-hypothesis-card dt { color: var(--ink); font-weight: 650; }
+.career-capital-report dd,
+.career-hypothesis-card dd { margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+.career-hypothesis-list { display: grid; gap: 1rem; }
+.career-hypothesis-card {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: #fffdfa;
+  padding: clamp(1rem, 3vw, 1.35rem);
+  overflow: hidden;
+}
+.career-hypothesis-card h4,
+.career-deprioritized h4 { margin: 0; font-size: 1.08rem; line-height: 1.45; }
+.career-tier {
+  width: fit-content;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  padding: 0.2rem 0.65rem;
+  color: var(--accent-hover);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.career-hypothesis-card dl { display: grid; grid-template-columns: minmax(6.5rem, 0.32fr) minmax(0, 1fr); gap: 0.55rem 0.8rem; }
+.career-evidence-status { display: grid; gap: 0.35rem; border-radius: 12px; background: var(--surface-muted); padding: 0.85rem; }
+.career-evidence-status strong { font-size: 0.86rem; }
+.career-evidence-status > p,
+.career-evidence-status li p { margin: 0; color: var(--ink-soft); font-size: 0.86rem; line-height: 1.65; }
+.career-evidence-status ul { padding-left: 1.1rem; }
+.career-evidence-status a { color: var(--accent-hover); font-weight: 600; overflow-wrap: anywhere; }
+.career-evidence-status a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.career-deprioritized article { display: grid; gap: 0.55rem; }
+.career-deprioritized article + article { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.career-thirty-day-plan ol li { border-left: 3px solid var(--accent-soft); padding-left: 0.75rem; }
 
 .deep-generating-overlay {
   position: fixed;
@@ -1052,6 +1170,7 @@ input::placeholder { color: var(--placeholder); }
 .deep-exploration-page-shell {
   width: min(100% - 2rem, 48rem);
   padding-top: clamp(1.25rem, 4vh, 2.5rem);
+  overflow-x: clip;
 }
 
 .deep-exploration-page {
@@ -1066,6 +1185,7 @@ input::placeholder { color: var(--placeholder); }
 .deep-report-page-shell {
   width: min(100% - 2rem, 58rem);
   padding-top: clamp(1.25rem, 4vh, 2.5rem);
+  overflow-x: clip;
 }
 
 .deep-report-page {
@@ -1176,6 +1296,12 @@ input::placeholder { color: var(--placeholder); }
   .deep-report-page-actions .primary-button { width: 100%; }
   .deep-report-recovery,
   .deep-exploration-recovery { margin-top: 1.25rem; }
+  .career-intro-panel { min-height: calc(100dvh - 1rem); }
+  .career-intro-panel .primary-button { width: 100%; }
+  .career-summary-panel { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)); }
+  .career-capital-report dl > div,
+  .career-hypothesis-card dl { grid-template-columns: 1fr; gap: 0.12rem; }
+  .career-hypothesis-card { padding: 1rem; }
 }
 
 @media (max-width: 22rem) {
@@ -1191,6 +1317,10 @@ input::placeholder { color: var(--placeholder); }
     --question-gutter-top: max(0.5rem, env(safe-area-inset-top, 0px));
     --question-gutter-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
     padding-block: var(--question-gutter-top) var(--question-gutter-bottom);
+  }
+
+  .deep-report-page-shell {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
 
   .question-viewport {
@@ -1230,6 +1360,7 @@ input::placeholder { color: var(--placeholder); }
   }
   /* Reserve the selection mark so selecting cannot reflow an option row. */
   .question-viewport .option-grid[data-layout='compact'] .option-card span { padding-right: 1.625rem; }
+  .question-viewport .option-grid[data-layout='compact'] .option-card small { display: none; }
   .question-viewport .option-grid[data-layout='compact'] .option-card input:checked + span::after {
     position: absolute;
     right: 0.375rem;
@@ -1251,6 +1382,7 @@ input::placeholder { color: var(--placeholder); }
   }
   .question-viewport .deep-actions > button:only-child { flex: 0 1 auto; min-width: 6rem; }
   .question-viewport .supplementary-field input { font-size: 1rem; }
+  .question-viewport .question-other-field input { min-height: 2.75rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { DeepExplorationPage } from '@/components/deep-analysis/deep-exploration-page';
 
 export const metadata: Metadata = {
-  title: '深入探索 | Jianvia',
-  description: '围绕你关心的现实问题，继续完成个人专项探索。',
+  title: '职业专项分析 | Jianvia',
+  description: '用现实约束与职业资本校准基础倾向，收敛值得验证的职业方向。',
   robots: { index: false, follow: false },
 };
 

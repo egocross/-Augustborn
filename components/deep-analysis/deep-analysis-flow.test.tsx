@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, trackCareerEvent } = vi.hoisted(() => ({ push: vi.fn(), trackCareerEvent: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+vi.mock('@/lib/analytics/career-events', () => ({ trackCareerEvent }));
 
 import { normalizeCareerCalibration, type CareerDraftAnswers } from '@/lib/deep-analysis/career-calibration';
 import { createInitialCareerState, loadDeepSession, saveDeepSession } from '@/lib/deep-analysis/session';
@@ -47,6 +48,7 @@ const deepReport = {
 beforeEach(() => {
   window.sessionStorage.clear();
   push.mockReset();
+  trackCareerEvent.mockReset();
 });
 
 afterEach(() => {
@@ -63,6 +65,7 @@ it('starts with a short career-calibration introduction and no legacy directions
   expect(screen.queryByText(/第 \d+ \/ \d+ 题/)).toBeNull();
 
   fireEvent.click(screen.getByRole('button', { name: '开始现实校准' }));
+  expect(trackCareerEvent).toHaveBeenCalledWith('career_calibration_started');
   expect(screen.getByText('当前状态')).toBeTruthy();
   expect(screen.getByText('你现在处于什么职业状态？')).toBeTruthy();
 });
@@ -73,6 +76,9 @@ it('automatically advances after an ordinary single-choice answer', async () => 
   fireEvent.click(screen.getByRole('radio', { name: '第一次正式求职' }));
 
   expect(await screen.findByText('你希望多快开始进入新的职业方向？')).toBeTruthy();
+  expect(trackCareerEvent).toHaveBeenCalledWith('career_question_answered', expect.objectContaining({
+    questionId: 'career_status', section: 'current-status', skipped: false,
+  }));
   expect(screen.queryByText(/第 \d+ \/ \d+ 题/)).toBeNull();
 });
 
@@ -99,7 +105,29 @@ it('requires a reality summary confirmation before payment', async () => {
   expect(await screen.findByRole('heading', { name: '现实条件摘要' })).toBeTruthy();
   expect(screen.queryByText('你的职业专项分析已经准备好')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: '确认并继续' }));
+  expect(trackCareerEvent).toHaveBeenCalledWith('career_summary_confirmed', expect.objectContaining({
+    elapsedMs: expect.any(Number),
+  }));
   expect(screen.getByText('你的职业专项分析已经准备好')).toBeTruthy();
+});
+
+it('tracks calibration completion without recording the selected answer', async () => {
+  const answers = completeAnswers();
+  delete answers.career_values;
+  saveDeepSession({
+    ...createInitialCareerState('session-12345678', props),
+    step: 'questions', sectionIndex: 7, questionIndex: 0, answers,
+  }, window.sessionStorage);
+  render(<DeepAnalysisFlow {...props} />);
+
+  fireEvent.click(await screen.findByRole('checkbox', { name: '长期成长' }));
+  fireEvent.click(screen.getByRole('button', { name: '继续' }));
+
+  expect(await screen.findByRole('heading', { name: '现实条件摘要' })).toBeTruthy();
+  expect(trackCareerEvent).toHaveBeenCalledWith('career_calibration_completed', {
+    elapsedMs: expect.any(Number),
+  });
+  expect(trackCareerEvent.mock.calls.flat(2)).not.toContain('value_growth');
 });
 
 it('sends only the signed base report and normalized career calibration to generation', async () => {
@@ -120,6 +148,9 @@ it('sends only the signed base report and normalized career calibration to gener
   render(<DeepAnalysisFlow {...props} />);
   fireEvent.click(await screen.findByRole('button', { name: '生成我的职业专项报告' }));
   await waitFor(() => expect(push).toHaveBeenCalledWith('/deep-report'));
+
+  expect(trackCareerEvent).toHaveBeenCalledWith('career_report_generation_started', expect.any(Object));
+  expect(trackCareerEvent).toHaveBeenCalledWith('career_report_generated', expect.any(Object));
 
   const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
   expect(body).toMatchObject({
