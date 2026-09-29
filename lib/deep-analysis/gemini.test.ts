@@ -173,6 +173,53 @@ describe('career Gemini adapter', () => {
     expect(generateContent).toHaveBeenCalledTimes(3);
   });
 
+  it('runs independent career research and validation concurrently to stay within the report deadline', async () => {
+    researchCareerMarket.mockResolvedValue({
+      status: 'unavailable', retrievedAt: null, sources: [], note: '候选阶段没有市场来源',
+    });
+    const modelReport = createSampleCareerReport(request);
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+
+    let releaseResearch = () => {};
+    const researchGate = new Promise<void>((resolve) => { releaseResearch = resolve; });
+    researchCareerValidation.mockImplementation(async (careerName: string) => {
+      await researchGate;
+      return {
+        careerName,
+        checkedAt: '2026-09-30T08:00:00.000Z',
+        queries: [`${careerName} 岗位职责 JD 中国`],
+        evidence: [],
+        status: 'unavailable',
+        confidence: 'low',
+        note: '当前公开信息不足',
+        cacheStatus: 'miss',
+      };
+    });
+
+    let releaseValidation = () => {};
+    const validationGate = new Promise<void>((resolve) => { releaseValidation = resolve; });
+    generateContent.mockImplementation(async ({ contents }: { contents: string }) => {
+      await validationGate;
+      const title = ['内容策划', '产品运营', '用户研究助理'].find((value) => contents.includes(value)) ?? '目标岗位';
+      const validation = modelReport.careerHypotheses.find((item) => item.title === title)?.workValidation;
+      return { text: JSON.stringify(validation) };
+    });
+
+    const stream = generateCareerReportStream(request);
+    await stream.next();
+    const completed = stream.next();
+
+    await vi.waitFor(() => expect(researchCareerValidation).toHaveBeenCalledTimes(3));
+    releaseResearch();
+    await vi.waitFor(() => expect(generateContent).toHaveBeenCalledTimes(3));
+    releaseValidation();
+
+    const result = await completed;
+    expect(result.done).toBe(true);
+    if (!result.done || !result.value || !('kind' in result.value)) throw new Error('missing report');
+    expect(result.value.careerHypotheses.every((item) => item.workValidation)).toBe(true);
+  });
+
   it('maps invalid model JSON to parse_failed', async () => {
     researchCareerMarket.mockResolvedValue({
       status: 'unavailable', retrievedAt: null, sources: [], note: '检索不可用',

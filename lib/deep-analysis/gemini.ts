@@ -204,21 +204,18 @@ async function enrichCareerValidations(
   options: { signal?: AbortSignal; onStage?: (stage: string) => void },
 ): Promise<CareerReport> {
   options.onStage?.('work_reality');
-  const researchByCareer: CareerValidationResearch[] = [];
-  for (const hypothesis of report.careerHypotheses) {
+  const researchByCareer = await Promise.all(report.careerHypotheses.map(async (hypothesis) => {
     options.signal?.throwIfAborted();
     try {
-      researchByCareer.push(await researchCareerValidation(hypothesis.title, context, options));
+      return await researchCareerValidation(hypothesis.title, context, options);
     } catch {
       options.signal?.throwIfAborted();
-      researchByCareer.push(unavailableResearch(hypothesis.title));
+      return unavailableResearch(hypothesis.title);
     }
-  }
+  }));
 
   options.onStage?.('capability_signals');
-  const careerHypotheses = [] as CareerReport['careerHypotheses'];
-  for (let index = 0; index < report.careerHypotheses.length; index += 1) {
-    const hypothesis = report.careerHypotheses[index];
+  const careerHypotheses = await Promise.all(report.careerHypotheses.map(async (hypothesis, index) => {
     const research = researchByCareer[index];
     options.signal?.throwIfAborted();
     try {
@@ -233,21 +230,21 @@ async function enrichCareerValidations(
         config: validationConfig(options.signal),
       });
       if (!result.text) throw new Error('empty_career_validation');
-      careerHypotheses.push({
+      return {
         ...hypothesis,
         workValidation: attachValidationEvidence(JSON.parse(result.text), hypothesis.title, research),
-      });
+      };
     } catch {
       options.signal?.throwIfAborted();
-      careerHypotheses.push({
+      return {
         ...hypothesis,
         workValidation: unavailableValidation(
           hypothesis.title,
           '这个单个职业的验证暂时没有生成完成；其他职业仍可继续查看，建议先用真实 JD 与从业者访谈核实。',
         ),
-      });
+      };
     }
-  }
+  }));
   options.onStage?.('validation_paths');
   return CareerReportSchema.parse({ ...report, careerHypotheses });
 }
