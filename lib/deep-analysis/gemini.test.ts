@@ -220,6 +220,47 @@ describe('career Gemini adapter', () => {
     expect(result.value.careerHypotheses.every((item) => item.workValidation)).toBe(true);
   });
 
+  it('does not mark a hard barrier verified merely because an unrelated official source exists', async () => {
+    researchCareerMarket.mockResolvedValue({
+      status: 'unavailable', retrievedAt: null, sources: [], note: '候选阶段没有市场来源',
+    });
+    researchCareerValidation.mockImplementation(async (careerName: string) => ({
+      careerName,
+      checkedAt: '2026-09-30T08:00:00.000Z',
+      queries: [`${careerName} 职业资格 官方 中国`],
+      evidence: [{
+        sourceType: 'official',
+        title: '某地人才政策',
+        source: 'example.gov.cn',
+        url: 'https://example.gov.cn/policy/people',
+        fact: '该地发布了人才服务政策。',
+      }],
+      status: 'partial',
+      confidence: 'low',
+      note: '只有一条无关官方来源',
+      cacheStatus: 'miss',
+    }));
+    const modelReport = createSampleCareerReport(request);
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+    generateContent.mockImplementation(async ({ contents }: { contents: string }) => {
+      const title = ['内容策划', '产品运营', '用户研究助理'].find((value) => contents.includes(value)) ?? '目标岗位';
+      const validation = structuredClone(modelReport.careerHypotheses.find((item) => item.title === title)?.workValidation);
+      if (!validation) throw new Error('missing fixture');
+      validation.capabilitySignals.hardBarriers = [{
+        barrier: '法律职业资格证书', explanation: '模型自行声称为法定门槛', evidenceStatus: 'verified',
+      }];
+      return { text: JSON.stringify(validation) };
+    });
+
+    const stream = generateCareerReportStream(request);
+    await stream.next();
+    const result = await stream.next();
+    if (!result.done || !result.value || !('kind' in result.value)) throw new Error('missing report');
+
+    expect(result.value.careerHypotheses[0].workValidation?.capabilitySignals.hardBarriers[0])
+      .toMatchObject({ barrier: '法律职业资格证书', evidenceStatus: 'uncertain' });
+  });
+
   it('maps invalid model JSON to parse_failed', async () => {
     researchCareerMarket.mockResolvedValue({
       status: 'unavailable', retrievedAt: null, sources: [], note: '检索不可用',

@@ -167,7 +167,6 @@ function attachValidationEvidence(
   research: CareerValidationResearch,
 ): CareerWorkValidation {
   const parsed = CareerWorkValidationSchema.parse(modelValue);
-  const hasOfficialEvidence = research.evidence.some((item) => item.sourceType === 'official');
   let validationPath = parsed.validationPath;
   if (!research.evidence.length && !/JD|岗位|从业|招聘/.test(validationPath[0]?.title ?? '')) {
     validationPath = [evidenceCheckAction(careerName), ...validationPath].slice(0, 4);
@@ -187,9 +186,9 @@ function attachValidationEvidence(
       ...parsed.capabilitySignals,
       hardBarriers: parsed.capabilitySignals.hardBarriers.map((barrier) => ({
         ...barrier,
-        evidenceStatus: barrier.evidenceStatus === 'verified' && !hasOfficialEvidence
-          ? 'uncertain' as const
-          : barrier.evidenceStatus,
+        // The current contract does not carry a source id per barrier. An official
+        // source elsewhere in the research bundle is not proof of this exact claim.
+        evidenceStatus: barrier.evidenceStatus === 'verified' ? 'uncertain' as const : barrier.evidenceStatus,
       })),
     },
     validationPath,
