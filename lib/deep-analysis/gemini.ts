@@ -50,7 +50,12 @@ function attachVerifiedSources(report: CareerReport, market: CareerMarketEvidenc
       .map((source) => allowed.get(source.url))
       .filter((source): source is NonNullable<typeof source> => Boolean(source))
       .slice(0, 5)
-      .map(({ evidenceId: _evidenceId, ...source }) => source);
+      .map((source) => ({
+        title: source.title,
+        url: source.url,
+        site: source.site,
+        excerpt: source.excerpt,
+      }));
     const evidenceStatus = sources.length >= 2 ? 'verified' : sources.length ? 'partial' : 'unavailable';
     return {
       ...hypothesis,

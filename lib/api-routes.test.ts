@@ -81,7 +81,9 @@ describe('/api/analyze', () => {
       .map((chunk) => JSON.parse(chunk.replace('data: ', '')));
 
     expect(events[0]).toEqual({ type: 'status', stage: 'thinking' });
-    expect(events.at(-1)).toEqual({ type: 'report', report });
+    expect(events.at(-1)).toEqual({
+      type: 'report', report, snapshotToken: expect.stringMatching(/^v1\.[^.]+\.[^.]+$/),
+    });
   });
 });
 
