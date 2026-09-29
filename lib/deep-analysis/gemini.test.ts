@@ -94,7 +94,7 @@ describe('career Gemini adapter', () => {
     const result = await stream.next();
     expect(result.done).toBe(true);
     if (!result.done || !result.value || !('kind' in result.value)) throw new Error('missing report');
-    expect(stages).toEqual(['researching', 'converging', 'work_reality', 'capability_signals', 'validation_paths']);
+    expect(stages).toEqual(['market_research', 'candidate_analysis', 'work_reality', 'capability_signals', 'validation_paths']);
     expect(result.value.marketStatus).toBe('partial');
     expect(result.value.careerHypotheses[0].sources).toEqual([{ title: source.title, site: source.site, url: source.url, excerpt: source.excerpt }]);
     expect(result.value.careerHypotheses[0]).toMatchObject({ evidenceStatus: 'partial', sourceCount: 1 });

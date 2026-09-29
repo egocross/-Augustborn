@@ -7,9 +7,12 @@ const stageCopy: Record<string, { title: string; note: string }> = {
   preparing: { title: '正在整理基础职业倾向', note: '只读继承基础报告，不改变原有判断…' },
   constraints: { title: '正在识别现实限制', note: '先用收入、地点、时间与责任筛除不可行方向…' },
   capital: { title: '正在评估可迁移职业资本', note: '核对可以带到下一份职业的经验、技能与成果…' },
-  researching: { title: '正在核对职业市场证据', note: '检索招聘实例，核对职位名称、职责与来源…' },
-  converging: { title: '正在收窄候选职业方向', note: '综合基础倾向、现实边界、职业资本与市场证据…' },
-  validating: { title: '正在生成低成本验证路径', note: '把候选方向转化为未来 30 天可以执行的动作…' },
+  market_research: { title: '正在检索中国招聘市场', note: '优先核对当前公开岗位、职责与可验证来源…' },
+  candidate_analysis: { title: '正在收窄候选职业方向', note: '综合基础倾向、现实边界、职业资本与市场证据…' },
+  work_reality: { title: '正在核对岗位真实工作', note: '逐个确认核心任务、交付物、协作与容易忽略的部分…' },
+  capability_signals: { title: '正在分析入场能力信号', note: '区分已经具备、可以快速补齐和短期无法补齐的门槛…' },
+  validation_paths: { title: '正在生成最低成本验证路径', note: '按岗位特点选择信息增益更高、成本更低的真实行动…' },
+  validating: { title: '正在检查报告完整性', note: '核对事实来源与结构，单个职业失败不会影响其他结果…' },
 };
 
 export function DeepGeneratingModal({ stage = 'preparing', onCancel }: { stage?: string; onCancel?: () => void }) {

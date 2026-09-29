@@ -21,6 +21,10 @@ const RequestSchema = z.object({
   careerCalibration: CareerCalibrationSchema,
 }).strict();
 
+const ReportStageSchema = z.enum([
+  'market_research', 'candidate_analysis', 'work_reality', 'capability_signals', 'validation_paths',
+]);
+
 type CareerGenerationInput = {
   baseReport: Report;
   careerCalibration: CareerCalibration;
@@ -111,7 +115,10 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
           questionnaireVersion: CAREER_QUESTIONNAIRE_VERSION,
         }, {
           signal: abortController.signal,
-          onStage: (stage) => send({ type: 'status', stage }),
+          onStage: (stage) => {
+            const verifiedStage = ReportStageSchema.safeParse(stage);
+            if (verifiedStage.success) send({ type: 'status', stage: verifiedStage.data });
+          },
         });
         let text = '';
         let verifiedReport: DeepReport | void;

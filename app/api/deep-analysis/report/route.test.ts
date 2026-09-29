@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CareerCalibration } from '@/lib/deep-analysis/career-calibration';
+import { createSampleCareerReport } from '@/lib/report-provider/sample';
 import { createDeepReportHandler } from './route';
 
 const report = {
@@ -147,7 +148,10 @@ describe('POST /api/deep-analysis/report', () => {
   });
 
   it('buffers model chunks and only emits validated status and report events', async () => {
-    generate.mockImplementation(async function* () {
+    generate.mockImplementation(async function* (_input, options) {
+      for (const stage of ['market_research', 'candidate_analysis', 'work_reality', 'capability_signals', 'validation_paths']) {
+        options.onStage(stage);
+      }
       const value = JSON.stringify(report);
       yield value.slice(0, 20);
       yield value.slice(20);
@@ -157,8 +161,32 @@ describe('POST /api/deep-analysis/report', () => {
     const events = await readEvents(await POST(request(valid)));
     expect(events.some((event) => event.type === 'delta')).toBe(false);
     expect(events.filter((event) => event.type === 'status').map((event) => event.stage)).toEqual([
-      'preparing', 'constraints', 'capital', 'validating',
+      'preparing', 'constraints', 'capital', 'market_research', 'candidate_analysis',
+      'work_reality', 'capability_signals', 'validation_paths', 'validating',
     ]);
     expect(events.at(-1)).toEqual({ type: 'report', report });
+  });
+
+  it('delivers a partially successful paid report when one career lacks public evidence', async () => {
+    const partial = createSampleCareerReport({
+      baseReport,
+      careerCalibration,
+      questionnaireVersion: 'career-v1',
+    });
+    partial.careerHypotheses[1].workValidation = {
+      ...partial.careerHypotheses[1].workValidation!,
+      status: 'unavailable',
+      note: '这个单个职业暂时没有足够公开数据。',
+    };
+    generate.mockImplementation(async function* () {
+      yield JSON.stringify(partial);
+      return partial;
+    });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
+
+    const events = await readEvents(await POST(request(valid)));
+
+    expect(events.at(-1)).toEqual({ type: 'report', report: partial });
+    expect(events.some((event) => event.type === 'error')).toBe(false);
   });
 });

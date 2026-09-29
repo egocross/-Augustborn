@@ -6,9 +6,12 @@ const stages = [
   ['preparing', '正在整理基础职业倾向'],
   ['constraints', '正在识别现实限制'],
   ['capital', '正在评估可迁移职业资本'],
-  ['researching', '正在核对职业市场证据'],
-  ['converging', '正在收窄候选职业方向'],
-  ['validating', '正在生成低成本验证路径'],
+  ['market_research', '正在检索中国招聘市场'],
+  ['candidate_analysis', '正在收窄候选职业方向'],
+  ['work_reality', '正在核对岗位真实工作'],
+  ['capability_signals', '正在分析入场能力信号'],
+  ['validation_paths', '正在生成最低成本验证路径'],
+  ['validating', '正在检查报告完整性'],
 ] as const;
 
 afterEach(() => cleanup());

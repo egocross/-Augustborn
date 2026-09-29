@@ -258,11 +258,11 @@ export async function* generateCareerReportStream(
 ): AsyncGenerator<string, DeepReport | undefined> {
   try {
     const preliminary = createCareerAnalysisInput(request.baseReport, request.careerCalibration);
-    options.onStage?.('researching');
+    options.onStage?.('market_research');
     const market = await researchCareerMarket(createCareerResearchContext(preliminary), options);
     options.signal?.throwIfAborted();
     const input = CareerAnalysisInputSchema.parse({ ...preliminary, marketEvidence: market });
-    options.onStage?.('converging');
+    options.onStage?.('candidate_analysis');
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const stream = await ai.models.generateContentStream({
       model: GEMINI_MODEL ?? DEFAULT_MODEL,
