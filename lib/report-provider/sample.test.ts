@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createChart } from '@/lib/bazi/chart';
-import { QUESTION_BANK_V1 } from '@/lib/deep-analysis/questions';
-import { DeepReportSchema, DynamicQuestionSchema } from '@/lib/deep-analysis/types';
+import { CareerReportSchema } from '@/lib/deep-analysis/types';
 import { ReportSchema } from '@/lib/gemini/schema';
-import { createSampleBaseReport, createSampleCustomQuestions, createSampleDeepReport } from './sample';
+import { createSampleBaseReport, createSampleCareerReport } from './sample';
 import { getReportProvider, usesSampleReports } from './config';
 
 const chart = createChart({ birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '江苏南京', calendarType: 'solar' as const, isLeapMonth: false });
@@ -45,29 +44,27 @@ describe('sample report content', () => {
     expect(report.sections[0].body).toContain('江苏南京');
   });
 
-  it('produces a deep report per direction that satisfies the shipped schema', () => {
-    for (const directionId of ['work', 'industry', 'city', 'collaboration', 'custom'] as const) {
-      const report = createSampleDeepReport({ directionId, optionalContext: '' });
-      expect(DeepReportSchema.parse(report).cards.length).toBeGreaterThanOrEqual(2);
-    }
-  });
-
-  it('offers broad work labels in previews without presenting them as sourced jobs or adding them to other directions', () => {
-    const work = DeepReportSchema.parse(createSampleDeepReport({ directionId: 'work', optionalContext: '' }));
-    expect(work.workDirections?.groups.flatMap((group) => group.tags)).toContain('内容策划');
-    expect(work.jobResearch?.recommendations).toEqual([]);
-    expect(DeepReportSchema.parse(createSampleDeepReport({ directionId: 'city', optionalContext: '' })).workDirections).toBeUndefined();
-  });
-
-  it('produces custom follow-up questions that satisfy the shipped schema', () => {
-    const questions = createSampleCustomQuestions({ customQuestion: '我要不要转岗？' });
-    expect(questions).toHaveLength(3);
-    for (const question of questions) {
-      expect(DynamicQuestionSchema.parse(question).id).toMatch(/^custom_q[1-5]$/);
-    }
-  });
-
-  it('keeps the fixed questionnaire untouched', () => {
-    expect(QUESTION_BANK_V1.work).toHaveLength(5);
+  it('produces an offline career report without invented recruitment facts', () => {
+    const report = createSampleCareerReport({
+      questionnaireVersion: 'career-v1',
+      baseReport: createSampleBaseReport(chart),
+      careerCalibration: {
+        questionnaireVersion: 'career-v1',
+        hardConstraints: {
+          careerStatus: 'career_status_first_job', transitionUrgency: 'transition_3_months',
+          income: { minimumIncomeBand: 'minimum_income_3000_5000', currency: 'CNY', salaryDropTolerance: 'salary_drop_none' },
+          responsibilities: ['responsibility_none'], location: { mobility: 'mobility_nationwide', constraints: [] },
+          transitionCapacity: { weeklyHours: 'weekly_hours_full_time', preparationHorizon: 'preparation_3_6_months', maxBudget: 'budget_none' },
+          restartTolerance: 'restart_entry_level', educationTolerance: 'education_short', workConstraints: ['work_constraint_none'],
+          incomeModels: ['income_model_any'], employmentTypes: ['employment_type_any'],
+        },
+        careerCapital: { experience: [], skills: [], evidence: [] }, values: ['value_growth'],
+      },
+    });
+    expect(CareerReportSchema.parse(report).careerHypotheses).toHaveLength(3);
+    expect(report.marketStatus).toBe('sample');
+    expect(report.careerHypotheses.every((item) => item.evidenceStatus === 'unavailable')).toBe(true);
+    expect(report.careerHypotheses.every((item) => item.sources.length === 0)).toBe(true);
+    expect(JSON.stringify(report)).not.toContain('招聘数量');
   });
 });

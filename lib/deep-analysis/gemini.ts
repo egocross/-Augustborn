@@ -4,11 +4,16 @@ import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { z } from 'zod';
 
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_REASONING_EFFORT, type GeminiReasoningEffort } from '@/lib/gemini/config';
-import { createDeepPrompt, type DeepPromptInput } from './prompts';
-import { CityPlanSchema, CollaborationPlanSchema, DeepReportSchema, DynamicQuestionSchema, WorkDirectionsSchema, type DeepReport, type DynamicQuestion } from './types';
-import { buildJobResearch, researchWorkJobs } from './research/jobs';
-import { buildMarketResearch, researchMarket } from './research/market';
-import { MarketAdviceSchema, type MarketDirection } from './research/market-schema';
+import {
+  CareerAnalysisInputSchema,
+  createCareerAnalysisInput,
+  createCareerResearchContext,
+  type CareerGenerationRequest,
+  type CareerMarketEvidence,
+} from './career-pipeline';
+import { createCareerReportPrompt } from './prompts/career';
+import { researchCareerMarket } from './research/jobs';
+import { CareerReportSchema, type CareerReport, type DeepReport } from './types';
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
 const THINKING_LEVELS: Record<GeminiReasoningEffort, ThinkingLevel> = {
@@ -23,92 +28,12 @@ export class DeepAnalysisError extends Error {
   }
 }
 
-const dynamicQuestionsEnvelope = z.object({ questions: z.array(DynamicQuestionSchema).max(5) });
-
-export function parseDynamicQuestions(value: unknown): DynamicQuestion[] {
-  const parsed = dynamicQuestionsEnvelope.parse({ questions: value });
-  if (parsed.questions.length !== 0 && (parsed.questions.length < 3 || parsed.questions.length > 5)) {
-    throw new z.ZodError([]);
-  }
-  return parsed.questions;
-}
-
-const dynamicQuestionsResponseSchema = {
-  type: 'object',
-  properties: {
-    questions: {
-      type: 'array', minItems: 0, maxItems: 5,
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }, type: { type: 'string', enum: ['single', 'multi'] },
-          text: { type: 'string' }, required: { type: 'boolean' },
-          maxSelect: { type: 'integer' },
-          options: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, label: { type: 'string' } }, required: ['id', 'label'] } },
-        },
-        required: ['id', 'type', 'text', 'required', 'options'],
-      },
-    },
-  },
-  required: ['questions'],
-} as const;
-
-const deepReportResponseSchema = {
-  type: 'object',
-  properties: {
-    title: { type: 'string' }, summary: { type: 'string' },
-    keyFindings: { type: 'array', items: { type: 'string' } },
-    cards: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, summary: { type: 'string' }, details: { type: 'array', items: { type: 'string' } }, evidence: { type: 'array', items: { type: 'string' } } }, required: ['id', 'title', 'summary', 'details', 'evidence'] } },
-    risks: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, detail: { type: 'string' }, mitigation: { type: 'string' } }, required: ['title', 'detail', 'mitigation'] } },
-    nextActions: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, detail: { type: 'string' }, timeframe: { type: 'string' } }, required: ['title', 'detail', 'timeframe'] } },
-    reflectionQuestions: { type: 'array', items: { type: 'string' } }, disclaimer: { type: 'string' },
-  },
-  required: ['title', 'summary', 'keyFindings', 'cards', 'risks', 'nextActions', 'reflectionQuestions', 'disclaimer'],
-} as const;
-
-const config = (responseJsonSchema: object, signal?: AbortSignal) => ({
-  responseMimeType: 'application/json', responseJsonSchema,
+const config = (signal?: AbortSignal) => ({
+  responseMimeType: 'application/json',
+  responseJsonSchema: z.toJSONSchema(CareerReportSchema, { target: 'openapi-3.0' }),
   thinkingConfig: { thinkingLevel: THINKING_LEVELS[GEMINI_REASONING_EFFORT] },
   ...(signal ? { abortSignal: signal } : {}),
 });
-
-const workReportResponseSchema = {
-  ...deepReportResponseSchema,
-  properties: {
-    ...deepReportResponseSchema.properties,
-    workDirections: z.toJSONSchema(WorkDirectionsSchema, { target: 'openapi-3.0' }),
-    jobRecommendations: {
-      type: 'array', maxItems: 5,
-      items: {
-        type: 'object',
-        properties: {
-          evidenceId: { type: 'string' }, title: { type: 'string' },
-          searchKeywords: { type: 'array', items: { type: 'string' } },
-          fitReason: { type: 'string' }, entryGap: { type: 'string' }, nextStep: { type: 'string' },
-        },
-        required: ['evidenceId', 'title', 'searchKeywords', 'fitReason', 'entryGap', 'nextStep'],
-      },
-    },
-  },
-  required: [...deepReportResponseSchema.required, 'workDirections', 'jobRecommendations'],
-};
-
-const marketReportResponseSchema = (direction: MarketDirection) => {
-  const field = direction === 'industry' ? 'industryDirections' : 'cityPlan';
-  return {
-    ...deepReportResponseSchema,
-    properties: { ...deepReportResponseSchema.properties,
-      [field]: z.toJSONSchema(direction === 'industry' ? WorkDirectionsSchema : CityPlanSchema, { target: 'openapi-3.0' }),
-      marketExamples: z.toJSONSchema(z.array(MarketAdviceSchema).max(direction === 'city' ? 9 : 5), { target: 'openapi-3.0' }),
-    },
-    required: [...deepReportResponseSchema.required, field, 'marketExamples'],
-  };
-};
-const collaborationReportResponseSchema = {
-  ...deepReportResponseSchema,
-  properties: { ...deepReportResponseSchema.properties, collaborationPlan: z.toJSONSchema(CollaborationPlanSchema, { target: 'openapi-3.0' }) },
-  required: [...deepReportResponseSchema.required, 'collaborationPlan'],
-};
 
 const mapError = (error: unknown): never => {
   if (error instanceof DeepAnalysisError) throw error;
@@ -118,43 +43,48 @@ const mapError = (error: unknown): never => {
   throw new DeepAnalysisError('upstream_failed');
 };
 
-export async function generateCustomQuestions(
-  input: { customQuestion: string; freeReportSummary: { sections: unknown[] } },
-  options: { signal?: AbortSignal } = {},
-): Promise<DynamicQuestion[]> {
-  try {
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    const result = await ai.models.generateContent({
-      model: GEMINI_MODEL ?? DEFAULT_MODEL,
-      contents: `判断下列问题是否缺少关键现实信息。不需要时返回空数组；需要时只返回 3–5 个短且必要的单选或多选问题，ID 依次为 custom_q1..custom_q5。\n${JSON.stringify(input)}`,
-      config: config(dynamicQuestionsResponseSchema, options.signal),
-    });
-    const envelope = dynamicQuestionsEnvelope.parse(JSON.parse(result.text ?? ''));
-    return parseDynamicQuestions(envelope.questions);
-  } catch (error) {
-    if (error instanceof SyntaxError || error instanceof z.ZodError) throw new DeepAnalysisError('parse_failed');
-    return mapError(error);
-  }
+function attachVerifiedSources(report: CareerReport, market: CareerMarketEvidence): CareerReport {
+  const allowed = new Map(market.sources.map((source) => [source.url, source]));
+  const hypotheses = report.careerHypotheses.map((hypothesis) => {
+    const sources = hypothesis.sources
+      .map((source) => allowed.get(source.url))
+      .filter((source): source is NonNullable<typeof source> => Boolean(source))
+      .slice(0, 5)
+      .map(({ evidenceId: _evidenceId, ...source }) => source);
+    const evidenceStatus = sources.length >= 2 ? 'verified' : sources.length ? 'partial' : 'unavailable';
+    return {
+      ...hypothesis,
+      sources,
+      sourceCount: sources.length,
+      evidenceStatus,
+      marketEvidenceSummary: sources.length
+        ? hypothesis.marketEvidenceSummary
+        : '没有通过服务端校验的招聘来源，市场可行性待验证。',
+    };
+  });
+  return CareerReportSchema.parse({
+    ...report,
+    careerHypotheses: hypotheses,
+    marketStatus: market.status === 'sample' ? 'sample' : market.status,
+  });
 }
 
-export async function* generateDeepReportStream(
-  input: DeepPromptInput,
+export async function* generateCareerReportStream(
+  request: CareerGenerationRequest,
   options: { signal?: AbortSignal; onStage?: (stage: string) => void } = {},
 ): AsyncGenerator<string, DeepReport | undefined> {
   try {
-    if (input.directionId === 'work') options.onStage?.('researching');
-    const research = input.directionId === 'work' ? await researchWorkJobs(input.answers, options) : undefined;
-    const marketDirection = input.directionId === 'industry' || input.directionId === 'city' ? input.directionId : undefined;
-    if (marketDirection) options.onStage?.(marketDirection === 'city' ? 'researching_cities' : 'researching_industries');
-    const market = marketDirection ? await researchMarket(marketDirection, input.answers, options) : undefined;
+    const preliminary = createCareerAnalysisInput(request.baseReport, request.careerCalibration);
+    options.onStage?.('researching');
+    const market = await researchCareerMarket(createCareerResearchContext(preliminary), options);
     options.signal?.throwIfAborted();
+    const input = CareerAnalysisInputSchema.parse({ ...preliminary, marketEvidence: market });
     options.onStage?.('analyzing');
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const stream = await ai.models.generateContentStream({
       model: GEMINI_MODEL ?? DEFAULT_MODEL,
-      contents: createDeepPrompt(input, research, market),
-      config: config(research ? workReportResponseSchema : marketDirection ? marketReportResponseSchema(marketDirection)
-        : input.directionId === 'collaboration' ? collaborationReportResponseSchema : deepReportResponseSchema, options.signal),
+      contents: createCareerReportPrompt(input),
+      config: config(options.signal),
     });
     let text = '';
     for await (const chunk of stream) {
@@ -164,21 +94,11 @@ export async function* generateDeepReportStream(
       }
     }
     if (!text) throw new DeepAnalysisError('upstream_failed');
-    const modelReport = JSON.parse(text);
-    const report = DeepReportSchema.omit({ jobResearch: true, marketResearch: true, workDirections: true, industryDirections: true, cityPlan: true, collaborationPlan: true }).parse(modelReport);
-    if (market) return {
-      ...report,
-      ...(market.direction === 'industry' ? { industryDirections: WorkDirectionsSchema.parse(modelReport.industryDirections) } : { cityPlan: CityPlanSchema.parse(modelReport.cityPlan) }),
-      marketResearch: buildMarketResearch(market, modelReport.marketExamples, input.answers),
-    };
-    if (input.directionId === 'collaboration') return { ...report, collaborationPlan: CollaborationPlanSchema.parse(modelReport.collaborationPlan) };
-    return research ? {
-      ...report,
-      workDirections: WorkDirectionsSchema.parse(modelReport.workDirections),
-      jobResearch: buildJobResearch(research, modelReport.jobRecommendations),
-    } : report;
+    return attachVerifiedSources(CareerReportSchema.parse(JSON.parse(text)), market);
   } catch (error) {
-    if (error instanceof SyntaxError || error instanceof z.ZodError) throw new DeepAnalysisError('parse_failed');
+    if (error instanceof SyntaxError || error instanceof z.ZodError) {
+      throw new DeepAnalysisError('parse_failed');
+    }
     return mapError(error);
   }
 }

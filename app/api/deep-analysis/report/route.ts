@@ -53,8 +53,8 @@ type Dependencies = {
 };
 
 const defaults: Dependencies = {
-  generate: streamDeepReport as unknown as Dependencies['generate'],
-  persist: persistDeepSession as unknown as Dependencies['persist'],
+  generate: streamDeepReport,
+  persist: persistDeepSession,
   verifyReceipt: verifyPaymentReceipt,
   verifySnapshot: verifyBaseReportSnapshot,
 };

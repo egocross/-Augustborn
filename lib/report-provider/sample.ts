@@ -1,6 +1,8 @@
 import type { BaziChart } from '@/lib/bazi/types';
 import type { DeepPromptInput } from '@/lib/deep-analysis/prompts';
-import type { DeepReport, DirectionId, DynamicQuestion } from '@/lib/deep-analysis/types';
+import type { CareerGenerationRequest } from '@/lib/deep-analysis/career-pipeline';
+import { summarizeCareerCalibration } from '@/lib/deep-analysis/career-calibration';
+import type { CareerReport, DeepReport, DirectionId, DynamicQuestion } from '@/lib/deep-analysis/types';
 import { sampleExploration } from './sample-exploration';
 
 const SAMPLE_NOTE = '当前为本地示例内容，未调用 Gemini API。';
@@ -173,10 +175,53 @@ export function createSampleDeepReport(input: Pick<DeepPromptInput, 'directionId
   };
 }
 
+export function createSampleCareerReport(input: CareerGenerationRequest): CareerReport {
+  const summary = summarizeCareerCalibration(input.careerCalibration);
+  const capital = input.careerCalibration.careerCapital;
+  const capitalIds = [...capital.experience, ...capital.skills, ...capital.evidence];
+  return {
+    kind: 'career-calibration',
+    title: '职业现实校准报告（本地示例）',
+    summary: '这份示例只演示现实筛选与验证结构，未调用 Gemini，也未查询招聘网站。',
+    realityBoundaries: summary.slice(0, 6),
+    transferableCapital: capitalIds.slice(0, 6).map((asset) => ({
+      asset,
+      application: '把这项已确认的积累用于低成本任务验证，不把它直接等同于岗位资格。',
+    })),
+    careerHypotheses: [
+      ['内容策划', '现在值得优先验证'],
+      ['产品运营', '有潜力，但存在现实门槛'],
+      ['用户研究助理', '长期可能适合，但目前不宜直接切换'],
+    ].map(([title, tier]) => ({
+      title,
+      tier: tier as CareerReport['careerHypotheses'][number]['tier'],
+      whyConsidered: '基础报告中的表达/分析倾向与当前现实边界共同形成一个待验证假设。',
+      realityFit: '可以先用小任务验证，不要求立即离职或一次性完成转换。',
+      largestBarrier: '真实岗位门槛与个人证据尚未核对。',
+      transferableAssets: capitalIds.length ? capitalIds.slice(0, 3) : ['尚未确认明显可迁移资本'],
+      mainRisk: '把兴趣或基础倾向误当成已经具备岗位胜任力。',
+      marketEvidenceSummary: '示例模式未查询招聘网站，市场可行性待验证。',
+      evidenceStatus: 'unavailable' as const,
+      sourceCount: 0,
+      sources: [],
+      evidenceTypes: ['baseTendencies', 'hardConstraints'] as const,
+      minimumCostExperiment: `搜索“${title}”的 10 条真实岗位，整理共同任务与门槛，再完成一个 2 小时 mini project。`,
+    })),
+    deprioritizedDirections: [],
+    thirtyDayPlan: [
+      { title: '分析真实岗位', detail: '选一个候选名称，整理 10 条岗位的共同任务和门槛。', timeframe: '第 1 周' },
+      { title: '完成小型任务', detail: '按真实任务做一个可展示的小样，并记录投入与反馈。', timeframe: '第 2–3 周' },
+      { title: '访谈并复盘', detail: '与一名从业者核对日常工作，再决定继续、降级或暂停。', timeframe: '第 4 周' },
+    ],
+    marketStatus: 'sample',
+    disclaimer: '本报告用于职业探索与决策辅助，不替代个人职业决策；市场信息会随地区与时间变化。',
+  };
+}
+
 export async function* streamSampleDeepReport(
-  input: DeepPromptInput,
+  input: CareerGenerationRequest,
 ): AsyncGenerator<string, DeepReport | undefined> {
-  const report = createSampleDeepReport(input);
+  const report = createSampleCareerReport(input);
   yield* streamJson(report);
   return report;
 }

@@ -3,6 +3,8 @@ import 'server-only';
 import { GoogleGenAI, ThinkingLevel, type GenerateContentResponse } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL } from '@/lib/gemini/config';
 import { createJobResearchPrompt } from '../prompts/job-research';
+import type { CareerResearchContext } from '../career-pipeline';
+import { CareerMarketEvidenceSchema, type CareerMarketEvidence } from '../career-pipeline';
 import type { DeepAnswers } from '../types';
 import { JobAdviceSchema, JobResearchSchema, type WorkResearch } from './schema';
 
@@ -100,6 +102,55 @@ export async function researchWorkJobs(answers: DeepAnswers, options: { signal?:
     // A cancelled report must stop; a search outage can degrade without losing the report.
     options.signal?.throwIfAborted();
     return { checkedAt, evidence: [], failure: timeout.aborted ? 'timeout' : 'unavailable' };
+  }
+}
+
+export function createCareerResearchPrompt(context: CareerResearchContext, date: string): string {
+  return `请使用 Google 搜索核对中国主流招聘网站上真实存在的职位名称与职位详情。
+日期：${date}
+安全检索条件（仅使用以下枚举标签，不推断个人身份）：
+${JSON.stringify(context)}
+返回 3–8 个带中文引号的真实职位名称及职责/门槛摘要。不要输出岗位数量、平均薪资或增长趋势。`;
+}
+
+export async function researchCareerMarket(
+  context: CareerResearchContext,
+  options: { signal?: AbortSignal } = {},
+): Promise<CareerMarketEvidence> {
+  const checkedAt = new Date().toISOString();
+  const timeout = AbortSignal.timeout(55_000);
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+  try {
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    const result = await ai.models.generateContent({
+      model: GEMINI_MODEL ?? 'gemini-3.1-pro-preview',
+      contents: createCareerResearchPrompt(context, checkedAt.slice(0, 10)),
+      config: {
+        tools: [{ googleSearch: {} }],
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        maxOutputTokens: 6000,
+        abortSignal: signal,
+      },
+    });
+    const collected = await collectJobEvidence(result, checkedAt, signal);
+    const sources = collected.evidence.map((item) => ({ evidenceId: item.id, ...item.source }));
+    const status = sources.length >= 3 ? 'verified' : sources.length > 0 ? 'partial' : 'unavailable';
+    return CareerMarketEvidenceSchema.parse({
+      status,
+      retrievedAt: checkedAt,
+      sources,
+      note: status === 'verified'
+        ? '已找到多个通过域名、路径与引用文本校验的招聘详情来源。'
+        : status === 'partial'
+          ? '只找到少量通过校验的招聘来源，市场可行性仍需继续核对。'
+          : '本次未获得可验证的招聘来源，市场可行性待验证。',
+    });
+  } catch {
+    options.signal?.throwIfAborted();
+    return CareerMarketEvidenceSchema.parse({
+      status: 'unavailable', retrievedAt: checkedAt, sources: [],
+      note: '招聘检索暂时不可用，市场可行性待验证；未补造市场事实。',
+    });
   }
 }
 

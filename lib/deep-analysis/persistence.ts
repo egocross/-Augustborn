@@ -1,15 +1,16 @@
 import 'server-only';
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin';
-import type { DeepAnswers, DeepReport, DirectionId, QuestionnaireVersion } from './types';
+import type { CareerCalibration } from './career-calibration';
+import { CAREER_QUESTIONNAIRE_VERSION } from './career-calibration-questions';
+import type { DeepReport } from './types';
+import { CAREER_DIRECTION_ID } from './types';
 
 export type DeepSessionEvent = {
   id: string;
-  selectedDirection: DirectionId;
-  questionnaireVersion: QuestionnaireVersion;
-  answers: DeepAnswers;
-  optionalContext: string;
-  customQuestion: string | null;
+  selectedDirection: typeof CAREER_DIRECTION_ID;
+  questionnaireVersion: typeof CAREER_QUESTIONNAIRE_VERSION;
+  careerCalibration: CareerCalibration;
   paymentStatus: 'unpaid' | 'processing' | 'paid' | 'failed';
   reportStatus: 'not_started' | 'generating' | 'complete' | 'failed';
   reportResult: DeepReport | null;
@@ -23,9 +24,9 @@ export async function persistDeepSession(event: DeepSessionEvent): Promise<{ per
       id: event.id,
       selected_direction: event.selectedDirection,
       questionnaire_version: event.questionnaireVersion,
-      answers: event.answers,
-      optional_context: event.optionalContext,
-      custom_question: event.customQuestion,
+      answers: event.careerCalibration,
+      optional_context: null,
+      custom_question: null,
       payment_status: event.paymentStatus,
       report_status: event.reportStatus,
       report_result: event.reportResult,

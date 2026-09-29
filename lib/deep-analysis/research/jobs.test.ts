@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createJobResearchPrompt } from '../prompts/job-research';
-import { buildJobResearch, collectJobEvidence, recruitmentSource, resolveRecruitmentSource } from './jobs';
+import { buildJobResearch, collectJobEvidence, createCareerResearchPrompt, recruitmentSource, resolveRecruitmentSource } from './jobs';
 
 const checkedAt = '2026-09-24T08:00:00.000Z';
 const url = 'https://www.liepin.com/job/123456789.shtml';
@@ -67,5 +67,18 @@ describe('recruitment evidence boundary', () => {
     const prompt = createJobResearchPrompt({ work_q1: { optionIds: ['work_q1_student'], textValue: 'private birth details', supplementaryValue: ['private phone'] } }, '2026-09-24');
     expect(prompt).toContain('学生');
     expect(prompt).not.toContain('private');
+  });
+
+  it('serializes only extracted career labels into the post-payment research prompt', () => {
+    const prompt = createCareerResearchPrompt({
+      keywords: ['内容创作', '产品运营'], regionScope: 'nationwide',
+      incomeBand: 'minimum_income_8000_12000',
+      employmentTypes: ['employment_type_full_time'],
+    }, '2026-09-29');
+    expect(prompt).toContain('内容创作');
+    expect(prompt).toContain('nationwide');
+    expect(prompt).not.toContain('出生');
+    expect(prompt).not.toContain('家庭成员');
+    expect(prompt).toContain('不要输出岗位数量、平均薪资或增长趋势');
   });
 });

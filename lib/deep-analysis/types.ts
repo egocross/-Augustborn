@@ -117,7 +117,7 @@ export const ValidationPlanSchema = z.object({
   fallbackNote: z.string().min(1).max(200).optional(),
 });
 
-export const DeepReportSchema = z.object({
+export const LegacyDeepReportSchema = z.object({
   workDirections: WorkDirectionsSchema.optional(),
   jobResearch: JobResearchSchema.optional(),
   industryDirections: WorkDirectionsSchema.optional(),
@@ -158,4 +158,60 @@ export const DeepReportSchema = z.object({
   reflectionQuestions: z.array(z.string().min(1).max(300)).max(4),
   disclaimer: z.string().min(1).max(600),
 });
+
+export const CareerEvidenceSourceSchema = z.object({
+  title: z.string().min(1).max(300),
+  url: z.string().url().max(4000).refine((value) => new URL(value).protocol === 'https:'),
+  site: z.string().min(1).max(80),
+  excerpt: z.string().min(1).max(1800),
+});
+
+export const CareerHypothesisSchema = z.object({
+  title: z.string().min(2).max(80),
+  tier: z.enum([
+    '现在值得优先验证',
+    '有潜力，但存在现实门槛',
+    '长期可能适合，但目前不宜直接切换',
+  ]),
+  whyConsidered: z.string().min(1).max(800),
+  realityFit: z.string().min(1).max(800),
+  largestBarrier: z.string().min(1).max(500),
+  transferableAssets: z.array(z.string().min(1).max(200)).max(6),
+  mainRisk: z.string().min(1).max(500),
+  marketEvidenceSummary: z.string().min(1).max(600),
+  evidenceStatus: z.enum(['verified', 'partial', 'unavailable']),
+  sourceCount: z.number().int().min(0).max(20),
+  sources: z.array(CareerEvidenceSourceSchema).max(5),
+  evidenceTypes: z.array(z.enum([
+    'baseTendencies', 'hardConstraints', 'careerCapital', 'marketEvidence',
+  ])).min(2).max(4),
+  minimumCostExperiment: z.string().min(1).max(800),
+});
+
+export const CareerReportSchema = z.object({
+  kind: z.literal('career-calibration'),
+  title: z.string().min(1).max(100),
+  summary: z.string().min(1).max(1200),
+  realityBoundaries: z.array(z.string().min(1).max(300)).min(3).max(6),
+  transferableCapital: z.array(z.object({
+    asset: z.string().min(1).max(120),
+    application: z.string().min(1).max(500),
+  })).max(8),
+  careerHypotheses: z.array(CareerHypothesisSchema).min(3).max(5),
+  deprioritizedDirections: z.array(z.object({
+    title: z.string().min(1).max(80),
+    constraintReasons: z.array(z.string().min(1).max(300)).min(1).max(4),
+  })).max(3),
+  thirtyDayPlan: z.array(z.object({
+    title: z.string().min(1).max(100),
+    detail: z.string().min(1).max(800),
+    timeframe: z.string().min(1).max(80),
+  })).min(1).max(3),
+  marketStatus: z.enum(['verified', 'partial', 'unavailable', 'sample']),
+  disclaimer: z.string().min(1).max(300),
+});
+
+export const DeepReportSchema = z.union([CareerReportSchema, LegacyDeepReportSchema]);
 export type DeepReport = z.infer<typeof DeepReportSchema>;
+export type LegacyDeepReport = z.infer<typeof LegacyDeepReportSchema>;
+export type CareerReport = z.infer<typeof CareerReportSchema>;
