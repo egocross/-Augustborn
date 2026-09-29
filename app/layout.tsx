@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "从出生信息出发，生成一份关于性格倾向、优势特征、工作方式与环境偏好的个人探索报告。",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="zh-CN"

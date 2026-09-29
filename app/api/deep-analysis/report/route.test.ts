@@ -157,7 +157,7 @@ describe('POST /api/deep-analysis/report', () => {
     const events = await readEvents(await POST(request(valid)));
     expect(events.some((event) => event.type === 'delta')).toBe(false);
     expect(events.filter((event) => event.type === 'status').map((event) => event.stage)).toEqual([
-      'preparing', 'analyzing', 'structuring', 'validating',
+      'preparing', 'constraints', 'capital', 'validating',
     ]);
     expect(events.at(-1)).toEqual({ type: 'report', report });
   });

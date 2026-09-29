@@ -1,7 +1,7 @@
-import type { DeepReport } from '@/lib/deep-analysis/types';
+import type { LegacyDeepReport } from '@/lib/deep-analysis/types';
 import type { MarketResearch } from '@/lib/deep-analysis/research/market-schema';
 
-function DirectionGroups({ value }: { value: NonNullable<DeepReport['industryDirections']> }) {
+function DirectionGroups({ value }: { value: NonNullable<LegacyDeepReport['industryDirections']> }) {
   return <>
     <div className="work-direction-groups">{value.groups.map((group, index) => <section className="work-direction-group" key={`${index}-${group.title}`}>
       <h4>{group.title}</h4>
@@ -35,7 +35,7 @@ function ResearchNote({ research }: { research?: MarketResearch }) {
 
 const tierTitles: Record<number, string> = { 1: '第一梯队 · 优先探索', 2: '第二梯队 · 条件匹配后考虑', 3: '第三梯队 · 暂作备选' };
 
-export function ExplorationSections({ report }: { report: DeepReport }) {
+export function ExplorationSections({ report }: { report: LegacyDeepReport }) {
   return <>
     {report.industryDirections ? <section className="deep-report-block work-directions industry-directions">
       <h3>先拓宽你的行业选择</h3><p className="job-research-note">先看能发挥优势的细分方向，再用产业资料和实际机会核对。探索标签不代表行业景气或保证适合。</p>

@@ -79,7 +79,7 @@ export async function* generateCareerReportStream(
     const market = await researchCareerMarket(createCareerResearchContext(preliminary), options);
     options.signal?.throwIfAborted();
     const input = CareerAnalysisInputSchema.parse({ ...preliminary, marketEvidence: market });
-    options.onStage?.('analyzing');
+    options.onStage?.('converging');
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const stream = await ai.models.generateContentStream({
       model: GEMINI_MODEL ?? DEFAULT_MODEL,

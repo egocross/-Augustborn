@@ -37,6 +37,9 @@ export function DeepReportPage() {
   return (
     <div className="deep-report-page">
       <DeepReportView report={report} />
+      <section className="deep-report-page-actions">
+        <button className="secondary-button" onClick={() => router.push('/')} type="button">返回基础报告</button>
+      </section>
     </div>
   );
 }

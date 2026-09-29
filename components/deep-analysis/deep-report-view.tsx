@@ -1,9 +1,10 @@
 'use client';
 
 import { useId, useState } from 'react';
-import type { DeepReport } from '@/lib/deep-analysis/types';
+import { LegacyDeepReportSchema, type DeepReport, type LegacyDeepReport } from '@/lib/deep-analysis/types';
 import { JobRecommendations } from './job-recommendations';
 import { ExplorationSections } from './exploration-sections';
+import { CareerReportView } from './career-report-view';
 
 const priorityLabels: Record<'primary' | 'secondary' | 'watch', string> = {
   primary: '第一优先方向',
@@ -11,7 +12,7 @@ const priorityLabels: Record<'primary' | 'secondary' | 'watch', string> = {
   watch: '观察方向',
 };
 
-function DirectionRanking({ report }: { report: DeepReport }) {
+function DirectionRanking({ report }: { report: LegacyDeepReport }) {
   if (!report.directionRanking?.length) return null;
   return <section className="deep-report-block direction-ranking">
     <h3>这次筛选后的最终排序</h3>
@@ -29,7 +30,7 @@ function DirectionRanking({ report }: { report: DeepReport }) {
   </section>;
 }
 
-function ExcludedDirections({ report }: { report: DeepReport }) {
+function ExcludedDirections({ report }: { report: LegacyDeepReport }) {
   if (!report.excludedDirections?.length) return null;
   return <section className="deep-report-block excluded-directions">
     <h3>这次被降低或排除的方向</h3>
@@ -41,7 +42,7 @@ function ExcludedDirections({ report }: { report: DeepReport }) {
   </section>;
 }
 
-function Calibration({ report }: { report: DeepReport }) {
+function Calibration({ report }: { report: LegacyDeepReport }) {
   if (!report.calibration) return null;
   return <section className="deep-report-block calibration-panel">
     <h3>本次校准发生了什么</h3>
@@ -50,7 +51,7 @@ function Calibration({ report }: { report: DeepReport }) {
   </section>;
 }
 
-function WorkSplit({ report }: { report: DeepReport }) {
+function WorkSplit({ report }: { report: LegacyDeepReport }) {
   if (!report.workSplit) return null;
   return <section className="deep-report-block work-split">
     <h3>最适合你的工作组合</h3>
@@ -62,7 +63,7 @@ function WorkSplit({ report }: { report: DeepReport }) {
   </section>;
 }
 
-function ValidationPlan({ report }: { report: DeepReport }) {
+function ValidationPlan({ report }: { report: LegacyDeepReport }) {
   if (!report.validationPlan) return null;
   const plan = report.validationPlan;
   return <section className="deep-report-block validation-plan">
@@ -74,7 +75,7 @@ function ValidationPlan({ report }: { report: DeepReport }) {
   </section>;
 }
 
-export function DeepReportView({ report }: { report: DeepReport }) {
+function LegacyDeepReportView({ report }: { report: LegacyDeepReport }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const baseId = useId();
   const detailsId = (id: string) => `${baseId}-${id}`;
@@ -160,4 +161,12 @@ export function DeepReportView({ report }: { report: DeepReport }) {
 
     <footer className="deep-disclaimer">{report.disclaimer}</footer>
   </article>;
+}
+
+export function DeepReportView({ report }: { report: DeepReport }) {
+  if ('kind' in report && report.kind === 'career-calibration') {
+    return <CareerReportView report={report} />;
+  }
+
+  return <LegacyDeepReportView report={LegacyDeepReportSchema.parse(report)} />;
 }

@@ -103,7 +103,8 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
       try {
         send({ type: 'status', stage: 'preparing' });
         await safePersist({ ...baseEvent, reportStatus: 'generating', reportResult: null });
-        send({ type: 'status', stage: 'analyzing' });
+        send({ type: 'status', stage: 'constraints' });
+        send({ type: 'status', stage: 'capital' });
         const iterator = dependencies.generate({
           baseReport: input.baseReport,
           careerCalibration: input.careerCalibration,
@@ -114,14 +115,9 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
         });
         let text = '';
         let verifiedReport: DeepReport | void;
-        let receivedFirstChunk = false;
         while (true) {
           const next = await iterator.next();
           if (next.done) { verifiedReport = next.value; break; }
-          if (!receivedFirstChunk) {
-            receivedFirstChunk = true;
-            send({ type: 'status', stage: 'structuring' });
-          }
           text += next.value;
         }
         send({ type: 'status', stage: 'validating' });

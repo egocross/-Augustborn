@@ -4,13 +4,12 @@ import { createPortal } from 'react-dom';
 import { useDocumentScrollLock } from '@/lib/use-document-scroll-lock';
 
 const stageCopy: Record<string, { title: string; note: string }> = {
-  preparing: { title: '正在整理你的信息', note: '核对基础报告与现实校准答案…' },
-  researching: { title: '正在查找真实职位', note: '检索招聘实例，核对职位名称与来源…' },
-  researching_industries: { title: '正在查阅行业资料', note: '检索近期行业动态，核对产业信息与来源…' },
-  researching_cities: { title: '正在比较城市产业布局', note: '查阅候选城市的公开资料与发展动向…' },
-  analyzing: { title: '正在分析关键取舍', note: '寻找优势、约束与机会之间的关系…' },
-  structuring: { title: '正在组织专项建议', note: '把分析转化为清晰、可行动的方向…' },
-  validating: { title: '正在完成最后检查', note: '确保报告结构完整且表达客观…' },
+  preparing: { title: '正在整理基础职业倾向', note: '只读继承基础报告，不改变原有判断…' },
+  constraints: { title: '正在识别现实限制', note: '先用收入、地点、时间与责任筛除不可行方向…' },
+  capital: { title: '正在评估可迁移职业资本', note: '核对可以带到下一份职业的经验、技能与成果…' },
+  researching: { title: '正在核对职业市场证据', note: '检索招聘实例，核对职位名称、职责与来源…' },
+  converging: { title: '正在收窄候选职业方向', note: '综合基础倾向、现实边界、职业资本与市场证据…' },
+  validating: { title: '正在生成低成本验证路径', note: '把候选方向转化为未来 30 天可以执行的动作…' },
 };
 
 export function DeepGeneratingModal({ stage = 'preparing', onCancel }: { stage?: string; onCancel?: () => void }) {

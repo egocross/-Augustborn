@@ -54,6 +54,7 @@ it('renders the completed report from this tab without exposing birth data in th
   expect(screen.queryByRole('navigation', { name: '报告操作' })).toBeNull();
   expect(screen.queryByText('继续探索')).toBeNull();
   expect(screen.queryByRole('button', { name: /探索方向/ })).toBeNull();
+  expect(screen.getByRole('button', { name: '返回基础报告' })).toBeTruthy();
 });
 
 it('offers a safe recovery when no report exists in this tab', async () => {

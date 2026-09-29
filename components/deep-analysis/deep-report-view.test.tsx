@@ -3,7 +3,7 @@ import { afterEach, expect, it } from 'vitest';
 
 import { DeepReportView } from './deep-report-view';
 import type { JobResearch } from '@/lib/deep-analysis/research/schema';
-import { DeepReportSchema } from '@/lib/deep-analysis/types';
+import { LegacyDeepReportSchema } from '@/lib/deep-analysis/types';
 import { createSampleDeepReport } from '@/lib/report-provider/sample';
 
 afterEach(cleanup);
@@ -13,7 +13,7 @@ it.each([
   ['city', '按你的条件，分三步看城市'],
   ['collaboration', '哪些能力能与你形成互补？'],
 ] as const)('renders the %s exploration structure from a persisted report', (directionId, heading) => {
-  const parsed = DeepReportSchema.parse(createSampleDeepReport({ directionId, optionalContext: '' }));
+  const parsed = LegacyDeepReportSchema.parse(createSampleDeepReport({ directionId, optionalContext: '' }));
   const { container } = render(<DeepReportView report={parsed} />);
   expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
   if (directionId === 'city') expect(container.querySelectorAll('.city-tier')).toHaveLength(3);
@@ -53,7 +53,7 @@ it('renders model-defined cards and lets the reader expand details', () => {
 });
 
 it('puts the direction map after the conclusions and recruitment evidence right after the analysis', () => {
-  const parsed = DeepReportSchema.parse({ ...report, workDirections, jobResearch: {
+  const parsed = LegacyDeepReportSchema.parse({ ...report, workDirections, jobResearch: {
     status: 'unavailable', checkedAt: '2026-09-25T08:00:00.000Z', note: '未取得招聘证据。', recommendations: [],
   } });
   const { container } = render(<DeepReportView report={parsed} />);
@@ -70,8 +70,8 @@ it('puts the direction map after the conclusions and recruitment evidence right 
 });
 
 it('rejects malformed direction groups without breaking reports saved before this feature', () => {
-  expect(DeepReportSchema.safeParse(report).success).toBe(true);
-  expect(DeepReportSchema.safeParse({ ...report, workDirections: { ...workDirections, groups: [{ ...workDirections.groups[0], tags: [] }] } }).success).toBe(false);
+  expect(LegacyDeepReportSchema.safeParse(report).success).toBe(true);
+  expect(LegacyDeepReportSchema.safeParse({ ...report, workDirections: { ...workDirections, groups: [{ ...workDirections.groups[0], tags: [] }] } }).success).toBe(false);
 });
 
 it('shows source-linked jobs with expandable requirements and no third-party iframe', () => {
@@ -89,7 +89,7 @@ it('shows source-linked jobs with expandable requirements and no third-party ifr
 });
 
 it('renders the calibration, ranking, exclusion and validation modules', () => {
-  const parsed = DeepReportSchema.parse({
+  const parsed = LegacyDeepReportSchema.parse({
     ...report,
     calibration: { constraints: ['更愿意处理复杂问题，而不是长期重复执行', '希望保留较高自主性'], narrowing: '方向因此收窄为知识型、可积累的岗位。' },
     directionRanking: [
