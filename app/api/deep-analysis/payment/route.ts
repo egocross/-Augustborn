@@ -1,12 +1,17 @@
 import { z } from 'zod';
 
 import { issuePaymentReceipt, mockPaymentService } from '@/lib/deep-analysis/payment';
-import { DirectionIdSchema } from '@/lib/deep-analysis/types';
+import { CAREER_DIRECTION_ID } from '@/lib/deep-analysis/types';
 
 const PaymentRequestSchema = z.object({
   sessionId: z.string().min(8).max(100),
-  directionId: DirectionIdSchema,
 }).strict();
+
+const bindCareerDirection = (input: z.infer<typeof PaymentRequestSchema>) => ({
+  ...input,
+  directionId: CAREER_DIRECTION_ID,
+});
+type CareerPaymentInput = ReturnType<typeof bindCareerDirection>;
 
 type SandboxCheckout = {
   status: 'pending';
@@ -16,7 +21,7 @@ type SandboxCheckout = {
 
 export function createPaymentHandler(_dependencies: {
   createSandboxCheckout: (
-    input: z.infer<typeof PaymentRequestSchema>,
+    input: CareerPaymentInput,
     request: Request,
   ) => Promise<SandboxCheckout>;
 }) {
@@ -26,7 +31,7 @@ export function createPaymentHandler(_dependencies: {
       return Response.json({ code: 'invalid_input', error: '支付信息无效。' }, { status: 400 });
     }
     try {
-      const checkout = await _dependencies.createSandboxCheckout(parsed.data, request);
+      const checkout = await _dependencies.createSandboxCheckout(bindCareerDirection(parsed.data), request);
       return Response.json({
         ...checkout,
         price: process.env.DEEP_REPORT_PRICE?.trim() || '¥29.90',
@@ -48,10 +53,11 @@ async function handleMockPayment(request: Request) {
   }
 
   try {
-    const { paidAt } = await mockPaymentService.pay(parsed.data);
+    const paymentInput = bindCareerDirection(parsed.data);
+    const { paidAt } = await mockPaymentService.pay(paymentInput);
     return Response.json({
       status: 'paid',
-      receipt: issuePaymentReceipt({ ...parsed.data, paidAt }),
+      receipt: issuePaymentReceipt({ ...paymentInput, paidAt }),
       price: process.env.DEEP_REPORT_PRICE?.trim() || '¥29.90',
     });
   } catch {

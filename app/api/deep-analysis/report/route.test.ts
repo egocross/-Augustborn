@@ -1,140 +1,164 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { CareerCalibration } from '@/lib/deep-analysis/career-calibration';
 import { createDeepReportHandler } from './route';
 
 const report = {
   title: '职业方向', summary: '摘要', keyFindings: ['A', 'B'],
-  cards: [{ id: 'c1', title: '结论', summary: '简述', details: ['详情'], evidence: [] }, { id: 'c2', title: '验证', summary: '简述', details: ['详情'], evidence: [] }],
+  cards: [
+    { id: 'c1', title: '结论', summary: '简述', details: ['详情'], evidence: [] },
+    { id: 'c2', title: '验证', summary: '简述', details: ['详情'], evidence: [] },
+  ],
   risks: [{ title: '风险', detail: '细节', mitigation: '应对' }],
-  nextActions: [{ title: '行动1', detail: '做事', timeframe: '一周' }, { title: '行动2', detail: '复盘', timeframe: '一月' }],
+  nextActions: [
+    { title: '行动1', detail: '做事', timeframe: '一周' },
+    { title: '行动2', detail: '复盘', timeframe: '一月' },
+  ],
   reflectionQuestions: [], disclaimer: '仅供探索。',
 };
-const validAnswers = {
-  work_q1: { optionIds: ['work_q1_student'] }, work_experience: { optionIds: ['work_experience_change'] },
-  work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
-  work_q5: { optionIds: ['work_q5_growth'] },
+const baseReport = { disclaimer: '只供参考', sections: [{ heading: '性格', body: '内容', bullets: [] }] };
+const careerCalibration: CareerCalibration = {
+  questionnaireVersion: 'career-v1',
+  hardConstraints: {
+    careerStatus: 'career_status_first_job', transitionUrgency: 'transition_3_months',
+    income: {
+      minimumIncomeBand: 'minimum_income_3000_5000', currency: 'CNY',
+      salaryDropTolerance: 'salary_drop_none',
+    },
+    responsibilities: ['responsibility_none'],
+    location: { mobility: 'mobility_nationwide', constraints: [] },
+    transitionCapacity: {
+      weeklyHours: 'weekly_hours_full_time', preparationHorizon: 'preparation_3_6_months',
+      maxBudget: 'budget_1000_3000',
+    },
+    restartTolerance: 'restart_entry_level', educationTolerance: 'education_systematic_training',
+    workConstraints: ['work_constraint_none'], incomeModels: ['income_model_any'],
+    employmentTypes: ['employment_type_any'],
+  },
+  careerCapital: { experience: [], skills: [], evidence: [] },
+  values: ['value_growth'],
 };
 const valid = {
   sessionId: 'session-12345678', paymentReceipt: 'signed-receipt',
-  birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
-  freeReport: { disclaimer: '只供参考', sections: [{ heading: '性格', body: '内容', bullets: [] }] },
-  selectedDirection: 'work', questionnaireVersion: 'v2', answers: validAnswers,
-  optionalContext: '', customQuestion: null, customQuestions: [],
+  questionnaireVersion: 'career-v1', baseReport,
+  baseReportSnapshotToken: 'v1.digest.signature', careerCalibration,
 };
-const request = (body: unknown) => new Request('http://localhost/api/deep-analysis/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-const readEvents = async (response: Response) => (await response.text()).split('\n\n').filter(Boolean).map((line) => JSON.parse(line.replace(/^data: /, '')));
+const request = (body: unknown) => new Request('http://localhost/api/deep-analysis/report', {
+  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+});
+const readEvents = async (response: Response) => (await response.text()).split('\n\n')
+  .filter(Boolean).map((line) => JSON.parse(line.replace(/^data: /, '')));
 
 const generate = vi.fn();
 const persist = vi.fn();
 const verifyReceipt = vi.fn();
+const verifySnapshot = vi.fn();
 
 beforeEach(() => {
-  generate.mockReset(); persist.mockReset(); verifyReceipt.mockReset();
+  generate.mockReset();
+  persist.mockReset();
+  verifyReceipt.mockReset();
+  verifySnapshot.mockReset();
   verifyReceipt.mockReturnValue({ success: true, payload: {} });
+  verifySnapshot.mockReturnValue(true);
   persist.mockResolvedValue({ persisted: true });
-  generate.mockImplementation(async function* () { yield JSON.stringify(report); });
+  generate.mockImplementation(async function* () {
+    yield JSON.stringify(report);
+    return report;
+  });
 });
 
 describe('POST /api/deep-analysis/report', () => {
-  it('rejects direct API answers above maxSelect before calling Gemini', async () => {
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
-    const response = await POST(request({ ...valid, answers: { ...validAnswers, work_q4: { optionIds: ['work_q4_repetitive', 'work_q4_social', 'work_q4_isolated', 'work_q4_controlled'] } } }));
-    expect(response.status).toBe(400);
-    expect(generate).not.toHaveBeenCalled();
-  });
+  it('accepts only the signed career-calibration contract', async () => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
+    const events = await readEvents(await POST(request(valid)));
 
-  it('still validates answers captured on the previous questionnaire', async () => {
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
-    const events = await readEvents(await POST(request({
-      ...valid,
-      questionnaireVersion: 'v1',
-      answers: {
-        work_q1: { optionIds: ['work_q1_student'] }, work_q2: { optionIds: ['work_q2_content'] },
-        work_q3: { optionIds: ['work_q3_ideas'] }, work_q4: { optionIds: ['work_q4_repetitive'] },
-        work_q5: { optionIds: ['work_q5_growth'] },
-      },
-    })));
     expect(events.at(-1)).toEqual({ type: 'report', report });
+    expect(verifySnapshot).toHaveBeenCalledWith(baseReport, 'v1.digest.signature');
+    expect(verifyReceipt).toHaveBeenCalledWith('signed-receipt', {
+      sessionId: 'session-12345678', directionId: 'work',
+    });
+    expect(generate).toHaveBeenCalledWith({
+      baseReport, careerCalibration, questionnaireVersion: 'career-v1',
+    }, expect.objectContaining({ signal: expect.any(AbortSignal), onStage: expect.any(Function) }));
   });
 
-  it('rejects answers that belong to a different questionnaire version', async () => {
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
-    const response = await POST(request({ ...valid, questionnaireVersion: 'v1' }));
+  it.each([
+    ['birthInput', { birthDate: '1977-10-15' }],
+    ['answers', { work_q1: { optionIds: ['x'] } }],
+    ['selectedDirection', 'work'],
+    ['customQuestion', '我该做什么'],
+    ['customQuestions', []],
+    ['optionalContext', '额外文本'],
+    ['chart', { dayMaster: '甲' }],
+  ])('rejects legacy or extra field %s before verification', async (field, value) => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
+    const response = await POST(request({ ...valid, [field]: value }));
+    expect(response.status).toBe(400);
+    expect(verifySnapshot).not.toHaveBeenCalled();
+    expect(verifyReceipt).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it.each(['v1', 'v2', 'career-v0'])('rejects questionnaire version %s', async (questionnaireVersion) => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
+    const response = await POST(request({ ...valid, questionnaireVersion }));
     expect(response.status).toBe(400);
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid payment receipt', async () => {
+  it('rejects a changed or unsigned base report before checking payment', async () => {
+    verifySnapshot.mockReturnValue(false);
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
+    const response = await POST(request({ ...valid, baseReport: { ...baseReport, disclaimer: 'changed' } }));
+    expect(response.status).toBe(400);
+    expect(verifySnapshot).toHaveBeenCalled();
+    expect(verifyReceipt).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid career receipt before paid work starts', async () => {
     verifyReceipt.mockReturnValue({ success: false });
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
     const response = await POST(request(valid));
     expect(response.status).toBe(402);
     expect(generate).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
   });
 
-  it('delivers a valid report even when persistence is unavailable', async () => {
-    persist.mockResolvedValue({ persisted: false });
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
-    const events = await readEvents(await POST(request(valid)));
-    expect(events.at(-1)).toEqual({ type: 'report', report });
+  it('persists normalized calibration without birth data or raw draft answers', async () => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
+    await readEvents(await POST(request(valid)));
+
+    const event = persist.mock.calls.at(-1)?.[0];
+    expect(event).toMatchObject({
+      id: 'session-12345678', selectedDirection: 'work', questionnaireVersion: 'career-v1',
+      careerCalibration, paymentStatus: 'paid', reportStatus: 'complete', reportResult: report,
+    });
+    expect(event).not.toHaveProperty('birthInput');
+    expect(event).not.toHaveProperty('answers');
   });
 
-  it('delivers a valid report even when the persistence dependency throws', async () => {
+  it('delivers a valid report even when optional persistence is unavailable', async () => {
     persist.mockRejectedValue(new Error('database offline'));
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
     const events = await readEvents(await POST(request(valid)));
     expect(events.at(-1)).toEqual({ type: 'report', report });
   });
 
-  it('rejects multiple selections for a custom single-choice question', async () => {
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
-    const response = await POST(request({
-      ...valid,
-      selectedDirection: 'custom',
-      customQuestion: '我是否应该转岗？',
-      customQuestions: [1, 2, 3].map((number) => ({
-        id: `custom_q${number}`,
-        type: 'single',
-        text: `补充问题 ${number}`,
-        required: true,
-        options: [{ id: `custom_q${number}_a`, label: '选项 A' }, { id: `custom_q${number}_b`, label: '选项 B' }],
-      })),
-      answers: {
-        custom_q1: { optionIds: ['custom_q1_a', 'custom_q1_b'] },
-        custom_q2: { optionIds: ['custom_q2_a'] },
-        custom_q3: { optionIds: ['custom_q3_a'] },
-      },
-    }));
-    expect(response.status).toBe(400);
-    expect(generate).not.toHaveBeenCalled();
-  });
-
-  it('buffers model chunks server-side and only streams validated status and report events', async () => {
+  it('buffers model chunks and only emits validated status and report events', async () => {
     generate.mockImplementation(async function* () {
       const value = JSON.stringify(report);
       yield value.slice(0, 20);
       yield value.slice(20);
+      return report;
     });
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
     const events = await readEvents(await POST(request(valid)));
     expect(events.some((event) => event.type === 'delta')).toBe(false);
     expect(events.filter((event) => event.type === 'status').map((event) => event.stage)).toEqual([
       'preparing', 'analyzing', 'structuring', 'validating',
     ]);
     expect(events.at(-1)).toEqual({ type: 'report', report });
-  });
-
-  it('delivers and persists server-validated research from the generator return value', async () => {
-    const verified = { ...report, jobResearch: { status: 'unavailable', checkedAt: '2026-09-24T08:00:00.000Z', note: '无可靠来源', recommendations: [] } };
-    generate.mockImplementation(async function* (_input, options) {
-      options.onStage?.('researching');
-      yield JSON.stringify({ ...report, jobRecommendations: [{ title: '未经校验的名称' }] });
-      return verified;
-    });
-    const POST = createDeepReportHandler({ generate, persist, verifyReceipt });
-    const events = await readEvents(await POST(request(valid)));
-    expect(events).toContainEqual({ type: 'status', stage: 'researching' });
-    expect(events.at(-1)).toEqual({ type: 'report', report: verified });
-    expect(persist).toHaveBeenLastCalledWith(expect.objectContaining({ reportResult: verified }));
   });
 });
