@@ -1032,6 +1032,97 @@ input::placeholder { color: var(--placeholder); }
 .career-deprioritized article + article { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; }
 .career-thirty-day-plan ol li { border-left: 3px solid var(--accent-soft); padding-left: 0.75rem; }
 
+.career-validation-card { gap: 1rem; }
+.career-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 0.75rem; }
+.career-card-heading > div { display: grid; gap: 0.55rem; }
+.career-validation-status {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  padding: 0.28rem 0.6rem;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+.career-validation-status.status-complete { border-color: rgb(61 116 83 / 30%); background: rgb(61 116 83 / 8%); color: #315f44; }
+.career-validation-status.status-unavailable { border-color: rgb(163 58 44 / 25%); background: rgb(163 58 44 / 7%); color: var(--alert); }
+.career-candidate-reason { margin: 0; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.7; }
+.career-decision-summary { display: grid; gap: 0.65rem; }
+.career-decision-summary section {
+  display: grid;
+  gap: 0.24rem;
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 12px 12px 0;
+  background: var(--surface-muted);
+  padding: 0.8rem 0.9rem;
+}
+.career-decision-summary section > p { margin: 0; color: var(--muted); font-size: 0.72rem; font-weight: 750; letter-spacing: 0.06em; }
+.career-decision-summary section > strong { line-height: 1.55; }
+.career-decision-summary section > span,
+.career-decision-summary section > small { color: var(--ink-soft); line-height: 1.6; }
+.career-decision-summary .career-decision-gap { border-left-color: var(--alert); }
+.career-decision-summary .career-decision-action { border-left-color: var(--accent); background: rgb(238 178 116 / 11%); }
+.career-validation-disclosure { border-top: 1px solid var(--line); padding-top: 0.8rem; }
+.career-validation-disclosure > summary,
+.career-market-evidence > summary {
+  display: flex;
+  min-height: 2.75rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--accent-hover);
+  font-weight: 700;
+  list-style: none;
+}
+.career-validation-disclosure > summary::-webkit-details-marker,
+.career-market-evidence > summary::-webkit-details-marker { display: none; }
+.career-validation-disclosure[open] > summary span { transform: rotate(45deg); }
+.career-validation-disclosure > summary:focus-visible,
+.career-market-evidence > summary:focus-visible { border-radius: 8px; outline: 3px solid rgb(182 91 30 / 18%); outline-offset: 2px; }
+.career-validation-full { display: grid; gap: 1.1rem; padding-top: 0.75rem; }
+.career-validation-section { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0.7rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.career-validation-section > div { min-width: 0; }
+.career-validation-number { margin: 0; color: var(--accent); font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; }
+.career-validation-section h5 { margin: 0 0 0.75rem; font-size: 1rem; }
+.career-validation-section h6 { margin: 0; font-size: 0.9rem; }
+.career-validation-grid,
+.career-validation-action dl { display: grid; grid-template-columns: minmax(6.7rem, 0.35fr) minmax(0, 1fr); gap: 0.6rem 0.75rem; margin: 0; }
+.career-validation-grid dt,
+.career-validation-action dt { color: var(--ink); font-size: 0.82rem; font-weight: 700; }
+.career-validation-grid dd,
+.career-validation-action dd { min-width: 0; margin: 0; color: var(--ink-soft); line-height: 1.65; overflow-wrap: anywhere; }
+.career-validation-grid ul,
+.career-validation-action ul,
+.career-validation-action ol { gap: 0.35rem; margin: 0; padding-left: 1.1rem; }
+.career-variability-note,
+.career-empty-note,
+.career-signal-type { margin: 0.75rem 0 0; border-radius: 10px; background: var(--surface-muted); padding: 0.65rem 0.75rem; color: var(--ink-soft); font-size: 0.82rem; line-height: 1.6; }
+.career-signal-type { margin-top: 0; color: var(--ink); font-weight: 650; }
+.career-signal-group { display: grid; gap: 0.55rem; margin-top: 0.9rem; }
+.career-signal-group > ul { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.career-signal-group > ul > li { display: grid; gap: 0.18rem; border-radius: 10px; background: var(--surface-muted); padding: 0.7rem 0.75rem; }
+.career-signal-group li span,
+.career-signal-group li small,
+.career-bridge-path small { color: var(--ink-soft); line-height: 1.55; }
+.career-hard-barriers > ul > li { border: 1px solid rgb(163 58 44 / 20%); background: rgb(163 58 44 / 5%); }
+.career-bridge-path { display: grid; gap: 0.5rem; border: 1px solid var(--line); border-radius: 12px; padding: 0.75rem; }
+.career-bridge-path p { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin: 0; }
+.career-bridge-path ol { margin: 0; padding-left: 1.25rem; color: var(--ink-soft); }
+.career-fast-signals,
+.career-validation-actions { display: grid; gap: 0.65rem; }
+.career-fast-signals article,
+.career-validation-action { display: grid; gap: 0.55rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); padding: 0.8rem; }
+.career-fast-signals p { margin: 0; color: var(--ink-soft); line-height: 1.6; }
+.career-fast-signals small { color: var(--muted); }
+.career-action-index { margin: 0; color: var(--accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; }
+.career-market-evidence { border-top: 1px solid var(--line); }
+.career-market-evidence > p { color: var(--ink-soft); line-height: 1.65; }
+.career-market-evidence ul { display: grid; gap: 0.6rem; padding-left: 1.1rem; }
+.career-market-evidence li p { margin: 0.2rem 0; color: var(--ink-soft); line-height: 1.6; }
+.career-market-evidence a { color: var(--accent-hover); font-weight: 650; overflow-wrap: anywhere; }
+
 .deep-generating-overlay {
   position: fixed;
   inset: 0;
@@ -1302,6 +1393,13 @@ input::placeholder { color: var(--placeholder); }
   .career-capital-report dl > div,
   .career-hypothesis-card dl { grid-template-columns: 1fr; gap: 0.12rem; }
   .career-hypothesis-card { padding: 1rem; }
+  .career-card-heading { align-items: stretch; flex-direction: column; }
+  .career-validation-status { align-self: start; }
+  .career-validation-section { grid-template-columns: 1fr; gap: 0.35rem; }
+  .career-validation-grid,
+  .career-validation-action dl { grid-template-columns: 1fr; gap: 0.2rem; }
+  .career-validation-grid dd + dt,
+  .career-validation-action dd + dt { margin-top: 0.45rem; }
 }
 
 @media (max-width: 22rem) {

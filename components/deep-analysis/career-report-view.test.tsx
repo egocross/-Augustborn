@@ -23,15 +23,38 @@ const report = createSampleCareerReport({
   },
 });
 
-it('renders the career report in decision order with explicit evidence states', () => {
+it('puts career validation before generic boundaries and keeps each career scan-friendly', () => {
   render(<CareerReportView report={report} />);
   const headings = screen.getAllByRole('heading').map((heading) => heading.textContent);
+  expect(headings.indexOf('当前值得优先验证的职业方向')).toBeLessThan(headings.indexOf('你的现实职业边界'));
   expect(headings.indexOf('你的现实职业边界')).toBeLessThan(headings.indexOf('你的可迁移职业资本'));
-  expect(headings.indexOf('你的可迁移职业资本')).toBeLessThan(headings.indexOf('当前值得优先验证的职业方向'));
   expect(screen.getAllByTestId('career-hypothesis')).toHaveLength(3);
   expect(screen.getAllByText('市场可行性待验证')).toHaveLength(3);
-  expect(screen.getByText('未来 30 天验证计划')).toBeTruthy();
+  expect(screen.queryByText('未来 30 天验证计划')).toBeNull();
   expect(document.body.textContent).not.toMatch(/唯一方向|你必须辞职/);
+});
+
+it('orders the decision summary as real work, biggest gap, then the first validation action', () => {
+  render(<CareerReportView report={report} />);
+  const first = screen.getAllByTestId('career-hypothesis')[0];
+  const text = first.textContent ?? '';
+
+  expect(text.indexOf('真实核心工作')).toBeLessThan(text.indexOf('最大入场缺口'));
+  expect(text.indexOf('最大入场缺口')).toBeLessThan(text.indexOf('先做这个验证'));
+  expect(first.querySelector('details')).toBeTruthy();
+  expect(first.querySelector('summary')?.textContent).toContain('查看完整工作验证');
+});
+
+it('makes hard barriers, bridge paths, and action outputs explicit', () => {
+  render(<CareerReportView report={report} />);
+
+  expect(screen.getByText('短期无法补齐的门槛')).toBeTruthy();
+  expect(screen.getByText('真实业务或研究项目经历')).toBeTruthy();
+  expect(screen.getByText('替代进入路径')).toBeTruthy();
+  expect(screen.getAllByText('验证什么').length).toBeGreaterThanOrEqual(2);
+  expect(screen.getAllByText('时间 / 成本').length).toBeGreaterThanOrEqual(2);
+  expect(screen.getAllByText('最终得到什么').length).toBeGreaterThanOrEqual(2);
+  expect(screen.getAllByText(/示例模式未查询公开岗位/).length).toBeGreaterThanOrEqual(1);
 });
 
 it('shows source count and links only when verified sources exist', () => {
