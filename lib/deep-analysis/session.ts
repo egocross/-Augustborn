@@ -1,109 +1,193 @@
 import { z } from 'zod';
 
 import { ReportSchema, type Report } from '@/lib/gemini/schema';
-import { analysisSchema } from '@/lib/validation';
-import { DeepAnswersSchema, DeepReportSchema, DirectionIdSchema, DynamicQuestionSchema, type DeepAnswers, type DeepReport, type DirectionId, type DynamicQuestion } from './types';
+import {
+  CareerCalibrationSchema,
+  CareerDraftAnswersSchema,
+  type CareerCalibration,
+  type CareerDraftAnswer,
+  type CareerDraftAnswers,
+} from './career-calibration';
+import {
+  CAREER_QUESTIONS,
+  CAREER_SECTIONS,
+  getVisibleCareerQuestions,
+  pruneHiddenCareerAnswers,
+} from './career-calibration-questions';
+import { DeepReportSchema, type DeepReport } from './types';
+
+export { CAREER_DIRECTION_ID } from './types';
 
 export const DEEP_SESSION_KEY = 'jianvia.deep-analysis';
-/** Bumped so a session answering the previous questionnaire is not reused. */
-export const SESSION_VERSION = 2 as const;
+export const SESSION_VERSION = 3 as const;
 
-export type DeepStep = 'direction' | 'custom-question' | 'custom-loading' | 'questions' | 'optional-context' | 'payment' | 'generating' | 'report';
+export type CareerStep = 'intro' | 'questions' | 'summary' | 'payment' | 'generating' | 'report';
+
 export type DeepFlowState = {
-  sessionId: string; step: DeepStep; selectedDirection: DirectionId | null; questionIndex: number;
-  answers: DeepAnswers; optionalContext: string; customQuestion: string; customQuestions: DynamicQuestion[];
-  paymentOrderId: string | null; paymentReceipt: string | null;
+  sessionId: string;
+  step: CareerStep;
+  sectionIndex: number;
+  questionIndex: number;
+  answers: CareerDraftAnswers;
+  calibration: CareerCalibration | null;
+  summaryConfirmed: boolean;
+  paymentOrderId: string | null;
+  paymentReceipt: string | null;
   report: DeepReport | null;
-  /** Last finished report. Survives “choose another direction” so it stays readable. */
-  lastReport: DeepReport | null;
   errorCode: string | null;
-  birthInput: z.infer<typeof analysisSchema> | null; freeReport: Report | null;
+  freeReport: Report | null;
+  baseReportSnapshotToken: string | null;
+  readOnlyLegacy: boolean;
 };
 
 const DeepFlowStateSchema = z.object({
-  sessionId: z.string().min(8), step: z.enum(['direction', 'custom-question', 'custom-loading', 'questions', 'optional-context', 'payment', 'generating', 'report']),
-  selectedDirection: DirectionIdSchema.nullable(), questionIndex: z.number().int().min(0).max(5), answers: DeepAnswersSchema,
-  optionalContext: z.string().max(2000), customQuestion: z.string().max(1000), customQuestions: z.array(DynamicQuestionSchema).max(5),
-  paymentOrderId: z.string().uuid().nullable().default(null),
-  paymentReceipt: z.string().nullable(),
+  sessionId: z.string().min(8),
+  step: z.enum(['intro', 'questions', 'summary', 'payment', 'generating', 'report']),
+  sectionIndex: z.number().int().min(0).max(CAREER_SECTIONS.length - 1),
+  questionIndex: z.number().int().min(0),
+  answers: CareerDraftAnswersSchema,
+  calibration: CareerCalibrationSchema.nullable(),
+  summaryConfirmed: z.boolean(),
+  paymentOrderId: z.string().uuid().nullable(),
+  paymentReceipt: z.string().min(1).nullable(),
   report: DeepReportSchema.nullable(),
-  lastReport: DeepReportSchema.nullable().default(null),
   errorCode: z.string().nullable(),
-  birthInput: analysisSchema.nullable(), freeReport: ReportSchema.nullable(),
+  freeReport: ReportSchema.nullable(),
+  baseReportSnapshotToken: z.string().min(1).nullable(),
+  readOnlyLegacy: z.boolean(),
 });
 
-type DeepContext = { birthInput?: z.infer<typeof analysisSchema>; freeReport?: Report };
-
-export const FIXED_QUESTION_COUNT = 5;
+type CareerContext = {
+  freeReport?: Report;
+  baseReportSnapshotToken?: string;
+};
 
 const createSessionId = () => {
   const generated = globalThis.crypto?.randomUUID?.();
   return typeof generated === 'string' && generated.length >= 8 ? generated : `session-${Date.now()}`;
 };
 
-export function createInitialDeepState(
+export function createInitialCareerState(
   sessionId: string,
-  context: DeepContext = {},
+  context: CareerContext = {},
 ): DeepFlowState {
   return {
-    sessionId, step: 'direction', selectedDirection: null, questionIndex: 0, answers: {},
-    optionalContext: '', customQuestion: '', customQuestions: [], paymentOrderId: null, paymentReceipt: null,
-    report: null, lastReport: null, errorCode: null,
-    birthInput: context.birthInput ?? null, freeReport: context.freeReport ?? null,
+    sessionId,
+    step: 'intro',
+    sectionIndex: 0,
+    questionIndex: 0,
+    answers: {},
+    calibration: null,
+    summaryConfirmed: false,
+    paymentOrderId: null,
+    paymentReceipt: null,
+    report: null,
+    errorCode: null,
+    freeReport: context.freeReport ?? null,
+    baseReportSnapshotToken: context.baseReportSnapshotToken ?? null,
+    readOnlyLegacy: false,
   };
 }
 
-/** Carries the birth input and free report across state resets. */
-const withContext = (state: DeepFlowState): DeepContext => ({
-  ...(state.birthInput ? { birthInput: state.birthInput } : {}),
-  ...(state.freeReport ? { freeReport: state.freeReport } : {}),
-});
+/** @deprecated Kept temporarily while the career UI migration lands. */
+export const createInitialDeepState = createInitialCareerState;
+
+type Cursor = { sectionIndex: number; questionIndex: number; questionId: string };
+
+const visibleCursors = (answers: CareerDraftAnswers): Cursor[] => {
+  const visible = new Set(getVisibleCareerQuestions(answers).map((question) => question.id));
+  return CAREER_SECTIONS.flatMap((section, sectionIndex) => {
+    const sectionQuestions = CAREER_QUESTIONS.filter(
+      (question) => question.section === section.id && visible.has(question.id),
+    );
+    return sectionQuestions.map((question, questionIndex) => ({
+      sectionIndex,
+      questionIndex,
+      questionId: question.id,
+    }));
+  });
+};
+
+const cursorIndex = (state: DeepFlowState, cursors: Cursor[]): number =>
+  cursors.findIndex(
+    (cursor) => cursor.sectionIndex === state.sectionIndex && cursor.questionIndex === state.questionIndex,
+  );
 
 export type DeepFlowAction =
   | { type: 'restore'; state: DeepFlowState }
-  | { type: 'chooseDirection'; directionId: DirectionId }
-  | { type: 'setAnswer'; questionId: string; answer: DeepAnswers[string] }
-  | { type: 'setCustomQuestion'; value: string }
-  | { type: 'customLoading' }
-  | { type: 'customQuestionsReady'; questions: DynamicQuestion[] }
-  | { type: 'customQuestionsFailed'; code: string }
-  | { type: 'setOptionalContext'; value: string }
-  | { type: 'nextQuestion'; total: number }
+  | { type: 'beginQuestions' }
+  | { type: 'setAnswer'; questionId: string; answer: CareerDraftAnswer }
+  | { type: 'nextQuestion' }
   | { type: 'previousQuestion' }
-  | { type: 'backToLastQuestion' }
-  | { type: 'goToPayment' }
-  | { type: 'backToOptionalContext' }
+  | { type: 'editSummary' }
+  | { type: 'confirmSummary'; calibration: CareerCalibration }
   | { type: 'paymentStarted'; orderId: string }
   | { type: 'paymentConfirmed'; receipt: string }
   | { type: 'generationStarted'; receipt: string }
   | { type: 'generationSucceeded'; report: DeepReport }
-  | { type: 'generationFailed'; code: string }
-  | { type: 'backToDirection' };
+  | { type: 'generationFailed'; code: string };
 
 export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): DeepFlowState {
   switch (action.type) {
-    case 'restore': return action.state;
-    case 'chooseDirection': return { ...state, selectedDirection: action.directionId, step: action.directionId === 'custom' ? 'custom-question' : 'questions', questionIndex: 0, answers: {}, customQuestions: [], errorCode: null, paymentOrderId: null, paymentReceipt: null, report: null };
-    case 'setAnswer': return { ...state, answers: { ...state.answers, [action.questionId]: action.answer }, errorCode: null };
-    case 'setCustomQuestion': return { ...state, customQuestion: action.value, errorCode: null };
-    case 'customLoading': return { ...state, step: 'custom-loading', errorCode: null };
-    case 'customQuestionsReady': return { ...state, customQuestions: action.questions, step: action.questions.length ? 'questions' : 'optional-context', questionIndex: 0 };
-    case 'customQuestionsFailed': return { ...state, step: 'custom-question', errorCode: action.code };
-    case 'setOptionalContext': return { ...state, optionalContext: action.value };
-    case 'nextQuestion': return action.total > state.questionIndex + 1 ? { ...state, questionIndex: state.questionIndex + 1 } : { ...state, step: 'optional-context' };
-    case 'previousQuestion': return state.questionIndex > 0 ? { ...state, questionIndex: state.questionIndex - 1 } : { ...state, step: state.selectedDirection === 'custom' ? 'custom-question' : 'direction' };
-    case 'backToLastQuestion': {
-      const total = state.selectedDirection === 'custom' ? state.customQuestions.length : FIXED_QUESTION_COUNT;
-      return { ...state, step: 'questions', questionIndex: Math.max(0, total - 1), errorCode: null };
+    case 'restore':
+      return action.state;
+    case 'beginQuestions':
+      return {
+        ...state, step: 'questions', sectionIndex: 0, questionIndex: 0,
+        summaryConfirmed: false, calibration: null, errorCode: null,
+      };
+    case 'setAnswer': {
+      const answers = pruneHiddenCareerAnswers({
+        ...state.answers,
+        [action.questionId]: action.answer,
+      });
+      return {
+        ...state,
+        answers,
+        summaryConfirmed: false,
+        calibration: null,
+        errorCode: null,
+      };
     }
-    case 'goToPayment': return { ...state, step: 'payment', errorCode: null };
-    case 'backToOptionalContext': return { ...state, step: 'optional-context', errorCode: null };
-    case 'paymentStarted': return { ...state, paymentOrderId: action.orderId, paymentReceipt: null, errorCode: null };
-    case 'paymentConfirmed': return { ...state, paymentReceipt: action.receipt, errorCode: null };
-    case 'generationStarted': return { ...state, paymentReceipt: action.receipt, step: 'generating', errorCode: null };
-    case 'generationSucceeded': return { ...state, report: action.report, lastReport: action.report, step: 'report', errorCode: null };
-    case 'generationFailed': return { ...state, step: 'payment', errorCode: action.code };
-    case 'backToDirection': return { ...createInitialDeepState(state.sessionId, withContext(state)), lastReport: state.lastReport };
+    case 'nextQuestion': {
+      const answers = pruneHiddenCareerAnswers(state.answers);
+      const cursors = visibleCursors(answers);
+      const current = cursorIndex(state, cursors);
+      const next = current >= 0 ? cursors[current + 1] : cursors[0];
+      return next
+        ? { ...state, answers, step: 'questions', ...next, errorCode: null }
+        : { ...state, answers, step: 'summary', errorCode: null };
+    }
+    case 'previousQuestion': {
+      const cursors = visibleCursors(state.answers);
+      const current = cursorIndex(state, cursors);
+      const previous = current > 0 ? cursors[current - 1] : null;
+      return previous
+        ? { ...state, step: 'questions', ...previous, errorCode: null }
+        : { ...state, step: 'intro', sectionIndex: 0, questionIndex: 0, errorCode: null };
+    }
+    case 'editSummary': {
+      const cursors = visibleCursors(state.answers);
+      const last = cursors.at(-1);
+      return last
+        ? { ...state, step: 'questions', ...last, summaryConfirmed: false, calibration: null, errorCode: null }
+        : { ...state, step: 'intro', summaryConfirmed: false, calibration: null, errorCode: null };
+    }
+    case 'confirmSummary':
+      return {
+        ...state, step: 'payment', calibration: action.calibration,
+        summaryConfirmed: true, errorCode: null,
+      };
+    case 'paymentStarted':
+      return { ...state, paymentOrderId: action.orderId, paymentReceipt: null, errorCode: null };
+    case 'paymentConfirmed':
+      return { ...state, paymentReceipt: action.receipt, errorCode: null };
+    case 'generationStarted':
+      return { ...state, paymentReceipt: action.receipt, step: 'generating', errorCode: null };
+    case 'generationSucceeded':
+      return { ...state, report: action.report, step: 'report', errorCode: null };
+    case 'generationFailed':
+      return { ...state, step: 'payment', errorCode: action.code };
   }
 }
 
@@ -111,54 +195,62 @@ export function saveDeepSession(state: DeepFlowState, storage: Storage = session
   storage.setItem(DEEP_SESSION_KEY, JSON.stringify({ version: SESSION_VERSION, state }));
 }
 
+const normalizeRestoredState = (state: DeepFlowState): DeepFlowState | null => {
+  if (state.step === 'generating') {
+    return { ...state, step: 'payment', errorCode: 'interrupted' };
+  }
+  if (state.step === 'report') {
+    return state.report ? state : null;
+  }
+  if (!state.freeReport || !state.baseReportSnapshotToken || state.readOnlyLegacy) return null;
+  if (state.step === 'payment' && (!state.summaryConfirmed || !state.calibration)) return null;
+  if (state.step === 'questions') {
+    const cursors = visibleCursors(state.answers);
+    if (cursorIndex(state, cursors) < 0) return { ...state, sectionIndex: 0, questionIndex: 0 };
+  }
+  return state;
+};
+
+const migrateLegacyCompletedReport = (value: unknown): DeepFlowState | null => {
+  if (!value || typeof value !== 'object') return null;
+  const state = value as Record<string, unknown>;
+  const parsedReport = DeepReportSchema.safeParse(state.report ?? state.lastReport);
+  if (!parsedReport.success) return null;
+  const sessionId = typeof state.sessionId === 'string' && state.sessionId.length >= 8
+    ? state.sessionId
+    : createSessionId();
+  return {
+    ...createInitialCareerState(sessionId),
+    step: 'report',
+    report: parsedReport.data,
+    readOnlyLegacy: true,
+  };
+};
+
 export function loadDeepSession(storage: Storage = sessionStorage): DeepFlowState | null {
   try {
     const raw = storage.getItem(DEEP_SESSION_KEY);
     if (!raw) return null;
     const envelope = JSON.parse(raw) as { version?: unknown; state?: unknown };
+    if (envelope.version === 2) return migrateLegacyCompletedReport(envelope.state);
     if (envelope.version !== SESSION_VERSION) return null;
     const parsed = DeepFlowStateSchema.safeParse(envelope.state);
     return parsed.success ? normalizeRestoredState(parsed.data) : null;
-  } catch { return null; }
-}
-
-function normalizeRestoredState(state: DeepFlowState): DeepFlowState {
-  const reset = (): DeepFlowState => ({
-    ...createInitialDeepState(state.sessionId, withContext(state)),
-    lastReport: state.lastReport,
-  });
-
-  if (state.step === 'direction') return { ...state, selectedDirection: null, questionIndex: 0 };
-  if (!state.selectedDirection) return reset();
-  if (state.step === 'custom-loading') {
-    return state.selectedDirection === 'custom' ? { ...state, step: 'custom-question' } : reset();
+  } catch {
+    return null;
   }
-  if (state.step === 'generating') return { ...state, step: 'payment', errorCode: 'interrupted' };
-  if (state.step === 'custom-question' && state.selectedDirection !== 'custom') return reset();
-  if (state.step === 'questions') {
-    const total = state.selectedDirection === 'custom' ? state.customQuestions.length : FIXED_QUESTION_COUNT;
-    if (total === 0 || state.questionIndex >= total) return reset();
-  }
-  if (state.step === 'report' && !state.report) {
-    return state.lastReport ? { ...state, report: state.lastReport } : reset();
-  }
-  return state;
 }
 
 /**
- * Keeps a freshly generated free report in this tab right away, so refreshing no
- * longer throws away a report the reader just waited for. Answers from an earlier
- * exploration are reset because the underlying report changed.
+ * Stores only the immutable base report and its server-issued proof. A newly
+ * generated base report invalidates any unfinished calibration in this tab.
  */
 export function saveFreeReportContext(
-  context: { birthInput: z.infer<typeof analysisSchema>; freeReport: Report },
+  context: { freeReport: Report; baseReportSnapshotToken: string },
   storage: Storage = sessionStorage,
 ): DeepFlowState {
   const restored = loadDeepSession(storage);
-  const next: DeepFlowState = {
-    ...createInitialDeepState(restored?.sessionId ?? createSessionId(), context),
-    lastReport: restored?.lastReport ?? null,
-  };
+  const next = createInitialCareerState(restored?.sessionId ?? createSessionId(), context);
   saveDeepSession(next, storage);
   return next;
 }

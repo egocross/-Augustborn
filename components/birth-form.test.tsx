@@ -13,6 +13,8 @@ const report = {
   sections: [{ heading: '模型章节', body: '模型内容', bullets: [] }],
 };
 
+const snapshotToken = 'v1.digest.signature';
+
 const encoder = new TextEncoder();
 
 const streamResponse = (events: unknown[]) => {
@@ -39,7 +41,7 @@ beforeEach(() => {
       streamResponse([
         { type: 'status', stage: 'thinking' },
         { type: 'delta', text: JSON.stringify(report) },
-        { type: 'report', report },
+        { type: 'report', report, snapshotToken },
       ]),
     ),
   );
@@ -52,9 +54,10 @@ afterEach(() => {
 
 it('does not read session storage during its hydration-sensitive initial render', () => {
   saveDeepSession({
-    ...createInitialDeepState('session-12345678'),
-    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
-    freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+    ...createInitialDeepState('session-12345678', {
+      baseReportSnapshotToken: snapshotToken,
+      freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+    }),
   }, window.sessionStorage);
 
   const html = renderToString(<BirthForm />);
@@ -64,16 +67,17 @@ it('does not read session storage during its hydration-sensitive initial render'
 
 it('keeps direction choices off the free report and opens a separate exploration page', async () => {
   saveDeepSession({
-    ...createInitialDeepState('session-12345678'),
-    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
-    freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+    ...createInitialDeepState('session-12345678', {
+      baseReportSnapshotToken: snapshotToken,
+      freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+    }),
   }, window.sessionStorage);
 
   render(<BirthForm />);
 
   expect(await screen.findByText('旧报告')).toBeTruthy();
   expect(screen.queryByText('接下来，你最想进一步弄清楚什么？')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '开始深入探索' }));
+  fireEvent.click(screen.getByRole('button', { name: '开始职业专项分析' }));
 
   expect(push).toHaveBeenCalledWith('/explore');
   expect(loadDeepSession(window.sessionStorage)?.freeReport?.sections[0]?.heading).toBe('旧报告');
@@ -81,14 +85,15 @@ it('keeps direction choices off the free report and opens a separate exploration
 
 it('presents deep exploration before the secondary feedback action', async () => {
   saveDeepSession({
-    ...createInitialDeepState('session-12345678'),
-    birthInput: { birthDate: '1977-10-15', birthTime: '13:30', birthRegion: '杭州', calendarType: 'solar' as const, isLeapMonth: false },
-    freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+    ...createInitialDeepState('session-12345678', {
+      baseReportSnapshotToken: snapshotToken,
+      freeReport: { disclaimer: '仅供参考', sections: [{ heading: '旧报告', body: '旧内容', bullets: [] }] },
+    }),
   }, window.sessionStorage);
 
   render(<BirthForm />);
 
-  const exploration = await screen.findByRole('button', { name: '开始深入探索' });
+  const exploration = await screen.findByRole('button', { name: '开始职业专项分析' });
   const feedback = screen.getByRole('heading', { name: '这份报告贴近你吗？' });
 
   expect(exploration.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -107,7 +112,8 @@ it('sends the birth date, time and region, then renders the streamed report', as
   fireEvent.click(screen.getByRole('button', { name: '生成我的探索报告' }));
 
   await waitFor(() => expect(screen.getByText('模型章节')).toBeTruthy());
-  expect(await screen.findByRole('button', { name: '开始深入探索' })).toBeTruthy();
+  expect(await screen.findByRole('button', { name: '开始职业专项分析' })).toBeTruthy();
+  expect(loadDeepSession(window.sessionStorage)?.baseReportSnapshotToken).toBe(snapshotToken);
   expect(fetch).toHaveBeenCalledWith('/api/analyze', expect.objectContaining({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

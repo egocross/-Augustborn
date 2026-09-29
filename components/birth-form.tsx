@@ -72,6 +72,7 @@ const subscribeToNothing = () => () => {};
 export function BirthForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [report, setReport] = useState<Report | null>(null);
+  const [baseReportSnapshotToken, setBaseReportSnapshotToken] = useState<string | null>(null);
   const [liveSections, setLiveSections] = useState<ReportSection[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -87,13 +88,9 @@ export function BirthForm() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const restored = loadDeepSession(window.sessionStorage);
-      if (!restored?.birthInput || !restored.freeReport) return;
-      setForm({
-        ...restored.birthInput,
-        birthTime: restored.birthInput.birthTime ?? '',
-        timeUnknown: restored.birthInput.birthTime === null,
-      });
+      if (!restored?.freeReport || !restored.baseReportSnapshotToken) return;
       setReport(restored.freeReport);
+      setBaseReportSnapshotToken(restored.baseReportSnapshotToken);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -216,14 +213,15 @@ export function BirthForm() {
         },
       });
 
-      if (!isReport(finished)) {
+      if (!isReport(finished.report)) {
         throw new Error(fallbackError);
       }
 
-      setReport(finished);
+      setReport(finished.report);
+      setBaseReportSnapshotToken(finished.snapshotToken);
       setStatus('idle');
       try {
-        saveFreeReportContext({ birthInput: input, freeReport: finished }, window.sessionStorage);
+        saveFreeReportContext({ freeReport: finished.report, baseReportSnapshotToken: finished.snapshotToken }, window.sessionStorage);
       } catch {
         // Storage can be unavailable in private mode; the report still renders.
       }
@@ -245,6 +243,7 @@ export function BirthForm() {
     clearDeepSession(window.sessionStorage);
     setForm(initialFormState);
     setReport(null);
+    setBaseReportSnapshotToken(null);
     setLiveSections([]);
     setStatus('idle');
     setErrorMessage('');
@@ -272,13 +271,7 @@ export function BirthForm() {
         {report ? (
           <>
             <DeepAnalysisEntry
-              birthInput={{
-                birthDate: form.birthDate,
-                birthTime: form.timeUnknown || !form.birthTime ? null : form.birthTime,
-                birthRegion: form.birthRegion,
-                calendarType: form.calendarType,
-                isLeapMonth: form.isLeapMonth,
-              }}
+              baseReportSnapshotToken={baseReportSnapshotToken ?? ''}
               freeReport={report}
             />
             <FeedbackForm />

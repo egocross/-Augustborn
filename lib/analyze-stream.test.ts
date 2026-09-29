@@ -30,7 +30,7 @@ it('ignores braces inside section text', () => {
   ]);
 });
 
-it('reads deltas and resolves with the finished report', async () => {
+it('reads deltas and resolves with the signed finished report handoff', async () => {
   const report = { sections: [{ heading: '一', body: '甲', bullets: [] }], disclaimer: '仅供参考' };
   const onDelta = vi.fn();
   const onStatus = vi.fn();
@@ -41,14 +41,22 @@ it('reads deltas and resolves with the finished report', async () => {
         { type: 'status', stage: 'thinking' },
         { type: 'delta', text: '{"sections":' },
         { type: 'delta', text: '[]}' },
-        { type: 'report', report },
+        { type: 'report', report, snapshotToken: 'v1.digest.signature' },
       ]),
       { onDelta, onStatus },
     ),
-  ).resolves.toEqual(report);
+  ).resolves.toEqual({ report, snapshotToken: 'v1.digest.signature' });
 
   expect(onDelta).toHaveBeenCalledTimes(2);
   expect(onStatus).toHaveBeenCalledWith('thinking');
+});
+
+it('rejects a completed report event without its snapshot token', async () => {
+  const report = { sections: [{ heading: '一', body: '甲', bullets: [] }], disclaimer: '仅供参考' };
+
+  await expect(
+    consumeAnalyzeStream(sseStream([{ type: 'report', report }])),
+  ).rejects.toThrow('缺少基础报告校验凭证');
 });
 
 it('throws the server message when the stream reports a failure', async () => {

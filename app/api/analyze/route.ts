@@ -1,6 +1,7 @@
 import type { AnalyzeStreamEvent } from '@/lib/analyze-stream';
 import { createChart } from '@/lib/bazi/chart';
 import { parseReport } from '@/lib/gemini/schema';
+import { issueBaseReportSnapshot } from '@/lib/deep-analysis/base-report-snapshot';
 import { streamBaseReport } from '@/lib/report-provider';
 import { analysisSchema } from '@/lib/validation';
 
@@ -44,7 +45,8 @@ export async function POST(request: Request) {
           send({ type: 'delta', text: delta });
         }
 
-        send({ type: 'report', report: parseReport(JSON.parse(text)) });
+        const report = parseReport(JSON.parse(text));
+        send({ type: 'report', report, snapshotToken: issueBaseReportSnapshot(report) });
       } catch (error) {
         console.error(
           'analyze_failed',

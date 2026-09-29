@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { JobResearchSchema } from './research/schema';
 import { MarketResearchSchema } from './research/market-schema';
 
+/** Internal compatibility value for the single career-analysis payment product. */
+export const CAREER_DIRECTION_ID = 'work' as const;
+
 export const DirectionIdSchema = z.enum(['work', 'industry', 'city', 'collaboration', 'custom']);
 export type DirectionId = z.infer<typeof DirectionIdSchema>;
 export type FixedDirectionId = Exclude<DirectionId, 'custom'>;

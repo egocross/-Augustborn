@@ -3,13 +3,15 @@ import type { Report, ReportSection } from '@/lib/gemini/schema';
 export type AnalyzeStreamEvent =
   | { type: 'status'; stage: 'thinking' | 'writing' }
   | { type: 'delta'; text: string }
-  | { type: 'report'; report: Report }
+  | { type: 'report'; report: Report; snapshotToken: string }
   | { type: 'error'; message: string };
 
 export type AnalyzeStreamHandlers = {
   onStatus?: (stage: 'thinking' | 'writing') => void;
   onDelta?: (text: string) => void;
 };
+
+export type AnalyzeStreamResult = { report: Report; snapshotToken: string };
 
 const isSection = (value: unknown): value is ReportSection => {
   if (typeof value !== 'object' || value === null) {
@@ -115,11 +117,12 @@ const parseEvent = (raw: string): AnalyzeStreamEvent | null => {
 export const consumeAnalyzeStream = async (
   body: ReadableStream<Uint8Array>,
   handlers: AnalyzeStreamHandlers = {},
-): Promise<Report> => {
+): Promise<AnalyzeStreamResult> => {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffered = '';
   let report: Report | null = null;
+  let snapshotToken: string | null = null;
   let failure: string | null = null;
 
   for (;;) {
@@ -145,15 +148,22 @@ export const consumeAnalyzeStream = async (
       } else if (event.type === 'delta') {
         handlers.onDelta?.(event.text);
       } else if (event.type === 'report') {
-        report = event.report;
+        if (typeof event.snapshotToken !== 'string' || !event.snapshotToken) {
+          failure = '缺少基础报告校验凭证，请重新生成报告。';
+          report = null;
+          snapshotToken = null;
+        } else {
+          report = event.report;
+          snapshotToken = event.snapshotToken;
+        }
       } else {
         failure = event.message;
       }
     }
   }
 
-  if (report) {
-    return report;
+  if (report && snapshotToken) {
+    return { report, snapshotToken };
   }
 
   throw new Error(failure ?? '分析暂时不可用，请稍后重试。');
