@@ -2,7 +2,7 @@ import type { BaziChart } from '@/lib/bazi/types';
 import type { DeepPromptInput } from '@/lib/deep-analysis/prompts';
 import type { CareerGenerationRequest } from '@/lib/deep-analysis/career-pipeline';
 import { summarizeCareerCalibration } from '@/lib/deep-analysis/career-calibration';
-import type { CareerReport, DeepReport, DirectionId, DynamicQuestion } from '@/lib/deep-analysis/types';
+import type { CareerReport, CareerWorkValidation, DeepReport, DirectionId, DynamicQuestion } from '@/lib/deep-analysis/types';
 import { sampleExploration } from './sample-exploration';
 
 const SAMPLE_NOTE = '当前为本地示例内容，未调用 Gemini API。';
@@ -206,6 +206,7 @@ export function createSampleCareerReport(input: CareerGenerationRequest): Career
       sources: [],
       evidenceTypes: ['baseTendencies', 'hardConstraints'] as const,
       minimumCostExperiment: `搜索“${title}”的 10 条真实岗位，整理共同任务与门槛，再完成一个 2 小时 mini project。`,
+      workValidation: createSampleWorkValidation(title, capitalIds),
     })),
     deprioritizedDirections: [],
     thirtyDayPlan: [
@@ -215,6 +216,79 @@ export function createSampleCareerReport(input: CareerGenerationRequest): Career
     ],
     marketStatus: 'sample',
     disclaimer: '本报告用于职业探索与决策辅助，不替代个人职业决策；市场信息会随地区与时间变化。',
+  };
+}
+
+function createSampleWorkValidation(careerName: string, capitalIds: string[]): CareerWorkValidation {
+  const experienceDependent = careerName === '用户研究助理';
+  return {
+    careerId: `sample-${careerName}`,
+    careerName,
+    status: 'partial',
+    note: '示例模式未查询公开岗位；以下内容只演示结构，第一步仍需用真实 JD 或从业者访谈核实。',
+    workReality: {
+      coreTasks: ['把一个真实业务问题拆成可执行任务', '整理过程信息并与协作方确认下一步'],
+      deliverables: ['一份可以被协作方使用或评审的阶段性成果'],
+      performanceSignals: ['交付是否解决了约定问题；具体考核方式因公司与岗位层级而异'],
+      collaborationWith: ['直属负责人', '业务或产品协作方'],
+      overlookedReality: ['反复修改、沟通和文档工作通常会占用稳定时间'],
+      variabilityNotes: ['岗位名称相同，不同公司的职责边界也可能明显不同'],
+      evidence: [],
+      confidence: 'low',
+    },
+    capabilitySignals: {
+      hiringSignalType: experienceDependent ? 'experience_based' : 'portfolio_project',
+      existingSignals: capitalIds.slice(0, 3).map((signal) => ({
+        signal,
+        evidence: '来自用户在现实校准中确认的职业资本；尚未等同于目标岗位资格。',
+      })),
+      criticalGaps: [{
+        gap: '缺少与目标岗位真实任务直接对应的可验证成果',
+        impact: '招聘者暂时无法判断你能否独立完成该岗位的核心工作。',
+        basis: 'model_judgment',
+      }],
+      fastBuildableSignals: [{
+        title: '完成一次岗位工作切片',
+        rationale: '用真实任务和交付物替代泛泛学习，能更快得到能力与意愿反馈。',
+        deliverable: '一份可展示、可讲解决策过程的小型成果',
+        estimatedTime: '1–3 天',
+      }],
+      hardBarriers: experienceDependent ? [{
+        barrier: '真实业务或研究项目经历',
+        explanation: '这类经历无法靠虚构案例或 AI 生成材料在短期内替代。',
+        evidenceStatus: 'uncertain',
+      }] : [],
+      bridgePaths: experienceDependent ? [{
+        from: '当前可进入的相邻任务',
+        to: careerName,
+        steps: ['参与一次真实访谈或调研任务', '形成可核验的项目记录', '再尝试助理级岗位'],
+        why: '先获得真实责任与外部反馈，再降低直接转入的履历门槛。',
+      }] : [],
+    },
+    validationPath: [
+      {
+        level: 'work_reality',
+        title: '核对真实岗位共性',
+        validates: '你对这份工作的想象是否符合当前中国招聘市场。',
+        steps: ['收集 5–10 条近期真实 JD', '标出反复出现的任务与门槛', '找一名从业者核对差异'],
+        estimatedTime: '1–2 小时',
+        estimatedCost: '基本免费',
+        deliverable: '一页岗位共性与差异清单',
+        successSignals: ['能清楚说出核心任务和不可接受部分'],
+        stopSignals: ['多数岗位的核心工作都与你的现实约束冲突'],
+      },
+      {
+        level: experienceDependent ? 'real_evidence' : 'job_simulation',
+        title: experienceDependent ? '争取一次真实相邻任务' : '完成一次工作切片',
+        validates: '你能否完成核心任务，并愿意在反馈和修改中继续投入。',
+        steps: ['选取一个小而真实的问题', '按岗位方式完成交付', '请一名目标用户或从业者反馈'],
+        estimatedTime: experienceDependent ? '1–2 周' : '1–3 天',
+        estimatedCost: '基本免费或低成本',
+        deliverable: experienceDependent ? '一份真实任务记录与复盘' : '一个可展示的小型成果',
+        successSignals: ['完成核心交付', '能解释关键判断', '外部反馈指出成果可继续改进'],
+        stopSignals: ['无法接受该岗位最高频的核心任务'],
+      },
+    ],
   };
 }
 

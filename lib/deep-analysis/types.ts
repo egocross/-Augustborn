@@ -166,6 +166,86 @@ export const CareerEvidenceSourceSchema = z.object({
   excerpt: z.string().min(1).max(1800),
 });
 
+const httpsEvidenceUrl = z.string().url().max(4000).refine((value) => {
+  const url = new URL(value);
+  return url.protocol === 'https:' && !url.username && !url.password;
+});
+
+export const MarketEvidenceSchema = z.object({
+  sourceType: z.enum([
+    'job_posting', 'company_career', 'official', 'industry_report', 'practitioner', 'other',
+  ]),
+  title: z.string().min(1).max(300),
+  source: z.string().min(1).max(100).optional(),
+  url: httpsEvidenceUrl.optional(),
+  publishedAt: z.string().max(40).optional(),
+  city: z.string().min(1).max(80).optional(),
+  fact: z.string().min(1).max(800),
+});
+
+export const ValidationActionSchema = z.object({
+  level: z.enum(['work_reality', 'job_simulation', 'real_evidence', 'market_test']),
+  title: z.string().min(1).max(120),
+  validates: z.string().min(1).max(400),
+  steps: z.array(z.string().min(1).max(300)).min(3).max(6),
+  estimatedTime: z.string().min(1).max(80),
+  estimatedCost: z.string().min(1).max(100),
+  deliverable: z.string().min(1).max(300),
+  successSignals: z.array(z.string().min(1).max(240)).min(1).max(5),
+  stopSignals: z.array(z.string().min(1).max(240)).max(5).optional(),
+});
+
+export const CareerWorkValidationSchema = z.object({
+  careerId: z.string().min(1).max(100),
+  careerName: z.string().min(2).max(80),
+  status: z.enum(['complete', 'partial', 'unavailable']),
+  note: z.string().min(1).max(600).optional(),
+  workReality: z.object({
+    coreTasks: z.array(z.string().min(1).max(300)).min(1).max(6),
+    deliverables: z.array(z.string().min(1).max(240)).min(1).max(5),
+    performanceSignals: z.array(z.string().min(1).max(300)).min(1).max(5),
+    collaborationWith: z.array(z.string().min(1).max(160)).min(1).max(6),
+    overlookedReality: z.array(z.string().min(1).max(300)).min(1).max(5),
+    variabilityNotes: z.array(z.string().min(1).max(300)).max(4).optional(),
+    evidence: z.array(MarketEvidenceSchema).max(12),
+    confidence: z.enum(['high', 'medium', 'low']),
+  }),
+  capabilitySignals: z.object({
+    hiringSignalType: z.enum([
+      'portfolio_project', 'business_result', 'experience_based', 'credential_required',
+      'hands_on_skill', 'senior_experience', 'mixed',
+    ]),
+    existingSignals: z.array(z.object({
+      signal: z.string().min(1).max(240),
+      evidence: z.string().min(1).max(400),
+      boundary: z.string().min(1).max(300).optional(),
+    })).max(6),
+    criticalGaps: z.array(z.object({
+      gap: z.string().min(1).max(240),
+      impact: z.string().min(1).max(400),
+      basis: z.enum(['market_fact', 'model_judgment', 'mixed']),
+    })).min(1).max(3),
+    fastBuildableSignals: z.array(z.object({
+      title: z.string().min(1).max(160),
+      rationale: z.string().min(1).max(400),
+      deliverable: z.string().min(1).max(300),
+      estimatedTime: z.string().min(1).max(80),
+    })).max(3),
+    hardBarriers: z.array(z.object({
+      barrier: z.string().min(1).max(240),
+      explanation: z.string().min(1).max(500),
+      evidenceStatus: z.enum(['verified', 'uncertain']),
+    })).max(3),
+    bridgePaths: z.array(z.object({
+      from: z.string().min(1).max(120),
+      to: z.string().min(1).max(120),
+      steps: z.array(z.string().min(1).max(240)).min(2).max(5),
+      why: z.string().min(1).max(400),
+    })).max(3),
+  }),
+  validationPath: z.array(ValidationActionSchema).min(2).max(4),
+});
+
 export const CareerHypothesisSchema = z.object({
   title: z.string().min(2).max(80),
   tier: z.enum([
@@ -186,6 +266,8 @@ export const CareerHypothesisSchema = z.object({
     'baseTendencies', 'hardConstraints', 'careerCapital', 'marketEvidence',
   ])).min(2).max(4),
   minimumCostExperiment: z.string().min(1).max(800),
+  // Optional only so previously generated sessionStorage reports remain readable.
+  workValidation: CareerWorkValidationSchema.optional(),
 });
 
 export const CareerReportSchema = z.object({
@@ -215,3 +297,6 @@ export const DeepReportSchema = z.union([CareerReportSchema, LegacyDeepReportSch
 export type DeepReport = z.infer<typeof DeepReportSchema>;
 export type LegacyDeepReport = z.infer<typeof LegacyDeepReportSchema>;
 export type CareerReport = z.infer<typeof CareerReportSchema>;
+export type CareerWorkValidation = z.infer<typeof CareerWorkValidationSchema>;
+export type MarketEvidence = z.infer<typeof MarketEvidenceSchema>;
+export type ValidationAction = z.infer<typeof ValidationActionSchema>;

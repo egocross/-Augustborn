@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createChart } from '@/lib/bazi/chart';
-import { CareerReportSchema } from '@/lib/deep-analysis/types';
+import { CareerReportSchema, CareerWorkValidationSchema } from '@/lib/deep-analysis/types';
 import { ReportSchema } from '@/lib/gemini/schema';
 import { createSampleBaseReport, createSampleCareerReport } from './sample';
 import { getReportProvider, usesSampleReports } from './config';
@@ -65,6 +65,30 @@ describe('sample report content', () => {
     expect(report.marketStatus).toBe('sample');
     expect(report.careerHypotheses.every((item) => item.evidenceStatus === 'unavailable')).toBe(true);
     expect(report.careerHypotheses.every((item) => item.sources.length === 0)).toBe(true);
+    for (const hypothesis of report.careerHypotheses) {
+      const validation = CareerWorkValidationSchema.parse(hypothesis.workValidation);
+      expect(validation.careerName).toBe(hypothesis.title);
+      expect(validation.workReality.evidence).toEqual([]);
+      expect(validation.workReality.confidence).toBe('low');
+      expect(validation.capabilitySignals.hiringSignalType).toMatch(
+        /portfolio_project|business_result|experience_based|credential_required|hands_on_skill|senior_experience|mixed/,
+      );
+      expect(validation.capabilitySignals.criticalGaps.length).toBeGreaterThanOrEqual(1);
+      expect(validation.capabilitySignals.criticalGaps.length).toBeLessThanOrEqual(3);
+      expect(validation.validationPath.length).toBeGreaterThanOrEqual(2);
+      expect(validation.validationPath.length).toBeLessThanOrEqual(4);
+      expect(validation.validationPath.every((action) => (
+        action.steps.length >= 3
+        && action.estimatedTime.length > 0
+        && action.estimatedCost.length > 0
+        && action.deliverable.length > 0
+        && action.successSignals.length > 0
+      ))).toBe(true);
+    }
+    expect(report.careerHypotheses.some((item) => (
+      item.workValidation.capabilitySignals.hardBarriers.length > 0
+      && item.workValidation.capabilitySignals.bridgePaths.length > 0
+    ))).toBe(true);
     expect(JSON.stringify(report)).not.toContain('招聘数量');
   });
 });
