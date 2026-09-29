@@ -12,8 +12,19 @@ import {
   type CareerMarketEvidence,
 } from './career-pipeline';
 import { createCareerReportPrompt } from './prompts/career';
+import { createCareerValidationPrompt } from './prompts/career-validation';
+import {
+  researchCareerValidation,
+  type CareerValidationResearch,
+} from './research/career-validation';
 import { researchCareerMarket } from './research/jobs';
-import { CareerReportSchema, type CareerReport, type DeepReport } from './types';
+import {
+  CareerReportSchema,
+  CareerWorkValidationSchema,
+  type CareerReport,
+  type CareerWorkValidation,
+  type DeepReport,
+} from './types';
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
 const THINKING_LEVELS: Record<GeminiReasoningEffort, ThinkingLevel> = {
@@ -31,6 +42,13 @@ export class DeepAnalysisError extends Error {
 const config = (signal?: AbortSignal) => ({
   responseMimeType: 'application/json',
   responseJsonSchema: z.toJSONSchema(CareerReportSchema, { target: 'openapi-3.0' }),
+  thinkingConfig: { thinkingLevel: THINKING_LEVELS[GEMINI_REASONING_EFFORT] },
+  ...(signal ? { abortSignal: signal } : {}),
+});
+
+const validationConfig = (signal?: AbortSignal) => ({
+  responseMimeType: 'application/json',
+  responseJsonSchema: z.toJSONSchema(CareerWorkValidationSchema, { target: 'openapi-3.0' }),
   thinkingConfig: { thinkingLevel: THINKING_LEVELS[GEMINI_REASONING_EFFORT] },
   ...(signal ? { abortSignal: signal } : {}),
 });
@@ -74,6 +92,166 @@ function attachVerifiedSources(report: CareerReport, market: CareerMarketEvidenc
   });
 }
 
+const unavailableResearch = (careerName: string): CareerValidationResearch => ({
+  careerName,
+  checkedAt: new Date().toISOString(),
+  queries: [`${careerName} 岗位职责 JD 中国`],
+  evidence: [],
+  status: 'unavailable',
+  confidence: 'low',
+  note: '当前公开信息不足，建议把“真实岗位访谈 / JD 核实”作为第一验证动作。',
+  cacheStatus: 'miss',
+  failure: 'unavailable',
+});
+
+function evidenceCheckAction(careerName: string): CareerWorkValidation['validationPath'][number] {
+  return {
+    level: 'work_reality',
+    title: '先核对真实岗位与从业信息',
+    validates: `你对“${careerName}”核心任务与入场门槛的理解是否符合当前中国市场。`,
+    steps: ['收集 5–10 条近期真实 JD', '标出反复出现的任务、交付物与门槛', '找一名从业者或招聘者核对差异'],
+    estimatedTime: '1–2 小时',
+    estimatedCost: '基本免费',
+    deliverable: '一页岗位共性、差异与待确认问题清单',
+    successSignals: ['能清楚说出最高频任务、主要门槛和自己不能接受的部分'],
+    stopSignals: ['多数真实岗位的核心任务或硬门槛都与现实约束冲突'],
+  };
+}
+
+function unavailableValidation(careerName: string, reason: string): CareerWorkValidation {
+  return CareerWorkValidationSchema.parse({
+    careerId: `career-${careerName}`,
+    careerName,
+    status: 'unavailable',
+    note: reason,
+    workReality: {
+      coreTasks: ['当前公开信息不足，核心任务需要通过真实 JD 或从业者访谈核实'],
+      deliverables: ['待核实该岗位的真实交付物'],
+      performanceSignals: ['具体考核方式因公司与岗位层级而异，当前不补造结论'],
+      collaborationWith: ['待通过真实岗位信息核实'],
+      overlookedReality: ['同名岗位在不同公司的职责边界可能明显不同'],
+      evidence: [],
+      confidence: 'low',
+    },
+    capabilitySignals: {
+      hiringSignalType: 'mixed',
+      existingSignals: [],
+      criticalGaps: [{
+        gap: '缺少可核实的岗位门槛与能力证明信息',
+        impact: '目前不能可靠判断招聘者最看重哪种入场信号。',
+        basis: 'model_judgment',
+      }],
+      fastBuildableSignals: [],
+      hardBarriers: [],
+      bridgePaths: [],
+    },
+    validationPath: [
+      evidenceCheckAction(careerName),
+      {
+        level: 'market_test',
+        title: '带着核对清单询问一名从业者',
+        validates: '公开职位描述与真实日常工作之间有哪些差异。',
+        steps: ['选择一名当前从业者或招聘者', '发送 3 个关于高频任务、压力和门槛的问题', '记录回答并修正岗位清单'],
+        estimatedTime: '半天内',
+        estimatedCost: '基本免费',
+        deliverable: '一份真实岗位访谈记录',
+        successSignals: ['至少获得一条能改变或确认判断的外部反馈'],
+      },
+    ],
+  });
+}
+
+function attachValidationEvidence(
+  modelValue: unknown,
+  careerName: string,
+  research: CareerValidationResearch,
+): CareerWorkValidation {
+  const parsed = CareerWorkValidationSchema.parse(modelValue);
+  const hasOfficialEvidence = research.evidence.some((item) => item.sourceType === 'official');
+  let validationPath = parsed.validationPath;
+  if (!research.evidence.length && !/JD|岗位|从业|招聘/.test(validationPath[0]?.title ?? '')) {
+    validationPath = [evidenceCheckAction(careerName), ...validationPath].slice(0, 4);
+  }
+  return CareerWorkValidationSchema.parse({
+    ...parsed,
+    careerId: `career-${careerName}`,
+    careerName,
+    status: research.status === 'verified' ? 'complete' : 'partial',
+    note: research.note,
+    workReality: {
+      ...parsed.workReality,
+      evidence: research.evidence,
+      confidence: research.confidence,
+    },
+    capabilitySignals: {
+      ...parsed.capabilitySignals,
+      hardBarriers: parsed.capabilitySignals.hardBarriers.map((barrier) => ({
+        ...barrier,
+        evidenceStatus: barrier.evidenceStatus === 'verified' && !hasOfficialEvidence
+          ? 'uncertain' as const
+          : barrier.evidenceStatus,
+      })),
+    },
+    validationPath,
+  });
+}
+
+async function enrichCareerValidations(
+  report: CareerReport,
+  request: CareerGenerationRequest,
+  ai: GoogleGenAI,
+  context: ReturnType<typeof createCareerResearchContext>,
+  options: { signal?: AbortSignal; onStage?: (stage: string) => void },
+): Promise<CareerReport> {
+  options.onStage?.('work_reality');
+  const researchByCareer: CareerValidationResearch[] = [];
+  for (const hypothesis of report.careerHypotheses) {
+    options.signal?.throwIfAborted();
+    try {
+      researchByCareer.push(await researchCareerValidation(hypothesis.title, context, options));
+    } catch {
+      options.signal?.throwIfAborted();
+      researchByCareer.push(unavailableResearch(hypothesis.title));
+    }
+  }
+
+  options.onStage?.('capability_signals');
+  const careerHypotheses = [] as CareerReport['careerHypotheses'];
+  for (let index = 0; index < report.careerHypotheses.length; index += 1) {
+    const hypothesis = report.careerHypotheses[index];
+    const research = researchByCareer[index];
+    options.signal?.throwIfAborted();
+    try {
+      const result = await ai.models.generateContent({
+        model: GEMINI_MODEL ?? DEFAULT_MODEL,
+        contents: createCareerValidationPrompt({
+          hypothesis,
+          careerCapital: request.careerCalibration.careerCapital,
+          hardConstraints: request.careerCalibration.hardConstraints,
+          research,
+        }),
+        config: validationConfig(options.signal),
+      });
+      if (!result.text) throw new Error('empty_career_validation');
+      careerHypotheses.push({
+        ...hypothesis,
+        workValidation: attachValidationEvidence(JSON.parse(result.text), hypothesis.title, research),
+      });
+    } catch {
+      options.signal?.throwIfAborted();
+      careerHypotheses.push({
+        ...hypothesis,
+        workValidation: unavailableValidation(
+          hypothesis.title,
+          '这个单个职业的验证暂时没有生成完成；其他职业仍可继续查看，建议先用真实 JD 与从业者访谈核实。',
+        ),
+      });
+    }
+  }
+  options.onStage?.('validation_paths');
+  return CareerReportSchema.parse({ ...report, careerHypotheses });
+}
+
 export async function* generateCareerReportStream(
   request: CareerGenerationRequest,
   options: { signal?: AbortSignal; onStage?: (stage: string) => void } = {},
@@ -99,7 +277,14 @@ export async function* generateCareerReportStream(
       }
     }
     if (!text) throw new DeepAnalysisError('upstream_failed');
-    return attachVerifiedSources(CareerReportSchema.parse(JSON.parse(text)), market);
+    const candidates = attachVerifiedSources(CareerReportSchema.parse(JSON.parse(text)), market);
+    return await enrichCareerValidations(
+      candidates,
+      request,
+      ai,
+      createCareerResearchContext(input),
+      options,
+    );
   } catch (error) {
     if (error instanceof SyntaxError || error instanceof z.ZodError) {
       throw new DeepAnalysisError('parse_failed');

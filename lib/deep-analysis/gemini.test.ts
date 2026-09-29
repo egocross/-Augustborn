@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { generateContentStream, GoogleGenAI, researchCareerMarket } = vi.hoisted(() => {
+const { generateContent, generateContentStream, GoogleGenAI, researchCareerMarket, researchCareerValidation } = vi.hoisted(() => {
+  const generateContent = vi.fn();
   const generateContentStream = vi.fn();
   const GoogleGenAI = vi.fn(function GoogleGenAI() {
-    return { models: { generateContentStream } };
+    return { models: { generateContent, generateContentStream } };
   });
-  return { generateContentStream, GoogleGenAI, researchCareerMarket: vi.fn() };
+  return {
+    generateContent,
+    generateContentStream,
+    GoogleGenAI,
+    researchCareerMarket: vi.fn(),
+    researchCareerValidation: vi.fn(),
+  };
 });
 
 vi.mock('@google/genai', () => ({
@@ -13,6 +20,7 @@ vi.mock('@google/genai', () => ({
   ThinkingLevel: { LOW: 'LOW', MEDIUM: 'MEDIUM', HIGH: 'HIGH' },
 }));
 vi.mock('./research/jobs', () => ({ researchCareerMarket }));
+vi.mock('./research/career-validation', () => ({ researchCareerValidation }));
 
 import { createSampleCareerReport } from '@/lib/report-provider/sample';
 import { generateCareerReportStream } from './gemini';
@@ -41,9 +49,27 @@ const source = {
 };
 
 beforeEach(() => {
+  generateContent.mockReset();
   generateContentStream.mockReset();
   GoogleGenAI.mockClear();
   researchCareerMarket.mockReset();
+  researchCareerValidation.mockReset();
+  researchCareerValidation.mockImplementation(async (careerName: string) => ({
+    careerName,
+    checkedAt: '2026-09-30T08:00:00.000Z',
+    queries: [`${careerName} 岗位职责 JD 中国`],
+    evidence: [],
+    status: 'unavailable',
+    confidence: 'low',
+    note: '当前公开信息不足',
+    cacheStatus: 'miss',
+  }));
+  generateContent.mockImplementation(async ({ contents }: { contents: string }) => {
+    const title = ['内容策划', '产品运营', '用户研究助理'].find((value) => contents.includes(value)) ?? '目标岗位';
+    const validation = createSampleCareerReport(request).careerHypotheses
+      .find((item) => item.title === title)?.workValidation;
+    return { text: JSON.stringify(validation) };
+  });
 });
 
 describe('career Gemini adapter', () => {
@@ -68,7 +94,7 @@ describe('career Gemini adapter', () => {
     const result = await stream.next();
     expect(result.done).toBe(true);
     if (!result.done || !result.value || !('kind' in result.value)) throw new Error('missing report');
-    expect(stages).toEqual(['researching', 'converging']);
+    expect(stages).toEqual(['researching', 'converging', 'work_reality', 'capability_signals', 'validation_paths']);
     expect(result.value.marketStatus).toBe('partial');
     expect(result.value.careerHypotheses[0].sources).toEqual([{ title: source.title, site: source.site, url: source.url, excerpt: source.excerpt }]);
     expect(result.value.careerHypotheses[0]).toMatchObject({ evidenceStatus: 'partial', sourceCount: 1 });
@@ -92,6 +118,59 @@ describe('career Gemini adapter', () => {
     expect(result.value.marketStatus).toBe('unavailable');
     expect(result.value.careerHypotheses.every((item) => item.sources.length === 0)).toBe(true);
     expect(result.value.careerHypotheses[0].marketEvidenceSummary).toContain('待验证');
+  });
+
+  it('validates careers independently, strips invented evidence, and keeps going after one career fails', async () => {
+    researchCareerMarket.mockResolvedValue({
+      status: 'unavailable', retrievedAt: null, sources: [], note: '候选阶段没有市场来源',
+    });
+    const trustedEvidence = {
+      sourceType: 'job_posting' as const, title: '内容策划招聘', source: '猎聘',
+      url: 'https://www.liepin.com/job/123456789.shtml',
+      fact: '岗位需要内容策划与跨团队协作。',
+    };
+    researchCareerValidation.mockImplementation(async (careerName: string) => ({
+      careerName,
+      checkedAt: '2026-09-30T08:00:00.000Z',
+      queries: [`${careerName} 岗位职责 JD 中国`],
+      evidence: careerName === '内容策划' ? [trustedEvidence] : [],
+      status: careerName === '内容策划' ? 'partial' : 'unavailable',
+      confidence: 'low',
+      note: careerName === '内容策划' ? '少量来源' : '当前公开信息不足',
+      cacheStatus: 'miss',
+    }));
+    const modelReport = createSampleCareerReport(request);
+    generateContentStream.mockImplementation(async function* () { yield { text: JSON.stringify(modelReport) }; });
+    generateContent.mockImplementation(async ({ contents }: { contents: string }) => {
+      if (contents.includes('产品运营')) throw new Error('one career failed');
+      const title = contents.includes('内容策划') ? '内容策划' : '用户研究助理';
+      const validation = structuredClone(modelReport.careerHypotheses.find((item) => item.title === title)?.workValidation);
+      if (!validation) throw new Error('missing fixture');
+      validation.status = 'complete';
+      validation.workReality.evidence = [{
+        ...trustedEvidence,
+        url: 'https://evil.example/fabricated',
+        fact: '模型编造的事实',
+      }];
+      validation.capabilitySignals.hardBarriers = [{
+        barrier: '模型声称的法定资格', explanation: '没有官方来源', evidenceStatus: 'verified',
+      }];
+      return { text: JSON.stringify(validation) };
+    });
+
+    const stream = generateCareerReportStream(request);
+    await stream.next();
+    const result = await stream.next();
+    if (!result.done || !result.value || !('kind' in result.value)) throw new Error('missing report');
+
+    const [first, failed, third] = result.value.careerHypotheses;
+    expect(first.workValidation?.workReality.evidence).toEqual([trustedEvidence]);
+    expect(first.workValidation?.capabilitySignals.hardBarriers[0].evidenceStatus).toBe('uncertain');
+    expect(failed.workValidation).toMatchObject({ status: 'unavailable', careerName: '产品运营' });
+    expect(failed.workValidation?.note).toContain('单个职业');
+    expect(third.workValidation?.careerName).toBe('用户研究助理');
+    expect(researchCareerValidation).toHaveBeenCalledTimes(3);
+    expect(generateContent).toHaveBeenCalledTimes(3);
   });
 
   it('maps invalid model JSON to parse_failed', async () => {

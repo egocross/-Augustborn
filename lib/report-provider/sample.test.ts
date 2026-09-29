@@ -86,8 +86,8 @@ describe('sample report content', () => {
       ))).toBe(true);
     }
     expect(report.careerHypotheses.some((item) => (
-      item.workValidation.capabilitySignals.hardBarriers.length > 0
-      && item.workValidation.capabilitySignals.bridgePaths.length > 0
+      (item.workValidation?.capabilitySignals.hardBarriers.length ?? 0) > 0
+      && (item.workValidation?.capabilitySignals.bridgePaths.length ?? 0) > 0
     ))).toBe(true);
     expect(JSON.stringify(report)).not.toContain('招聘数量');
   });
