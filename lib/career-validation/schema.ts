@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CareerWorkValidationSchema } from '@/lib/deep-analysis/types';
 
 const text = z.string().trim().min(1);
-const isoTime = z.iso.datetime();
+const isoTime = z.iso.datetime({ offset: true });
 const emptyAttachments = z.tuple([]);
 const httpsUrl = z.url().max(4000).refine((value) => {
   const url = new URL(value);
