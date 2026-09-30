@@ -37,8 +37,11 @@ function outcome(result: QueryResult, code: string): Record<string, unknown> {
 }
 
 export type RepositoryClaim =
-  | { outcome: 'claimed' | 'in_progress' | 'exists'; session: CareerValidationSession }
-  | { outcome: 'gone' | 'invalid_state' };
+  | { outcome: 'claimed'; session: CareerValidationSession }
+  | { outcome: 'in_progress'; session: CareerValidationSession }
+  | { outcome: 'exists'; session: CareerValidationSession }
+  | { outcome: 'gone' }
+  | { outcome: 'invalid_state' };
 
 export type RepositoryPatch =
   | { outcome: 'updated'; session: CareerValidationSession }
