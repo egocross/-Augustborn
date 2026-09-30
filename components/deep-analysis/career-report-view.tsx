@@ -1,4 +1,5 @@
 import type { CareerReport, CareerWorkValidation } from '@/lib/deep-analysis/types';
+import type { ValidationAccess } from '@/lib/deep-analysis/stream';
 
 type Hypothesis = CareerReport['careerHypotheses'][number];
 
@@ -103,7 +104,7 @@ function FullValidation({ validation }: { validation: CareerWorkValidation }) {
   </div>;
 }
 
-function CareerHypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
+function CareerHypothesisCard({ hypothesis, access }: { hypothesis: Hypothesis; access?: ValidationAccess }) {
   const validation = hypothesis.workValidation;
   if (!validation) return <article className="career-hypothesis-card" data-testid="career-hypothesis">
     <p className="career-tier">{hypothesis.tier}</p>
@@ -131,6 +132,9 @@ function CareerHypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
       <section className="career-decision-action"><p>先做这个验证</p><strong>{firstAction.title}</strong><span>{firstAction.estimatedTime} · {firstAction.estimatedCost}</span><small>产出：{firstAction.deliverable}</small></section>
     </div>
     <CandidateSources hypothesis={hypothesis} />
+    {access ? <a className="primary-button career-validator-cta" href={`/career-validation/${access.validationSessionId}`}>
+      开始真实任务验证<span aria-hidden="true">→</span>
+    </a> : null}
     <details className="career-validation-disclosure">
       <summary>查看完整工作验证<span aria-hidden="true">＋</span></summary>
       <FullValidation validation={validation} />
@@ -138,8 +142,13 @@ function CareerHypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
   </article>;
 }
 
-export function CareerReportView({ report }: { report: CareerReport }) {
+export function CareerReportView({ report, validationAccess = [] }: { report: CareerReport; validationAccess?: ValidationAccess[] }) {
   const hasWorkValidation = report.careerHypotheses.some((hypothesis) => Boolean(hypothesis.workValidation));
+  let eligibleIndex = 0;
+  const hypothesisViews = report.careerHypotheses.map((hypothesis) => ({
+    hypothesis,
+    access: hypothesis.workValidation ? validationAccess[eligibleIndex++] : undefined,
+  }));
   return (
     <article className="deep-report-view career-report-view">
       <header className="deep-report-hero">
@@ -151,7 +160,7 @@ export function CareerReportView({ report }: { report: CareerReport }) {
       <section className="deep-report-block career-hypotheses">
         <h3>当前值得优先验证的职业方向</h3>
         <p className="job-research-note">这些是可搜索、可验证的职业假设。验证结果也可能推翻候选方向，而不是证明它一定适合你。</p>
-        <div className="career-hypothesis-list">{report.careerHypotheses.map((hypothesis) => <CareerHypothesisCard hypothesis={hypothesis} key={hypothesis.title} />)}</div>
+        <div className="career-hypothesis-list">{hypothesisViews.map(({ hypothesis, access }, index) => <CareerHypothesisCard access={access} hypothesis={hypothesis} key={`${index}-${hypothesis.title}`} />)}</div>
       </section>
 
       <section className="deep-report-block career-boundaries">

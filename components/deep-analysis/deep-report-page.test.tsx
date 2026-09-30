@@ -5,6 +5,7 @@ const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 import { createInitialDeepState, saveDeepSession } from '@/lib/deep-analysis/session';
+import { createSampleCareerReport } from '@/lib/report-provider/sample';
 import { DeepReportPage } from './deep-report-page';
 
 const context = {
@@ -63,4 +64,36 @@ it('offers a safe recovery when no report exists in this tab', async () => {
   expect(await screen.findByText('这份深度报告已不在当前标签页中')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: '返回首页' }));
   expect(push).toHaveBeenCalledWith('/');
+});
+
+it('opens the validator with a session id only, never the signed capability', async () => {
+  const careerReport = createSampleCareerReport({
+    questionnaireVersion: 'career-v1',
+    baseReport: { disclaimer: '仅供参考', sections: [{ heading: '方向', body: '内容', bullets: [] }] },
+    careerCalibration: {
+      questionnaireVersion: 'career-v1',
+      hardConstraints: {
+        careerStatus: 'career_status_first_job', transitionUrgency: 'transition_3_months',
+        income: { minimumIncomeBand: 'minimum_income_3000_5000', currency: 'CNY', salaryDropTolerance: 'salary_drop_none' },
+        responsibilities: ['responsibility_none'], location: { mobility: 'mobility_nationwide', constraints: [] },
+        transitionCapacity: { weeklyHours: 'weekly_hours_full_time', preparationHorizon: 'preparation_3_6_months', maxBudget: 'budget_none' },
+        restartTolerance: 'restart_entry_level', educationTolerance: 'education_short', workConstraints: ['work_constraint_none'],
+        incomeModels: ['income_model_any'], employmentTypes: ['employment_type_any'],
+      },
+      careerCapital: { experience: [], skills: ['capital_content'], evidence: [] }, values: ['value_growth'],
+    },
+  });
+  saveDeepSession({
+    ...createInitialDeepState('session-12345678', context),
+    step: 'report',
+    report: careerReport,
+    validationAccess: [{
+      careerId: 'career-1-abc', validationSessionId: '123e4567-e89b-42d3-a456-426614174001', capability: 'signed-capability',
+    }],
+  }, window.sessionStorage);
+
+  render(<DeepReportPage />);
+  const link = await screen.findByRole('link', { name: /开始真实任务验证/ });
+  expect(link.getAttribute('href')).toBe('/career-validation/123e4567-e89b-42d3-a456-426614174001');
+  expect(link.getAttribute('href')).not.toContain('signed-capability');
 });

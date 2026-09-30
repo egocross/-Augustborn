@@ -1496,3 +1496,239 @@ input::placeholder { color: var(--placeholder); }
   .direction-card:hover { transform: none; }
   .deep-generating-overlay { animation: none; }
 }
+
+/* Career validation flow ------------------------------------------------- */
+
+.career-validation-shell {
+  width: min(100% - 1.5rem, 44rem);
+  padding-top: clamp(1.25rem, 4vh, 2.5rem);
+  padding-bottom: calc(clamp(1.5rem, 5vh, 3rem) + env(safe-area-inset-bottom));
+}
+
+.career-validation-page { display: grid; gap: 1rem; min-width: 0; }
+.career-validation-page > * { min-width: 0; }
+.career-validation-page p, .career-validation-page li { overflow-wrap: anywhere; }
+
+.validation-steps { min-width: 0; }
+
+.validation-steps ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.validation-steps li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.validation-steps li span {
+  display: inline-grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 0.68rem;
+}
+
+.validation-steps li.is-done { color: var(--ink-soft); }
+.validation-steps li.is-done span { border-color: var(--ink-soft); color: var(--ink-soft); }
+.validation-steps li.is-current { color: var(--accent); font-weight: 600; }
+.validation-steps li.is-current span { border-color: var(--accent); background: var(--accent); color: #fbf7f0; }
+
+.validation-step {
+  display: grid;
+  gap: 1.1rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(1.1rem, 4.5vw, 1.75rem);
+}
+
+.validation-step-head { display: grid; gap: 0.45rem; }
+.validation-step-head h1 { font-size: clamp(1.3rem, 5.2vw, 1.7rem); line-height: 1.35; }
+.validation-question { margin: 0; color: var(--ink); font-size: 1.02rem; font-weight: 600; }
+.validation-meta { margin: 0; color: var(--muted); font-size: 0.85rem; }
+
+.validation-synthesis, .validation-facts {
+  display: grid;
+  gap: 0.55rem;
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+}
+
+.validation-synthesis { border: 1px solid #e6cdab; border-left: 3px solid var(--accent); background: var(--accent-soft); }
+.validation-facts { border: 1px solid var(--line-strong); border-left: 3px solid var(--ink-soft); background: var(--surface-muted); }
+.validation-synthesis h2, .validation-facts h2 { margin: 0; font-size: 0.95rem; }
+.validation-synthesis p, .validation-facts p { margin: 0; font-size: 0.9rem; line-height: 1.7; }
+.validation-facts ul { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.validation-facts li { border-top: 1px solid var(--line); padding-top: 0.55rem; font-size: 0.88rem; }
+.validation-facts a { color: var(--accent-hover); font-weight: 600; text-decoration: none; }
+.validation-limit { color: var(--ink-soft); font-size: 0.85rem; }
+.validation-empty { color: var(--muted); font-size: 0.88rem; }
+
+.validation-block { display: grid; gap: 0.5rem; }
+.validation-block h2 { margin: 0; font-size: 1rem; }
+.validation-block ol, .validation-block ul { display: grid; gap: 0.5rem; margin: 0; padding-left: 1.15rem; }
+.validation-rubric { padding-left: 0 !important; list-style: none; }
+.validation-rubric li { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 0.65rem 0.75rem; }
+.validation-rubric p { margin: 0.25rem 0 0; color: var(--ink-soft); font-size: 0.88rem; }
+
+.validation-field { display: grid; gap: 0.45rem; }
+.validation-field > span { color: var(--ink); font-size: 0.9rem; font-weight: 600; }
+.validation-field textarea, .validation-field input {
+  width: 100%;
+  min-height: 3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 0.75rem 0.9rem;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.validation-field textarea { min-height: 12rem; resize: vertical; }
+.validation-field-help { margin: 0; color: var(--muted); font-size: 0.82rem; }
+
+.validation-reflection-group { display: grid; gap: 0.55rem; margin: 0; border: 0; padding: 0; }
+.validation-reflection-group legend { color: var(--ink); font-size: 0.95rem; font-weight: 600; padding: 0; }
+.validation-choice-row { display: grid; gap: 0.5rem; }
+.validation-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+.validation-choice.is-selected { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.validation-choice input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
+
+.validation-analysis-panel, .validation-analyzing {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 0.85rem 1rem;
+}
+.validation-analyzing p { margin: 0.35rem 0 0; color: var(--ink-soft); font-size: 0.88rem; }
+
+.validation-warning, .validation-notice, .validation-recovered {
+  margin: 0;
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.validation-warning { border: 1px solid #e2b48d; background: #f7e7d5; color: #7a3d12; }
+.validation-notice { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-soft); }
+.validation-recovered { border: 1px solid var(--line); background: var(--surface-muted); color: var(--ink-soft); }
+
+.validation-conflict {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid #dda27f;
+  border-radius: var(--radius-md);
+  background: #f9e8da;
+  padding: 0.9rem 1rem;
+}
+.validation-conflict h2 { margin: 0; font-size: 1rem; color: #7a3d12; }
+.validation-conflict p { margin: 0; color: #7a3d12; font-size: 0.88rem; }
+.validation-conflict-actions { display: grid; gap: 0.5rem; }
+
+.validation-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.7rem 0 calc(0.7rem + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--canvas) 68%, rgb(246 241 232 / 0%));
+}
+.validation-action-bar:empty { display: none; }
+.validation-action-bar > button { flex: 1; min-height: 3rem; }
+
+.validation-screen {
+  display: grid;
+  justify-items: start;
+  gap: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(1.2rem, 5vw, 1.9rem);
+}
+.validation-screen h1 { margin: 0; font-size: clamp(1.3rem, 5vw, 1.6rem); }
+.validation-screen p { margin: 0; color: var(--ink-soft); }
+
+.validation-result { display: grid; gap: 1.1rem; }
+.validation-result-hero { display: grid; gap: 0.5rem; }
+.validation-result-hero h1 { font-size: clamp(1.25rem, 4.8vw, 1.6rem); line-height: 1.4; }
+.validation-verdict { width: fit-content; margin: 0; border-radius: var(--radius-pill); padding: 0.3rem 0.85rem; font-size: 0.88rem; font-weight: 600; }
+.verdict-worth_continuing { background: #e4efe0; color: #2f5c2a; }
+.verdict-insufficient_evidence { background: #f3ecdc; color: #6d5a1f; }
+.verdict-do_not_increase_investment { background: #f6e0da; color: #7d2f1f; }
+
+.validation-result-block { display: grid; gap: 0.5rem; }
+.validation-result-block h2 { margin: 0; font-size: 1rem; }
+.validation-result-block ul { display: grid; gap: 0.45rem; margin: 0; padding-left: 1.1rem; }
+.validation-evidence-list { padding-left: 0 !important; list-style: none; }
+.validation-evidence { border: 1px solid var(--line); border-left: 3px solid var(--ink-soft); border-radius: var(--radius-md); padding: 0.7rem 0.85rem; }
+.validation-evidence p { margin: 0.2rem 0 0; font-size: 0.9rem; line-height: 1.7; }
+.validation-evidence-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.82rem; color: var(--muted); }
+.validation-evidence-limit { color: var(--muted); }
+.evidence-support { border-left-color: #4c7a3f; }
+.evidence-mixed { border-left-color: #a3822f; }
+.evidence-risk { border-left-color: var(--alert); }
+.validation-result-split { gap: 0.9rem; }
+
+.validation-next-action {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid #e6cdab;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  padding: 1rem;
+}
+.validation-next-action h2 { margin: 0; font-size: 1.15rem; }
+.validation-next-action p { margin: 0; font-size: 0.92rem; }
+.validation-next-meta { color: var(--ink-soft); font-size: 0.84rem !important; }
+.validation-next-action button { margin-top: 0.35rem; }
+.validation-external-note { color: var(--ink-soft); font-size: 0.85rem; }
+
+.validation-danger { display: grid; gap: 0.6rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.validation-delete { justify-self: start; min-height: 2.9rem; padding: 0 0.25rem; color: var(--alert); font-size: 0.9rem; text-decoration: underline; }
+.validation-confirm { display: grid; gap: 0.55rem; border: 1px solid #dda27f; border-radius: var(--radius-md); background: #f9e8da; padding: 0.9rem 1rem; }
+.validation-confirm h2 { margin: 0; font-size: 1rem; color: #7a3d12; }
+.validation-confirm p { margin: 0; color: #7a3d12; font-size: 0.88rem; }
+.validation-confirm-actions { display: grid; gap: 0.5rem; }
+.primary-button.danger { background: var(--alert); }
+.primary-button.danger:hover:not(:disabled) { background: #8a2f22; }
+
+.career-validator-cta { width: 100%; margin-top: 0.85rem; justify-content: space-between; gap: 0.5rem; }
+
+@media (min-width: 420px) {
+  .validation-choice-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .validation-conflict-actions, .validation-confirm-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .validation-result-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 359px) {
+  .validation-steps li { font-size: 0; gap: 0; }
+  .validation-steps li span { font-size: 0.68rem; }
+}

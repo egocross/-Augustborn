@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { LegacyDeepReportSchema, type DeepReport, type LegacyDeepReport } from '@/lib/deep-analysis/types';
+import type { ValidationAccess } from '@/lib/deep-analysis/stream';
 import { JobRecommendations } from './job-recommendations';
 import { ExplorationSections } from './exploration-sections';
 import { CareerReportView } from './career-report-view';
@@ -163,9 +164,9 @@ function LegacyDeepReportView({ report }: { report: LegacyDeepReport }) {
   </article>;
 }
 
-export function DeepReportView({ report }: { report: DeepReport }) {
+export function DeepReportView({ report, validationAccess = [] }: { report: DeepReport; validationAccess?: ValidationAccess[] }) {
   if ('kind' in report && report.kind === 'career-calibration') {
-    return <CareerReportView report={report} />;
+    return <CareerReportView report={report} validationAccess={validationAccess} />;
   }
 
   return <LegacyDeepReportView report={LegacyDeepReportSchema.parse(report)} />;

@@ -69,3 +69,29 @@ it('shows source count and links only when verified sources exist', () => {
   expect(screen.getByText('部分来源支持 · 1 条')).toBeTruthy();
   expect(screen.getByRole('link', { name: /招聘详情/ }).getAttribute('href')).toBe('https://www.liepin.com/job/123.shtml');
 });
+
+it('offers the validator only for hypotheses that have a matching access item', () => {
+  const access = [
+    { careerId: 'career-1-aaa', validationSessionId: '123e4567-e89b-42d3-a456-426614174001', capability: 'cap-1' },
+    { careerId: 'career-2-bbb', validationSessionId: '123e4567-e89b-42d3-a456-426614174002', capability: 'cap-2' },
+    { careerId: 'career-3-ccc', validationSessionId: '123e4567-e89b-42d3-a456-426614174003', capability: 'cap-3' },
+  ];
+  const { unmount } = render(<CareerReportView report={report} validationAccess={access} />);
+  const links = screen.getAllByRole('link', { name: /开始真实任务验证/ });
+  expect(links).toHaveLength(3);
+  expect(links.map((link) => link.getAttribute('href'))).toEqual(access.map((item) => `/career-validation/${item.validationSessionId}`));
+  expect(links[0].getAttribute('href')).not.toContain(access[0].capability);
+  unmount();
+
+  const withoutSecondValidation = structuredClone(report);
+  delete (withoutSecondValidation.careerHypotheses[1] as { workValidation?: unknown }).workValidation;
+  render(<CareerReportView report={withoutSecondValidation} validationAccess={access} />);
+  const partialLinks = screen.getAllByRole('link', { name: /开始真实任务验证/ });
+  expect(partialLinks).toHaveLength(2);
+  expect(partialLinks[1].getAttribute('href')).toBe('/career-validation/123e4567-e89b-42d3-a456-426614174002');
+});
+
+it('renders no validator entry point without server access', () => {
+  render(<CareerReportView report={report} />);
+  expect(screen.queryByRole('link', { name: /开始真实任务验证/ })).toBeNull();
+});
