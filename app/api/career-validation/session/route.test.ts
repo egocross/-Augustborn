@@ -1,10 +1,35 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationAccessError } from '@/lib/career-validation/authorize';
-import { createSessionHandler } from './route';
+import { ValidationDraftError } from '@/lib/career-validation/draft-service';
+import { createSessionHandler, createSessionPatchHandler } from './route';
 
 const request = (body: unknown) => new Request('http://localhost/api/career-validation/session', {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+});
+
+describe('PATCH /api/career-validation/session', () => {
+  it('returns 409 and latest revision on a stale edit', async () => {
+    const save = vi.fn(async () => { throw new ValidationDraftError('VERSION_CONFLICT', 4); });
+    const PATCH = createSessionPatchHandler({ save });
+    const response = await PATCH(new Request('http://localhost/api/career-validation/session', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ capability: 'signed-token', expectedRevision: 2, patch: { status: 'in_progress' } }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ code: 'VERSION_CONFLICT', latestRevision: 4 });
+  });
+
+  it('rejects client attempts to edit the frozen snapshot', async () => {
+    const save = vi.fn();
+    const PATCH = createSessionPatchHandler({ save });
+    const response = await PATCH(new Request('http://localhost/api/career-validation/session', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ capability: 'signed-token', expectedRevision: 2, patch: { validationContextSnapshot: {} } }),
+    }));
+    expect(response.status).toBe(400);
+    expect(save).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /api/career-validation/session', () => {

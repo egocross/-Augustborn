@@ -46,7 +46,8 @@ export type RepositoryClaim =
 export type RepositoryPatch =
   | { outcome: 'updated'; session: CareerValidationSession }
   | { outcome: 'conflict'; code: 'VERSION_CONFLICT'; latestRevision: number }
-  | { outcome: 'gone' | 'invalid_state' };
+  | { outcome: 'gone' }
+  | { outcome: 'invalid_state' };
 
 export type ValidationDraftPatch = {
   submission?: Submission | null;
