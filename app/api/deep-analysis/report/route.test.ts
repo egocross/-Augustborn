@@ -54,12 +54,14 @@ const generate = vi.fn();
 const persist = vi.fn();
 const verifyReceipt = vi.fn();
 const verifySnapshot = vi.fn();
+const createAccess = vi.fn();
 
 beforeEach(() => {
   generate.mockReset();
   persist.mockReset();
   verifyReceipt.mockReset();
   verifySnapshot.mockReset();
+  createAccess.mockReset();
   verifyReceipt.mockReturnValue({ success: true, payload: {} });
   verifySnapshot.mockReturnValue(true);
   persist.mockResolvedValue({ persisted: true });
@@ -67,6 +69,7 @@ beforeEach(() => {
     yield JSON.stringify(report);
     return report;
   });
+  createAccess.mockReturnValue([{ careerId: 'career-1-abc', validationSessionId: '123e4567-e89b-42d3-a456-426614174001', capability: 'signed' }]);
 });
 
 describe('POST /api/deep-analysis/report', () => {
@@ -144,6 +147,23 @@ describe('POST /api/deep-analysis/report', () => {
     persist.mockRejectedValue(new Error('database offline'));
     const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot });
     const events = await readEvents(await POST(request(valid)));
+    expect(events.at(-1)).toEqual({ type: 'report', report });
+  });
+
+  it('sends scoped validator access only after the complete report is persisted', async () => {
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot, createAccess });
+    const events = await readEvents(await POST(request({ ...valid, sessionId: '123e4567-e89b-42d3-a456-426614174000' })));
+    expect(createAccess).toHaveBeenCalledWith(expect.objectContaining({ reportId: '123e4567-e89b-42d3-a456-426614174000', persisted: true }));
+    expect(events.at(-2)).toMatchObject({ type: 'validationAccess', items: [{ capability: 'signed' }] });
+    expect(events.at(-1)).toEqual({ type: 'report', report });
+  });
+
+  it('does not issue access when persistence fails, but still delivers the report', async () => {
+    persist.mockResolvedValue({ persisted: false });
+    const POST = createDeepReportHandler({ generate, persist, verifyReceipt, verifySnapshot, createAccess });
+    const events = await readEvents(await POST(request({ ...valid, sessionId: '123e4567-e89b-42d3-a456-426614174000' })));
+    expect(createAccess).not.toHaveBeenCalled();
+    expect(events.some((event) => event.type === 'validationAccess')).toBe(false);
     expect(events.at(-1)).toEqual({ type: 'report', report });
   });
 

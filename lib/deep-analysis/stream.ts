@@ -1,5 +1,7 @@
 import { DeepReportSchema, type DeepReport } from './types';
 
+export type ValidationAccess = { careerId: string; validationSessionId: string; capability: string };
+
 export type DeepStreamErrorCode = 'timeout' | 'upstream_failed' | 'parse_failed';
 export class DeepStreamError extends Error {
   constructor(public readonly code: DeepStreamErrorCode, message: string) {
@@ -13,11 +15,12 @@ type DeepStreamEvent =
   | { type: 'heartbeat' }
   | { type: 'delta'; text: string }
   | { type: 'report'; report: DeepReport }
+  | { type: 'validationAccess'; items: ValidationAccess[] }
   | { type: 'error'; code: DeepStreamErrorCode; message: string };
 
 export async function consumeDeepReportStream(
   stream: ReadableStream<Uint8Array>,
-  callbacks: { onStatus?: (stage: string) => void; onDelta?: (text: string) => void } = {},
+  callbacks: { onStatus?: (stage: string) => void; onDelta?: (text: string) => void; onValidationAccess?: (items: ValidationAccess[]) => void } = {},
 ): Promise<DeepReport> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
@@ -30,6 +33,7 @@ export async function consumeDeepReportStream(
     const event = JSON.parse(line.slice(6)) as DeepStreamEvent;
     if (event.type === 'status') callbacks.onStatus?.(event.stage);
     if (event.type === 'delta') callbacks.onDelta?.(event.text);
+    if (event.type === 'validationAccess') callbacks.onValidationAccess?.(event.items);
     if (event.type === 'report') report = DeepReportSchema.parse(event.report);
     if (event.type === 'error') throw new DeepStreamError(event.code, event.message);
   };

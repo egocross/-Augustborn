@@ -10,6 +10,19 @@ import {
   type DeepFlowState,
 } from './session';
 
+it('migrates a completed V3 report without validator access and persists new access in V4', () => {
+  const store = storage();
+  const old = { ...createInitialCareerState('123e4567-e89b-42d3-a456-426614174000'), step: 'report', report: legacyReport };
+  store.setItem('jianvia.deep-analysis', JSON.stringify({ version: 3, state: old }));
+  expect(loadDeepSession(store)).toMatchObject({ step: 'report', validationAccess: [] });
+  const next = deepFlowReducer(createInitialCareerState('123e4567-e89b-42d3-a456-426614174000'), {
+    type: 'generationSucceeded', report: legacyReport,
+    validationAccess: [{ careerId: 'career-1-abc', validationSessionId: '123e4567-e89b-42d3-a456-426614174001', capability: 'signed' }],
+  });
+  saveDeepSession(next, store);
+  expect(loadDeepSession(store)?.validationAccess).toHaveLength(1);
+});
+
 const storage = () => {
   const values = new Map<string, string>();
   return {

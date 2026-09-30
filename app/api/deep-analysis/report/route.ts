@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { createInitialValidationAccess } from '@/lib/career-validation/report-access';
+import { getCareerValidationConfig } from '@/lib/career-validation/config';
 import { verifyBaseReportSnapshot } from '@/lib/deep-analysis/base-report-snapshot';
 import { CareerCalibrationSchema, type CareerCalibration } from '@/lib/deep-analysis/career-calibration';
 import { CAREER_QUESTIONNAIRE_VERSION } from '@/lib/deep-analysis/career-calibration-questions';
@@ -54,6 +56,7 @@ type Dependencies = {
   persist: (event: CareerPersistEvent) => Promise<{ persisted: boolean }>;
   verifyReceipt: typeof verifyPaymentReceipt;
   verifySnapshot: typeof verifyBaseReportSnapshot;
+  createAccess?: typeof createInitialValidationAccess;
 };
 
 const defaults: Dependencies = {
@@ -61,6 +64,7 @@ const defaults: Dependencies = {
   persist: persistDeepSession,
   verifyReceipt: verifyPaymentReceipt,
   verifySnapshot: verifyBaseReportSnapshot,
+  createAccess: createInitialValidationAccess,
 };
 
 export const createDeepReportHandler = (dependencies: Dependencies = defaults) => async (request: Request) => {
@@ -92,8 +96,9 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
         try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)); }
         catch { abortController.abort(); }
       };
-      const safePersist = async (event: CareerPersistEvent) => {
-        try { await dependencies.persist(event); } catch { /* Optional persistence never blocks delivery. */ }
+      const safePersist = async (event: CareerPersistEvent): Promise<boolean> => {
+        try { return (await dependencies.persist(event)).persisted; }
+        catch { return false; /* Optional persistence never blocks delivery. */ }
       };
       const deadline = setTimeout(() => abortController.abort(), 240_000);
       const heartbeat = setInterval(() => send({ type: 'heartbeat' }), 15_000);
@@ -129,7 +134,19 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
         }
         send({ type: 'status', stage: 'validating' });
         const report = DeepReportSchema.parse(verifiedReport ?? JSON.parse(text));
-        await safePersist({ ...baseEvent, reportStatus: 'complete', reportResult: report });
+        const persisted = await safePersist({ ...baseEvent, reportStatus: 'complete', reportResult: report });
+        if (persisted && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.sessionId)) {
+          try {
+            const secret = process.env.CAREER_VALIDATION_CAPABILITY_SECRET ?? '';
+            if (secret || dependencies.createAccess !== createInitialValidationAccess) {
+              const items = dependencies.createAccess?.({
+                reportId: input.sessionId, report, persisted: true, issuedAt: Date.now(),
+                ttlSeconds: getCareerValidationConfig().capabilityTtlSeconds, secret,
+              }) ?? [];
+              if (items.length) send({ type: 'validationAccess', items });
+            }
+          } catch { /* Validator availability never blocks a paid report. */ }
+        }
         send({ type: 'report', report });
       } catch (error) {
         const code = error instanceof DeepAnalysisError ? error.code

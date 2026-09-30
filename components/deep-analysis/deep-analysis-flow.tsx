@@ -17,7 +17,7 @@ import {
   getVisibleCareerQuestions,
   type CareerQuestion,
 } from '@/lib/deep-analysis/career-calibration-questions';
-import { consumeDeepReportStream, DeepStreamError } from '@/lib/deep-analysis/stream';
+import { consumeDeepReportStream, DeepStreamError, type ValidationAccess } from '@/lib/deep-analysis/stream';
 import {
   createInitialCareerState,
   deepFlowReducer,
@@ -222,8 +222,12 @@ export function DeepAnalysisFlow({
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.code || 'upstream_failed');
       }
-      const report = await consumeDeepReportStream(response.body, { onStatus: setGenerationStage });
-      const completedState = { ...state, paymentReceipt: receipt, report, step: 'report' as const, errorCode: null };
+      let validationAccess: ValidationAccess[] = [];
+      const report = await consumeDeepReportStream(response.body, {
+        onStatus: setGenerationStage,
+        onValidationAccess: (items) => { validationAccess = items; },
+      });
+      const completedState = { ...state, paymentReceipt: receipt, report, validationAccess, step: 'report' as const, errorCode: null };
       saveDeepSession(completedState, window.sessionStorage);
       trackCareerEvent('career_report_generated', {
         elapsedMs: Math.max(0, Date.now() - (calibrationStartedAtRef.current ?? Date.now())),

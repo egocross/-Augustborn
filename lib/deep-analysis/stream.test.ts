@@ -2,6 +2,17 @@ import { expect, it } from 'vitest';
 
 import { consumeDeepReportStream } from './stream';
 
+it('delivers validation access separately from the report payload', async () => {
+  const items = [{ careerId: 'career-1-abc', validationSessionId: '123e4567-e89b-42d3-a456-426614174001', capability: 'signed' }];
+  const body = new ReadableStream<Uint8Array>({ start(controller) {
+    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: 'validationAccess', items })}\n\ndata: ${JSON.stringify({ type: 'report', report })}\n\n`));
+    controller.close();
+  } });
+  const received: unknown[] = [];
+  await consumeDeepReportStream(body, { onValidationAccess: (access) => received.push(access) });
+  expect(received).toEqual([items]);
+});
+
 const report = {
   title: '职业方向', summary: '摘要', keyFindings: ['A', 'B'],
   cards: [{ id: 'c1', title: '结论', summary: '简述', details: ['详情'], evidence: [] }, { id: 'c2', title: '验证', summary: '简述', details: ['详情'], evidence: [] }],

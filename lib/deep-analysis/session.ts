@@ -15,11 +15,16 @@ import {
   pruneHiddenCareerAnswers,
 } from './career-calibration-questions';
 import { DeepReportSchema, type DeepReport } from './types';
+import type { ValidationAccess } from './stream';
 
 export { CAREER_DIRECTION_ID } from './types';
 
 export const DEEP_SESSION_KEY = 'jianvia.deep-analysis';
-export const SESSION_VERSION = 3 as const;
+export const SESSION_VERSION = 4 as const;
+
+const ValidationAccessSchema = z.object({
+  careerId: z.string().min(1), validationSessionId: z.string().uuid(), capability: z.string().min(1),
+}).strict();
 
 export type CareerStep = 'intro' | 'questions' | 'summary' | 'payment' | 'generating' | 'report';
 
@@ -38,6 +43,7 @@ export type DeepFlowState = {
   freeReport: Report | null;
   baseReportSnapshotToken: string | null;
   readOnlyLegacy: boolean;
+  validationAccess: ValidationAccess[];
 };
 
 const DeepFlowStateSchema = z.object({
@@ -55,6 +61,7 @@ const DeepFlowStateSchema = z.object({
   freeReport: ReportSchema.nullable(),
   baseReportSnapshotToken: z.string().min(1).nullable(),
   readOnlyLegacy: z.boolean(),
+  validationAccess: z.array(ValidationAccessSchema).optional(),
 });
 
 type CareerContext = {
@@ -86,6 +93,7 @@ export function createInitialCareerState(
     freeReport: context.freeReport ?? null,
     baseReportSnapshotToken: context.baseReportSnapshotToken ?? null,
     readOnlyLegacy: false,
+    validationAccess: [],
   };
 }
 
@@ -126,7 +134,7 @@ export type DeepFlowAction =
   | { type: 'paymentStarted'; orderId: string }
   | { type: 'paymentConfirmed'; receipt: string }
   | { type: 'generationStarted'; receipt: string }
-  | { type: 'generationSucceeded'; report: DeepReport }
+  | { type: 'generationSucceeded'; report: DeepReport; validationAccess?: ValidationAccess[] }
   | { type: 'generationFailed'; code: string };
 
 export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): DeepFlowState {
@@ -198,7 +206,7 @@ export function deepFlowReducer(state: DeepFlowState, action: DeepFlowAction): D
     case 'generationStarted':
       return { ...state, paymentReceipt: action.receipt, step: 'generating', errorCode: null };
     case 'generationSucceeded':
-      return { ...state, report: action.report, step: 'report', errorCode: null };
+      return { ...state, report: action.report, validationAccess: action.validationAccess ?? [], step: 'report', errorCode: null };
     case 'generationFailed':
       return { ...state, step: 'payment', errorCode: action.code };
   }
@@ -251,9 +259,9 @@ export function loadDeepSession(storage: Storage = sessionStorage): DeepFlowStat
     if (!raw) return null;
     const envelope = JSON.parse(raw) as { version?: unknown; state?: unknown };
     if (envelope.version === 2) return migrateLegacyState(envelope.state);
-    if (envelope.version !== SESSION_VERSION) return null;
+    if (envelope.version !== 3 && envelope.version !== SESSION_VERSION) return null;
     const parsed = DeepFlowStateSchema.safeParse(envelope.state);
-    return parsed.success ? normalizeRestoredState(parsed.data) : null;
+    return parsed.success ? normalizeRestoredState({ ...parsed.data, validationAccess: parsed.data.validationAccess ?? [] }) : null;
   } catch {
     return null;
   }
