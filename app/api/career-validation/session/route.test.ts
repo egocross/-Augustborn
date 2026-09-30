@@ -2,10 +2,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationAccessError } from '@/lib/career-validation/authorize';
 import { ValidationDraftError } from '@/lib/career-validation/draft-service';
-import { createSessionHandler, createSessionPatchHandler } from './route';
+import { createSessionHandler, createSessionPatchHandler, createSessionDeleteHandler } from './route';
 
 const request = (body: unknown) => new Request('http://localhost/api/career-validation/session', {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+});
+
+describe('DELETE /api/career-validation/session', () => {
+  it('erases only the bound validation session', async () => {
+    const getSession = vi.fn(async () => ({ id: '123e4567-e89b-42d3-a456-426614174001' }));
+    const erase = vi.fn(async () => ({ status: 'deleted' }));
+    const DELETE = createSessionDeleteHandler({ getSession, erase });
+    const response = await DELETE(new Request('http://localhost/api/career-validation/session', {
+      method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability: 'signed-token' }),
+    }));
+    expect(response.status).toBe(200);
+    expect(erase).toHaveBeenCalledWith('123e4567-e89b-42d3-a456-426614174001');
+    expect(await response.json()).toEqual({ deleted: true });
+  });
 });
 
 describe('PATCH /api/career-validation/session', () => {

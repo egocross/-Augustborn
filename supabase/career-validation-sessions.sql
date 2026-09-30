@@ -50,6 +50,12 @@ create or replace function public.career_validation_guard_immutable()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   if old.status = 'deleted' then
+    -- Purging a parent sets the child's FK to NULL. Permit only that FK action,
+    -- including when the child itself is already a tombstone.
+    if old.parent_validation_session_id is not null and new.parent_validation_session_id is null
+       and (to_jsonb(new) - 'parent_validation_session_id') = (to_jsonb(old) - 'parent_validation_session_id') then
+      return new;
+    end if;
     raise exception 'career_validation_deleted_is_immutable';
   end if;
   if new.id is distinct from old.id or new.report_id is distinct from old.report_id
