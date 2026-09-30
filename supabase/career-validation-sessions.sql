@@ -172,6 +172,26 @@ begin
 end;
 $$;
 
+create or replace function public.career_validation_fail_operation(
+  p_id uuid, p_kind text, p_token text, p_now timestamptz
+) returns jsonb language plpgsql set search_path = public, pg_temp as $$
+declare v_row public.career_validation_sessions%rowtype;
+begin
+  if p_kind not in ('experiment', 'analysis') then
+    raise exception 'invalid_career_validation_operation';
+  end if;
+  update public.career_validation_sessions
+  set status = case when p_kind = 'experiment' then 'experiment_generation_failed' else 'analysis_failed' end,
+      operation_kind = null, operation_token = null, operation_lease_expires_at = null,
+      revision = revision + 1, updated_at = p_now
+  where id = p_id and operation_kind = p_kind and operation_token = p_token
+    and status = case when p_kind = 'experiment' then 'generating_experiment' else 'analyzing' end
+    and deleted_at is null and retention_expires_at > p_now
+  returning * into v_row;
+  return case when found then to_jsonb(v_row) else null end;
+end;
+$$;
+
 create or replace function public.career_validation_patch(
   p_id uuid, p_expected_revision integer, p_patch jsonb, p_now timestamptz
 ) returns jsonb language plpgsql set search_path = public, pg_temp as $$
@@ -248,6 +268,7 @@ revoke all on function public.career_validation_claim_operation(uuid, text, text
 revoke all on function public.career_validation_complete_experiment(uuid, text, jsonb, timestamptz) from public, anon, authenticated;
 revoke all on function public.career_validation_complete_analysis(uuid, text, jsonb, timestamptz) from public, anon, authenticated;
 revoke all on function public.career_validation_patch(uuid, integer, jsonb, timestamptz) from public, anon, authenticated;
+revoke all on function public.career_validation_fail_operation(uuid, text, text, timestamptz) from public, anon, authenticated;
 revoke all on function public.career_validation_erase(uuid, timestamptz) from public, anon, authenticated;
 revoke all on function public.career_validation_sweep_expired(timestamptz, integer) from public, anon, authenticated;
 
@@ -255,5 +276,6 @@ grant execute on function public.career_validation_claim_operation(uuid, text, t
 grant execute on function public.career_validation_complete_experiment(uuid, text, jsonb, timestamptz) to service_role;
 grant execute on function public.career_validation_complete_analysis(uuid, text, jsonb, timestamptz) to service_role;
 grant execute on function public.career_validation_patch(uuid, integer, jsonb, timestamptz) to service_role;
+grant execute on function public.career_validation_fail_operation(uuid, text, text, timestamptz) to service_role;
 grant execute on function public.career_validation_erase(uuid, timestamptz) to service_role;
 grant execute on function public.career_validation_sweep_expired(timestamptz, integer) to service_role;

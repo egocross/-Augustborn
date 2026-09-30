@@ -105,6 +105,12 @@ export function createCareerValidationRepository(clientValue: unknown) {
       }), 'career_validation_result_write_failed');
       return data ? fromRow(data) : null;
     },
+    async failOperation(input: { validationSessionId: string; kind: 'experiment' | 'analysis'; token: string; now: string }): Promise<CareerValidationSession | null> {
+      const data = assertResult(await client.rpc('career_validation_fail_operation', {
+        p_id: input.validationSessionId, p_kind: input.kind, p_token: input.token, p_now: input.now,
+      }), 'career_validation_failure_write_failed');
+      return data ? fromRow(data) : null;
+    },
     async patch(input: { validationSessionId: string; expectedRevision: number; patch: ValidationDraftPatch; now: string }): Promise<RepositoryPatch> {
       const data = outcome(await client.rpc('career_validation_patch', {
         p_id: input.validationSessionId, p_expected_revision: input.expectedRevision,
