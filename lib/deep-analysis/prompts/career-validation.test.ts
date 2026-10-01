@@ -42,6 +42,10 @@ it('frames career validation as evidence gathering rather than a second fit judg
   expect(prompt).toContain('只输出 1–3 个关键缺口');
   expect(prompt).toContain('只输出 2–4 个验证动作');
   expect(prompt).toContain('公开岗位要求参与库存');
+  expect(prompt).not.toContain('capital_operations');
+  expect(prompt).not.toContain('capital_data');
+  expect(prompt).toContain('运营');
+  expect(prompt).toContain('数据分析');
 });
 
 it('serializes untrusted model and user text as inert JSON data', () => {

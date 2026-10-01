@@ -1,4 +1,5 @@
 import type { CareerAnalysisInput } from '../career-pipeline';
+import { localizeCareerCapital } from '../career-capital-labels';
 
 const inertJsonString = (value: unknown): string => JSON.stringify(JSON.stringify(value));
 
@@ -24,7 +25,7 @@ ${inertJsonString(input.hardConstraints)}
 </hard_constraints>
 
 <career_capital>
-${inertJsonString(input.careerCapital)}
+${inertJsonString(localizeCareerCapital(input.careerCapital))}
 </career_capital>
 
 <market_evidence>

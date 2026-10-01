@@ -91,4 +91,32 @@ describe('sample report content', () => {
     ))).toBe(true);
     expect(JSON.stringify(report)).not.toContain('招聘数量');
   });
+
+  it('renders confirmed career capital with Chinese labels instead of stored option ids', () => {
+    const report = createSampleCareerReport({
+      questionnaireVersion: 'career-v1',
+      baseReport: createSampleBaseReport(chart),
+      careerCalibration: {
+        questionnaireVersion: 'career-v1',
+        hardConstraints: {
+          careerStatus: 'career_status_first_job', transitionUrgency: 'transition_3_months',
+          income: { minimumIncomeBand: 'minimum_income_3000_5000', currency: 'CNY', salaryDropTolerance: 'salary_drop_none' },
+          responsibilities: ['responsibility_none'], location: { mobility: 'mobility_nationwide', constraints: [] },
+          transitionCapacity: { weeklyHours: 'weekly_hours_full_time', preparationHorizon: 'preparation_3_6_months', maxBudget: 'budget_none' },
+          restartTolerance: 'restart_entry_level', educationTolerance: 'education_short', workConstraints: ['work_constraint_none'],
+          incomeModels: ['income_model_any'], employmentTypes: ['employment_type_any'],
+        },
+        careerCapital: {
+          experience: ['capital_operations'], skills: ['capital_programming', 'capital_data'], evidence: ['capital_portfolio'],
+        },
+        values: ['value_growth'],
+      },
+    });
+
+    expect(report.transferableCapital.map((item) => item.asset)).toEqual(['运营', '技术 / 编程', '数据分析', '有作品集']);
+    expect(report.careerHypotheses[0].transferableAssets).toEqual(['运营', '技术 / 编程', '数据分析']);
+    expect(report.careerHypotheses[0].workValidation?.capabilitySignals.existingSignals.map((signal) => signal.signal))
+      .toEqual(['运营', '技术 / 编程', '数据分析']);
+    expect(JSON.stringify(report)).not.toMatch(/capital_[a-z_]+/);
+  });
 });

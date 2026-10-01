@@ -2,6 +2,7 @@ import type { BaziChart } from '@/lib/bazi/types';
 import type { DeepPromptInput } from '@/lib/deep-analysis/prompts';
 import type { CareerGenerationRequest } from '@/lib/deep-analysis/career-pipeline';
 import { summarizeCareerCalibration } from '@/lib/deep-analysis/career-calibration';
+import { localizeCareerCapital } from '@/lib/deep-analysis/career-capital-labels';
 import type { CareerReport, CareerWorkValidation, DeepReport, DirectionId, DynamicQuestion } from '@/lib/deep-analysis/types';
 import { sampleExploration } from './sample-exploration';
 
@@ -177,7 +178,7 @@ export function createSampleDeepReport(input: Pick<DeepPromptInput, 'directionId
 
 export function createSampleCareerReport(input: CareerGenerationRequest): CareerReport {
   const summary = summarizeCareerCalibration(input.careerCalibration);
-  const capital = input.careerCalibration.careerCapital;
+  const capital = localizeCareerCapital(input.careerCalibration.careerCapital);
   const capitalIds = [...capital.experience, ...capital.skills, ...capital.evidence];
   return {
     kind: 'career-calibration',

@@ -1,4 +1,5 @@
 import type { CareerCalibration } from '../career-calibration';
+import { localizeCareerCapital } from '../career-capital-labels';
 import type { CareerValidationResearch } from '../research/career-validation';
 
 type HypothesisInput = {
@@ -43,7 +44,7 @@ ${inertJsonString(input.hypothesis)}
 </candidate_hypothesis>
 
 <confirmed_career_capital>
-${inertJsonString(input.careerCapital)}
+${inertJsonString(localizeCareerCapital(input.careerCapital))}
 </confirmed_career_capital>
 
 <hard_constraints>

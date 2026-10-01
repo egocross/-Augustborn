@@ -52,6 +52,8 @@ describe('trusted frozen context', () => {
     calibration.careerCapital.skills.push('capital_data');
     expect(snapshot.career.candidateReason).not.toBe('changed upstream');
     expect(snapshot.relevantCareerCapital.skills).not.toContain('capital_data');
+    expect(snapshot.relevantCareerCapital.skills).toEqual(['内容创作']);
+    expect(snapshot.relevantCareerCapital.experience).toEqual(['运营']);
     expect(snapshot.contextHash).toBe(hash);
     expect(verifyContextHash(JSON.parse(JSON.stringify(snapshot)))).toBe(true);
     expect(verifyContextHash({ ...snapshot, career: { ...snapshot.career, candidateReason: 'tampered' } })).toBe(false);

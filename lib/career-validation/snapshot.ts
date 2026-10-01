@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import type { CareerCalibration } from '@/lib/deep-analysis/career-calibration';
+import { localizeCareerCapital } from '@/lib/deep-analysis/career-capital-labels';
 import { CareerReportSchema, CareerWorkValidationSchema, type CareerReport } from '@/lib/deep-analysis/types';
 
 import { ValidationContextSnapshotSchema, type CareerValidationSession, type ValidationContextSnapshot } from './schema';
@@ -74,11 +75,11 @@ export function buildInitialSnapshot(input: {
       mobility: constraints.location.mobility,
       otherBarriers: constraints.workConstraints.filter((value) => value !== 'work_constraint_none'),
     },
-    relevantCareerCapital: {
+    relevantCareerCapital: localizeCareerCapital({
       experience: [...input.calibration.careerCapital.experience],
       skills: [...input.calibration.careerCapital.skills],
       evidence: [...input.calibration.careerCapital.evidence],
-    },
+    }),
     marketEvidence: {
       marketStatus: approvedEvidence.length ? (hypothesis.evidenceStatus === 'verified' ? 'verified' : 'partial') : 'unavailable',
       locationLabel: constraints.location.mobility,
