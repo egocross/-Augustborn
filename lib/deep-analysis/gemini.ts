@@ -4,6 +4,7 @@ import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { z } from 'zod';
 
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_REASONING_EFFORT, type GeminiReasoningEffort } from '@/lib/gemini/config';
+import { toGeminiResponseSchema } from '@/lib/gemini/json-schema';
 import {
   CareerAnalysisInputSchema,
   createCareerAnalysisInput,
@@ -19,6 +20,7 @@ import {
 } from './research/career-validation';
 import { researchCareerMarket } from './research/jobs';
 import {
+  CareerHypothesisSchema,
   CareerReportSchema,
   CareerWorkValidationSchema,
   type CareerReport,
@@ -39,16 +41,25 @@ export class DeepAnalysisError extends Error {
   }
 }
 
+/**
+ * The first generation stage only produces candidate directions; the per-career
+ * work validation is generated afterwards, so the request never advertises it.
+ * Asking for it made the model emit partial validation blocks that failed parsing.
+ */
+const CareerCandidateReportSchema = CareerReportSchema.extend({
+  careerHypotheses: z.array(CareerHypothesisSchema.omit({ workValidation: true })).min(3).max(5),
+});
+
 const config = (signal?: AbortSignal) => ({
   responseMimeType: 'application/json',
-  responseJsonSchema: z.toJSONSchema(CareerReportSchema, { target: 'openapi-3.0' }),
+  responseJsonSchema: toGeminiResponseSchema(CareerCandidateReportSchema),
   thinkingConfig: { thinkingLevel: THINKING_LEVELS[GEMINI_REASONING_EFFORT] },
   ...(signal ? { abortSignal: signal } : {}),
 });
 
 const validationConfig = (signal?: AbortSignal) => ({
   responseMimeType: 'application/json',
-  responseJsonSchema: z.toJSONSchema(CareerWorkValidationSchema, { target: 'openapi-3.0' }),
+  responseJsonSchema: toGeminiResponseSchema(CareerWorkValidationSchema),
   thinkingConfig: { thinkingLevel: THINKING_LEVELS[GEMINI_REASONING_EFFORT] },
   ...(signal ? { abortSignal: signal } : {}),
 });
@@ -58,6 +69,13 @@ const mapError = (error: unknown): never => {
   if (error instanceof Error && (error.name === 'AbortError' || error.message.toLowerCase().includes('abort'))) {
     throw new DeepAnalysisError('timeout');
   }
+  const raw = error instanceof Error ? error : new Error(String(error));
+  const status = (error as { status?: unknown } | null)?.status;
+  console.error('deep_analysis_upstream_error', {
+    name: raw.name,
+    message: raw.message.slice(0, 300),
+    ...(typeof status === 'number' ? { status } : {}),
+  });
   throw new DeepAnalysisError('upstream_failed');
 };
 
@@ -252,28 +270,45 @@ export async function* generateCareerReportStream(
   request: CareerGenerationRequest,
   options: { signal?: AbortSignal; onStage?: (stage: string) => void } = {},
 ): AsyncGenerator<string, DeepReport | undefined> {
+  const startedAt = Date.now();
   try {
     const preliminary = createCareerAnalysisInput(request.baseReport, request.careerCalibration);
     options.onStage?.('market_research');
     const market = await researchCareerMarket(createCareerResearchContext(preliminary), options);
+    console.warn('deep_report_market_ready', {
+      status: market.status,
+      sources: market.sources.length,
+      ms: Date.now() - startedAt,
+    });
     options.signal?.throwIfAborted();
     const input = CareerAnalysisInputSchema.parse({ ...preliminary, marketEvidence: market });
     options.onStage?.('candidate_analysis');
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    console.warn('deep_report_stream_started', {
+      model: GEMINI_MODEL ?? DEFAULT_MODEL,
+      promptChars: createCareerReportPrompt(input).length,
+      ms: Date.now() - startedAt,
+    });
     const stream = await ai.models.generateContentStream({
       model: GEMINI_MODEL ?? DEFAULT_MODEL,
       contents: createCareerReportPrompt(input),
       config: config(options.signal),
     });
     let text = '';
+    let chunkCount = 0;
     for await (const chunk of stream) {
+      chunkCount += 1;
       if (chunk.text) {
         text += chunk.text;
         yield chunk.text;
       }
     }
-    if (!text) throw new DeepAnalysisError('upstream_failed');
-    const candidates = attachVerifiedSources(CareerReportSchema.parse(JSON.parse(text)), market);
+    if (!text) {
+      console.error('deep_report_empty_stream', { chunkCount, ms: Date.now() - startedAt });
+      throw new DeepAnalysisError('upstream_failed');
+    }
+    const draft = CareerCandidateReportSchema.parse(JSON.parse(text));
+    const candidates = attachVerifiedSources(draft, market);
     return await enrichCareerValidations(
       candidates,
       request,
@@ -283,6 +318,12 @@ export async function* generateCareerReportStream(
     );
   } catch (error) {
     if (error instanceof SyntaxError || error instanceof z.ZodError) {
+      console.error('deep_report_parse_failed', {
+        ms: Date.now() - startedAt,
+        detail: error instanceof z.ZodError
+          ? JSON.stringify(error.issues.slice(0, 3)).slice(0, 400)
+          : error.message.slice(0, 200),
+      });
       throw new DeepAnalysisError('parse_failed');
     }
     return mapError(error);

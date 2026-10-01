@@ -97,6 +97,8 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
   const sessionRef = useRef<CareerValidationSession | null>(null);
   const experimentRequestedRef = useRef(false);
   const stepsTrackedRef = useRef(new Set<string>());
+  const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
+  const savedSnapshotRef = useRef('');
 
   const updateContent = useCallback((value: string) => { contentRef.current = value; setContent(value); }, []);
   const updatePublicUrl = useCallback((value: string) => { publicUrlRef.current = value; setPublicUrl(value); }, []);
@@ -138,6 +140,20 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
     return { ok: false as const };
   }, [handleGone, updateRevision]);
 
+  // Operations that change server-side state (experiment generation, analysis) bump the row
+  // revision by more than one step, so the client has to re-read it before the next draft patch.
+  const syncSessionRevision = useCallback(async () => {
+    try {
+      const { response, payload } = await postJson('/api/career-validation/session', { capability: capabilityRef.current });
+      if (!response.ok || !payload.session) return;
+      const next = payload.session as CareerValidationSession;
+      sessionRef.current = next;
+      setSession(next);
+      updateRevision(next.revision);
+      retentionRef.current = next.retentionExpiresAt;
+    } catch { /* best effort: an unsynced revision still surfaces as a conflict instead of losing data */ }
+  }, [updateRevision]);
+
   const loadExperiment = useCallback(async () => {
     const token = capabilityRef.current;
     if (!token || experimentRequestedRef.current) return;
@@ -148,6 +164,7 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
       const { response, payload } = await postJson('/api/career-validation/experiment', { capability: token });
       if (response.ok && payload.experiment) {
         setExperiment(payload.experiment as CareerExperiment);
+        await syncSessionRevision();
       } else if (response.status === 202) {
         experimentRequestedRef.current = false;
         setNotice('验证任务正在生成，请稍后点击重试。');
@@ -163,7 +180,7 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
     } finally {
       setBusy(null);
     }
-  }, [handleGone]);
+  }, [handleGone, syncSessionRevision]);
 
   const applySession = useCallback((next: CareerValidationSession, envelopeStep?: ValidationLocalStep | null, localDraft?: { content: string; publicResultUrl: string }) => {
     sessionRef.current = next;
@@ -258,18 +275,42 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
   }, [content, notes, publicUrl, reflection, revisionState, screen, step, validationSessionId]);
 
   const flushDraft = useCallback(async () => {
-    const bodyContent = contentRef.current.trim();
-    if (bodyContent.length < 20) return true;
-    setBusy('save');
-    const patch: Record<string, unknown> = {
-      submission: {
-        format: 'markdown', content: bodyContent, attachments: [],
-        ...(publicUrlRef.current.trim() ? { publicResultUrl: publicUrlRef.current.trim() } : {}),
-      },
-    };
-    const outcome = await patchSession(patch, revisionRef.current);
-    setBusy(null);
-    return outcome.ok;
+    const snapshot = () => contentRef.current.trim() + '\u0000' + publicUrlRef.current.trim();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const bodyContent = contentRef.current.trim();
+      if (bodyContent.length < 20) return true;
+      // The debounced autosave and the explicit button can fire together; join the running
+      // request instead of sending a second patch with a stale revision.
+      if (inFlightSaveRef.current) {
+        const inFlightOk = await inFlightSaveRef.current;
+        if (!inFlightOk) return false;
+        if (savedSnapshotRef.current === snapshot()) return true;
+        continue;
+      }
+      if (savedSnapshotRef.current === snapshot()) return true;
+      setBusy('save');
+      const patch: Record<string, unknown> = {
+        submission: {
+          format: 'markdown', content: bodyContent, attachments: [],
+          ...(publicUrlRef.current.trim() ? { publicResultUrl: publicUrlRef.current.trim() } : {}),
+        },
+      };
+      const running = (async () => {
+        try {
+          const outcome = await patchSession(patch, revisionRef.current);
+          if (outcome.ok) savedSnapshotRef.current = bodyContent + '\u0000' + publicUrlRef.current.trim();
+          return outcome.ok;
+        } finally {
+          inFlightSaveRef.current = null;
+          setBusy(null);
+        }
+      })();
+      inFlightSaveRef.current = running;
+      const ok = await running;
+      if (!ok) return false;
+      if (savedSnapshotRef.current === snapshot()) return true;
+    }
+    return false;
   }, [patchSession]);
 
   useEffect(() => {
@@ -288,6 +329,7 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
         const nextResult = payload.result as ValidationResult;
         setResult(nextResult);
         updateStep('result');
+        await syncSessionRevision();
         trackOnce('result', () => {
           trackValidationEvent('validation_result_viewed', { nextActionType: nextResult.nextAction.type });
           trackValidationEvent('next_action_viewed', { nextActionType: nextResult.nextAction.type });
@@ -304,7 +346,7 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
     } finally {
       setBusy(null);
     }
-  }, [handleGone, trackOnce, updateStep]);
+  }, [handleGone, syncSessionRevision, trackOnce, updateStep]);
 
   const handleSubmissionContinue = useCallback(async () => {
     if (contentRef.current.trim().length < 20) return;

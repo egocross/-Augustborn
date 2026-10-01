@@ -87,6 +87,7 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const startedAt = Date.now();
       const abortController = new AbortController();
       const onRequestAbort = () => abortController.abort();
       request.signal.addEventListener('abort', onRequestAbort, { once: true });
@@ -152,6 +153,13 @@ export const createDeepReportHandler = (dependencies: Dependencies = defaults) =
         const code = error instanceof DeepAnalysisError ? error.code
           : error instanceof z.ZodError || error instanceof SyntaxError ? 'parse_failed'
             : 'upstream_failed';
+        console.error('deep_report_failed', {
+          id: input.sessionId,
+          code,
+          aborted: abortController.signal.aborted,
+          elapsedMs: Date.now() - startedAt,
+          error: error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 300) : String(error).slice(0, 300),
+        });
         await safePersist({ ...baseEvent, reportStatus: 'failed', reportResult: null });
         send({ type: 'error', code, message: code === 'timeout' ? '生成超时，请重试。' : '深度报告生成失败，请重试。' });
       } finally {

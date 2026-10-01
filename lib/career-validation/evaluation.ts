@@ -1,9 +1,9 @@
 import 'server-only';
 
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import { z } from 'zod';
 
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_REASONING_EFFORT } from '@/lib/gemini/config';
+import { toGeminiResponseSchema } from '@/lib/gemini/json-schema';
 import { usesSampleReports } from '@/lib/report-provider/config';
 
 import { createEvaluationPrompt, EVALUATION_PROMPT_VERSION, RUBRIC_VERSION } from './prompts';
@@ -55,7 +55,7 @@ async function callGemini(prompt: string, options: { signal?: AbortSignal }): Pr
     model: modelId, contents: prompt,
     config: {
       responseMimeType: 'application/json',
-      responseJsonSchema: z.toJSONSchema(ValidationResultDraftSchema, { target: 'openapi-3.0' }),
+      responseJsonSchema: toGeminiResponseSchema(ValidationResultDraftSchema),
       thinkingConfig: { thinkingLevel: levels[GEMINI_REASONING_EFFORT] },
       ...(options.signal ? { abortSignal: options.signal } : {}),
     },
