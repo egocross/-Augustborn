@@ -442,6 +442,7 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
   }
 
   const snapshot = session?.validationContextSnapshot ?? null;
+  const trimmedContentLength = content.trim().length;
 
   return <div className="career-validation-page">
     <nav aria-label="验证步骤" className="validation-steps">
@@ -522,6 +523,11 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
         <textarea onChange={(event) => updateContent(event.target.value)} placeholder="写下你的产出、关键取舍和不确定的地方。" rows={12} value={content} />
       </label>
       <p className="validation-field-help">Markdown 会以纯文本保存和展示，不会渲染 HTML。</p>
+      {trimmedContentLength < 20 ? <p className="validation-field-help validation-field-required-hint" role="status">
+        {trimmedContentLength === 0
+          ? '至少写满 20 个字才能保存并继续。'
+          : `还差 ${20 - trimmedContentLength} 个字才能继续（至少 20 个字，当前 ${trimmedContentLength} 个）。`}
+      </p> : null}
       <label className="validation-field"><span>公开成果链接（可选）</span>
         <input inputMode="url" onChange={(event) => updatePublicUrl(event.target.value)} placeholder="https://…" type="url" value={publicUrl} />
       </label>
@@ -578,11 +584,11 @@ export function ValidationPage({ validationSessionId }: { validationSessionId: s
       </> : null}
       {step === 'submission' ? <>
         <button className="secondary-button" onClick={() => updateStep('task')} type="button">上一步</button>
-        <button className="primary-button" disabled={content.trim().length < 20 || busy === 'save'} onClick={() => void handleSubmissionContinue()} type="button">{busy === 'save' ? '正在保存…' : '保存草稿并继续'}</button>
+        <button aria-busy={busy === 'save'} className="primary-button" disabled={trimmedContentLength < 20 || busy === 'save'} onClick={() => void handleSubmissionContinue()} type="button">{busy === 'save' ? '正在保存…' : '保存草稿并继续'}</button>
       </> : null}
       {step === 'reflection' ? <>
         <button className="secondary-button" onClick={() => updateStep('submission')} type="button">上一步</button>
-        <button className="primary-button" disabled={!isCompleteReflection(reflection) || busy === 'submit' || busy === 'analyze'} onClick={() => void handleReflectionSubmit()} type="button">{busy === 'submit' || busy === 'analyze' ? '正在分析…' : '提交并生成分析结果'}</button>
+        <button aria-busy={busy === 'submit' || busy === 'analyze'} className="primary-button" disabled={!isCompleteReflection(reflection) || busy === 'submit' || busy === 'analyze'} onClick={() => void handleReflectionSubmit()} type="button">{busy === 'submit' || busy === 'analyze' ? '正在分析…' : '提交并生成分析结果'}</button>
       </> : null}
     </div>
   </div>;

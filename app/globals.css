@@ -1662,6 +1662,9 @@ input::placeholder { color: var(--placeholder); }
 }
 .validation-action-bar:empty { display: none; }
 .validation-action-bar > button { flex: 1; min-height: 3rem; }
+/* A disabled button that is not actually saving must not look like a spinner. */
+.validation-action-bar button:disabled:not([aria-busy='true']) { cursor: not-allowed; }
+.validation-field-required-hint { color: var(--accent-hover); font-weight: 600; }
 
 .validation-screen {
   display: grid;

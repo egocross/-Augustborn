@@ -235,6 +235,31 @@ it('clears the local copy and shows a recoverable notice when the server session
   expect(loadValidationLocal(window.localStorage, SESSION_ID)).toBeNull();
 });
 
+it('explains the 20-character minimum instead of leaving a stuck-looking disabled button', async () => {
+  saveValidationLocal(window.localStorage, {
+    validationSessionId: SESSION_ID, capability: 'cap-local', revision: 5, step: 'submission',
+    draft: { content: '完成出色，很熟练', publicResultUrl: '', reflection: {} },
+    retentionExpiresAt: '2099-01-01T00:00:00.000Z', updatedAt: '2026-09-30T09:00:00.000Z',
+  });
+  installFetch({
+    '/api/career-validation/session': () => ({ body: { session: { ...baseSession, revision: 5 } } }),
+    '/api/career-validation/analyze': () => ({ body: { result: completedResult } }),
+  });
+
+  render(<ValidationPage validationSessionId={SESSION_ID} />);
+  const textarea = await screen.findByLabelText('Markdown 正文') as HTMLTextAreaElement;
+  expect(textarea.value).toBe('完成出色，很熟练');
+
+  expect(screen.getByText(/还差 12 个字才能继续/)).toBeTruthy();
+  const blocked = screen.getByRole('button', { name: '保存草稿并继续' }) as HTMLButtonElement;
+  expect(blocked.disabled).toBe(true);
+  expect(blocked.getAttribute('aria-busy')).toBe('false');
+
+  fireEvent.change(textarea, { target: { value: '完成出色，很熟练，结构和取舍都已记录清楚，也写下了仍不确定的部分。' } });
+  expect(screen.queryByText(/还差 \d+ 个字/)).toBeNull();
+  expect((screen.getByRole('button', { name: '保存草稿并继续' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
 it('deletes only the current validator entry after an explicit confirmation', async () => {
   seedAccess();
   saveValidationLocal(window.localStorage, {
