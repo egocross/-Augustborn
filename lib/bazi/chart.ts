@@ -62,6 +62,21 @@ function countElements(pillars: BaziPillars): FiveElements {
   return counts;
 }
 
+/** Shared sect=2 facts. The time is a calculation point, not necessarily a reported birth time. */
+export function calculateChartFacts(lunar: Lunar, timeKnown: boolean): Pick<BaziChart, 'pillars' | 'hourBranch' | 'surfaceFiveElements' | 'timeKnown'> {
+  const eightChar = lunar.getEightChar();
+  eightChar.setSect(2);
+  const dayPillar = eightChar.getDay();
+  const hour = lunar.getSolar().getHour();
+  const pillars: BaziPillars = {
+    year: eightChar.getYear(),
+    month: eightChar.getMonth(),
+    day: dayPillar,
+    hour: timeKnown ? hourPillar(dayPillar, hour) : null,
+  };
+  return { pillars, hourBranch: timeKnown ? hourBranch(hour) : null, surfaceFiveElements: countElements(pillars), timeKnown };
+}
+
 export function createChart(input: BaziInput): BaziChart {
   const [year, month, day] = input.birthDate.split('-').map(Number);
   const timeKnown = input.birthTime !== null;
@@ -78,17 +93,6 @@ export function createChart(input: BaziInput): BaziChart {
     lunar = solar.getLunar();
   }
 
-  const eightChar = lunar.getEightChar();
-  eightChar.setSect(2);
-
-  const dayPillar = eightChar.getDay();
-  const pillars: BaziPillars = {
-    year: eightChar.getYear(),
-    month: eightChar.getMonth(),
-    day: dayPillar,
-    hour: timeKnown ? hourPillar(dayPillar, hour) : null,
-  };
-
   return {
     inputCalendarType: input.calendarType,
     inputBirthDate: input.birthDate,
@@ -96,9 +100,6 @@ export function createChart(input: BaziInput): BaziChart {
     solarDate: solar.toYmd(),
     lunarDate: `${lunar.getYear()}-${pad2(Math.abs(lunar.getMonth()))}-${pad2(lunar.getDay())}`,
     birthRegion: input.birthRegion?.trim() || null,
-    timeKnown,
-    pillars,
-    hourBranch: timeKnown ? hourBranch(hour) : null,
-    surfaceFiveElements: countElements(pillars),
+    ...calculateChartFacts(lunar, timeKnown),
   };
 }
