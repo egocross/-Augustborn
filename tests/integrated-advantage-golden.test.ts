@@ -2,12 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildAdvantageScanSnapshot } from "../lib/advantage-scan/snapshot";
 import { validateAdvantageScanSnapshot } from "../lib/advantage-scan/schema";
 import { planFollowups } from "../lib/advantage-scan/followup-selector";
-import { BankSchema, QUESTION_BANK } from "../lib/advantage-scan/questions";
 import { buildIntegratedReasoningCore } from "../lib/integrated-report/reasoning-core";
 import { validateIntegratedReasoningCore } from "../lib/integrated-report/core-schema";
-import { partitionCandidates } from "../lib/integrated-report/selection";
-import { ThemeSchema } from "../lib/integrated-report/ontology";
-import { semanticHash } from "../lib/integrated-report/canonical-hash";
 import { syntheticBazi } from "./fixtures/integrated-advantage/synthetic-bazi";
 import { GOLDEN_ANSWERS, GOLDEN_GENERATED_AT, GOLDEN_SCAN_VERSION, goldenAnswers, replaceAnswers, type GoldenAnswers, type BaziCase } from "./fixtures/integrated-advantage/answers";
 import { EXPECTED_CORE, EXPECTED_DIFFERENCE_POLICY, HANDS_ON_LIMITATION, THEMES } from "./fixtures/integrated-advantage/expected-core";
@@ -47,13 +43,6 @@ function changed(id: string, changes: Record<string, string>, followupAnswers?: 
 }
 function selectedThemes(core: ReturnType<typeof buildIntegratedReasoningCore>) {
   return core.selectedDecisionIds.map(id => core.decisions.find(d => d.id === id)?.theme);
-}
-function difference(id: string, kind: string) {
-  const result = golden(id);
-  const value = result.core.differences.find(d => d.kind === kind);
-  expect(value).toBeDefined();
-  if (!value) throw new Error("Missing expected difference");
-  return { ...result, difference: value };
 }
 
 describe("§30.2 complete golden corpus", () => {

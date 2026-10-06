@@ -83,8 +83,8 @@ function deepFreeze<T>(value:T):T {
   return value;
 }
 export const QUESTION_BANK: Bank = deepFreeze(BankSchema.parse(frozenBank));
-export const FIXED_QUESTIONS = QUESTION_BANK.questions.filter(q=>q.kind==='fixed');
-export const FOLLOWUP_QUESTIONS = QUESTION_BANK.questions.filter((q):q is FollowupQuestion=>q.kind==='followup');
+export const FIXED_QUESTIONS = deepFreeze(QUESTION_BANK.questions.filter(q=>q.kind==='fixed'));
+export const FOLLOWUP_QUESTIONS = deepFreeze(QUESTION_BANK.questions.filter((q):q is FollowupQuestion=>q.kind==='followup'));
 export function getQuestion(questionId:string):Question {
   const question=QUESTION_BANK.questions.find(q=>q.questionId===questionId);
   if(!question) throw new Error('UNKNOWN_QUESTION');
@@ -106,4 +106,29 @@ export const FixedAnswersInputSchema=z.object({scanVersion:z.literal(SCAN_VERSIO
 });
 export type FixedAnswersInput=z.infer<typeof FixedAnswersInputSchema>;
 
-export function bankInvariantErrors(_bank: Bank): string[] { return []; }
+export function bankInvariantErrors(bank: Bank): string[] {
+  const errors: string[] = [];
+  for (const question of bank.questions) {
+    for (const option of question.options) {
+      if (!option.optionId.startsWith(question.questionId + '.')) errors.push('identity:' + question.questionId);
+    }
+    const orders = question.options.map(o => o.displayOrder);
+    if (Math.min(...orders) !== 1 || new Set(orders).size !== orders.length || Math.max(...orders) !== orders.length) {
+      errors.push('position:' + question.questionId);
+    }
+    const dimensions = question.options.filter(o => o.dimension !== null).map(o => o.dimension);
+    if (new Set(dimensions).size !== dimensions.length) errors.push('dimension:' + question.questionId);
+    const signalCount = question.options.filter(o => o.responseKind === 'signal').length;
+    if (question.kind === 'fixed') {
+      const expectedSignals = question.section === 'interests' ? 4 : 6;
+      const expectedOptions = question.section === 'interests' ? 5 : 7;
+      if (signalCount !== expectedSignals || question.options.length !== expectedOptions) errors.push('exposure:' + question.questionId);
+      const number = Number(question.questionId.slice(1));
+      const expectedSection = number <= 6 ? 'interests' : number <= 10 ? 'behavior' : number <= 13 ? 'values' : 'recent';
+      if (question.section !== expectedSection) errors.push('section:' + question.questionId);
+    } else if (signalCount !== 2) {
+      errors.push('exposure:' + question.questionId);
+    }
+  }
+  return errors;
+}
