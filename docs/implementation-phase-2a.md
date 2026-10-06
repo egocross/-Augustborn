@@ -2,6 +2,8 @@
 
 交付日期：2026-10-07（Asia/Shanghai）。基线 HEAD：`1934d34`，分支 `codex/bazi-mvp`。
 
+2026-10-07 时间边界审计已修订支持政策和 schema，当前结论与最新验证见 [Phase 2A time boundary audit](phase-2a-time-boundary-audit.md)。下方原交付测试数字为历史记录，不代表本次审计结果。
+
 完整阅读 `integrated-advantage-report-v1.md` 后，按本轮 Phase 2A 授权实施第 11–12 节的确定性部分。仍未接入任何正式用户流程，也未开始 Gemini AI1。
 
 ## 文件与入口
@@ -16,7 +18,7 @@
 | `lib/bazi/chart.ts`（修改） | 抽出 `calculateChartFacts` 复用原 `setSect(2)`、时干与五行计数，旧接口保持原行为 |
 | 本文件 | 契约说明、验证证据与已知限制 |
 
-`lib/validation.ts`、原 `chart.test.ts`、Phase 1 `signal-schema.ts` 均未修改。
+原实施未修改 `lib/validation.ts`、`chart.test.ts`、Phase 1 `signal-schema.ts`；本次审计仅收紧 `signal-schema.ts` 的 unknown/knownPillars 关联约束，另外两文件仍未改动。
 
 公开流程：`prepareBirthInput(rawInput, rawDeclaration)` → `enumerateChartVariants(rawInput, rawDeclaration)`。枚举入口会重新执行支持范围检查，不能提交一个伪造的 `supported` assessment 来跳过检查。单独解析 `BirthInputV2Schema` 只表示格式合法，不代表获得排盘资格。
 
@@ -32,11 +34,13 @@
 1. 已声明海外，或口径为海外 civil time：`overseas_civil_time_unsupported`。
 2. 已声明历史口径无法核实：`historical_time_basis_unverified`。
 3. 口径未确认：`time_basis_unverified`。
-4. 其余合法输入经过公农历日期换算及历史范围排除后，才为 `supported`，原因 null。
+4. 其余合法输入须明确声明日期和时间字段已属于固定 UTC+08 标准时间，经过日期校验和历法转换后为 `supported`，原因 null。
 
 前三项在日期校验／历法转换之前短路。unavailable 不构建可排盘输入，不计算任何 chart。清空时间、改成 unknown、填 12:00、提交 Asia/Shanghai 或“已换算”都不能覆盖已声明的海外状态。未提供明确声明按非法声明处理，不默认为国内。
 
-设计没有列出历史日期的具体白名单，本次明确采用 `birth-support-v1` 保守实施策略：排除公历 1950 年以前、1986–1991 全年；跨日范围检查两个实际公历日期，农历先换算日期。参考 [IANA tz 数据源中的中国历史说明及 Shang/PRC 规则](https://github.com/eggert/tz/blob/main/asia)。这是产品支持范围的保守排除，**并不表示这些年份的每一天都存在偏移问题**；也没有实现历史时区或 DST 转换器。用户自称已换算不提供例外。
+审计将政策修订为 `birth-support-v2`：删除“1950 年以前、1986–1991 全年 unavailable”的无充分依据封锁。`beijing_standard` 表示**输入日期和时间本身**已属于固定 UTC+08 标准钟表体系，不表示仅在国内／北京出生，也不表示未经核实的出生证 civil time。unknown 也必须先确认其整天日期范围属于此口径。
+
+Phase 2A 不推断历史 civil-time 转换；确认标准口径的合法输入不再按年份封锁，历史口径无法核实则整个出生通道 unavailable，不保留未经验证的年/月/日。不得仅凭用户勾选“已换算”覆盖海外声明。历史 DST 事实、逐年边界、库时间语义和该政策的限制详见审计报告。
 
 ## BirthInputV2 与 BirthTimeConfidence
 
@@ -61,7 +65,7 @@
 - 用户范围整体为闭区间；内部不重叠分段用 `[start,end)`，最后一段为 `[start,end]`。如果结束恰在新边界，该边界状态保留为闭区间单点，不丢弃。
 - 每段保留 `segmentId/start/end/startInclusive/endInclusive/variantId/chartHash/knownPillars`，以及明确标注 `segment_representative_only` 的 `calculationPoint`。该点不写回 BirthInputV2，不声称是真实出生时间。
 - chart hash 由四个柱位（含 null）、算法、库版本和排盘口径生成；相同完整柱组合去重，variant 保留所有对应 `segmentIds`。地点、代表点和持续时长不影响 chart identity。
-- segment/variant ID 确定性生成；strict 输出 Schema 检查覆盖无间断且不重叠、引用完整、ID/hash 正确、已知柱与 confidence 一致。
+- segment/variant ID 确定性生成；strict 输出 Schema 检查覆盖无间断且不重叠、引用完整、ID/hash 正确、已知柱与 confidence 一致；审计后还检查完整一天/闭单点/范围语义，并重算每段端点及内部必要边界的历法事实，拒绝重算 hash 后的伪稳定结果。
 - 仅完整成功后返回 `status=complete, coverageComplete=true` 并计算 `stablePillars`。某柱所有候选相同才保留，否则 null。这只是柱的集合一致性，不是出生信号或解释可信度。
 - 上限为 **32 个去重变体**。第 33 个变体、任一必要分段失败、历法转换失败、节气表缺项或分段内部不一致，均返回 `status=sensitivity_unavailable`，原因分别为 `variant_limit_exceeded` 或 `calendar_or_segment_failed`。`segments/variants=[]`、`stablePillars=null`、`coverageComplete=false`，不保留截断集合。
 - invalid_input / unavailable / sensitivity_unavailable 都有显式枚举错误码；失败输出同样有 strict Schema，不输出异常原文或用户资料。
@@ -109,7 +113,7 @@ unknown 覆盖 `[当日00:00:00,次日00:00:00)`，次日午夜不属于该出�
 
 没有新增 AI/LLM/Gemini 调用、AI1 generator、Prompt、UI、API 接线、Supabase/SQL、后台任务、SSE、capability、DeepFlowState、职业 pipeline、支付或验证器改动；没有部署。新入口只被本模块和 unit tests 引用，旧排盘只做共用计算函数提取。
 
-剩余风险：输入真实性仍依赖用户准确声明，代码无法验证出生记录或识别隐瞒海外/误记日期；历史范围策略有意过度排除部分可解释日期；海外及其他当地钟表口径仍不转换；“下午”必须让用户确认具体范围；exact 仅表示用户声明及现有分钟粒度，不是记录真实性保证。库边界精度和流派规则沿用现状，需要在升级时重新验证。日期空间小，chart/segment hash 是稳定身份而非匿名化、签名或访问授权，本阶段没有持久化。
+剩余风险：输入真实性仍依赖用户准确声明，代码无法验证出生记录或识别隐瞒海外/误记日期；历史 civil 记录必须先确认日期和时间口径，代码不替用户猜测或转换；海外及其他当地钟表口径仍不转换；“下午”必须让用户确认具体范围；exact 仅表示用户声明及现有分钟粒度，不是记录真实性保证。库边界精度和流派规则沿用现状，需要在升级时重新验证。日期空间小，chart/segment hash 是稳定身份而非匿名化、签名或访问授权，本阶段没有持久化。
 
 Implementation Phase 2A complete.
 

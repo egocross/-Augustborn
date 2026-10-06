@@ -115,6 +115,8 @@ export const BaziSignalSnapshotSchema = z.object({
   };
   for (const variant of snapshot.chartVariants) {
     unique(variant.knownPillars, 'KNOWN_PILLAR');
+    const expectedKnown = snapshot.timeConfidence === 'unknown' ? ['year', 'month', 'day'] : ['year', 'month', 'day', 'hour'];
+    if (variant.knownPillars.length !== expectedKnown.length || expectedKnown.some(p => !variant.knownPillars.some(known => known === p))) issue('KNOWN_PILLAR_SET_MISMATCH');
     if (snapshot.timeConfidence === 'unknown' && variant.knownPillars.includes('hour')) issue('UNKNOWN_HOUR_PILLAR');
     for (const role of ['core', 'auxiliary']) if (snapshot.coreStructures.filter(c => c.variantId === variant.variantId && c.role === role).length > 2) issue('STRUCTURE_CAPACITY');
   }
@@ -166,6 +168,7 @@ export const BaziSignalSnapshotSchema = z.object({
     if (snapshot.limitations.length === 0) ctx.addIssue({ code: 'custom', message: 'UNAVAILABLE_LIMITATIONS_REQUIRED' });
   } else {
     if (variants.size === 0) issue('AVAILABLE_VARIANTS_REQUIRED');
+    if (snapshot.timeConfidence === 'unknown' && snapshot.status !== 'partial') issue('UNKNOWN_REQUIRES_PARTIAL');
     if (snapshot.timeConfidence === null) ctx.addIssue({ code: 'custom', message: 'AVAILABLE_TIME_CONFIDENCE_REQUIRED' });
     if (snapshot.unavailableReason !== null) ctx.addIssue({ code: 'custom', message: 'AVAILABLE_REASON_MUST_BE_NULL' });
   }

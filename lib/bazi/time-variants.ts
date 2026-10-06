@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { Solar } from 'lunar-typescript';
+import { hourBranch } from './chart';
 import { semanticHash, stableId } from '../integrated-report/canonical-hash';
 import { HashSchema, IdSchema } from '../integrated-report/common-schema';
 import { BirthTimeConfidenceSchema } from './signal-schema';
@@ -48,6 +50,7 @@ export const CompleteChartVariantsSchema = z.object({
 }).strict().superRefine((result, ctx) => {
   const issue = (message: string) => ctx.addIssue({ code: 'custom', message });
   if (result.supportAssessment.status !== 'supported') issue('unsupported_enumeration');
+  verifyCoverageFacts(result, issue);
   const expectedKnown = result.timeConfidence === 'unknown' ? ['year', 'month', 'day'] : ['year', 'month', 'day', 'hour'];
   const variants = new Map(result.variants.map(v => [v.variantId, v]));
   if (variants.size !== result.variants.length || new Set(result.variants.map(v => v.chartHash)).size !== variants.size) issue('duplicate_variant');
@@ -97,6 +100,56 @@ function chartHash(chart: z.infer<typeof CanonicalChartSchema>): string {
   // Deduplicate only by all four pillar slots (including null) and frozen algorithm.
   // No date, region, representative time or segment duration affects chart identity.
   return semanticHash({ ...versions, pillars: chart.pillars });
+}
+
+/** Revalidate serialized coverage against the frozen calendar, not caller-generated
+ * hashes alone. This proves facts for the declared span, not authenticity of a birth record.
+ */
+function verifyCoverageFacts(result: CompleteChartVariants, issue: (message: string) => void): void {
+  const { coverage, timeConfidence } = result;
+  const duration = (Date.parse(coverage.end) - Date.parse(coverage.start)) / 1000;
+  if (!Number.isSafeInteger(duration) || duration < 0 || duration > 86400) {
+    issue('invalid_coverage_duration');
+    return;
+  }
+  if (!coverage.start.endsWith(':00+08:00') || !coverage.end.endsWith(':00+08:00')) issue('coverage_requires_minute_endpoints');
+  const known = timeConfidence !== 'unknown';
+  if (known && !coverage.endInclusive) issue('known_range_requires_closed_endpoint');
+  if (timeConfidence === 'exact' && duration !== 0) issue('exact_requires_singleton_coverage');
+  if (!known && (duration !== 86400 || !coverage.start.endsWith('T00:00:00+08:00') || coverage.endInclusive)) issue('unknown_requires_complete_civil_day');
+  try {
+    const [year, month, day] = coverage.start.slice(0, 10).split('-').map(Number);
+    const base = Solar.fromYmd(year, month, day);
+    const midnight = Date.parse(standardClockTimestamp(base, 0));
+    const offset = (stamp: string) => (Date.parse(stamp) - midnight) / 1000;
+    const start = offset(coverage.start);
+    const end = offset(coverage.end);
+    const boundaries = new Set(solarTermOffsets(base, Math.floor(end / 86400)));
+    const branches = new Set([hourBranch(Math.floor(start / 3600) % 24)]);
+    for (let date = 0; date <= Math.floor(end / 86400); date++) {
+      boundaries.add(date * 86400);
+      for (let hour = 1; hour < 24; hour += 2) {
+        const second = date * 86400 + hour * 3600;
+        boundaries.add(second);
+        if (second > start && second <= end) branches.add(hourBranch(hour));
+      }
+    }
+    if (timeConfidence === 'approximate_same_shichen' && branches.size !== 1) issue('time_confidence_coverage_mismatch');
+    if (timeConfidence === 'cross_shichen' && branches.size < 2) issue('time_confidence_coverage_mismatch');
+    if ([...boundaries].some(second => !Number.isSafeInteger(second))) throw new Error('invalid_boundary');
+    for (const segment of result.segments) {
+      const first = offset(segment.start);
+      const last = offset(segment.end) - (segment.endInclusive ? 0 : 1);
+      if (first < start || last > end || last < first) { issue('segment_outside_coverage'); continue; }
+      const probes = new Set([first, last, ...[...boundaries].filter(second => second >= first && second <= last)]);
+      for (const second of probes) {
+        const actual = CanonicalChartSchema.parse(canonicalChartAt(base, second, known));
+        if (chartHash(actual) !== segment.chartHash) { issue('segment_calendar_facts_mismatch'); break; }
+      }
+    }
+  } catch {
+    issue('coverage_calendar_verification_failed');
+  }
 }
 
 function interval(input: BirthInputV2): { start: number; end: number; endInclusive: boolean } {

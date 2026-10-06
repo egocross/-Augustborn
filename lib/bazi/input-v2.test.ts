@@ -105,12 +105,12 @@ describe('BirthSupportAssessment gate', () => {
     expect(BirthSupportAssessmentSchema.safeParse({ ...declaration, overseasDeclared: true, status: 'supported', reasonCode: null }).success).toBe(false);
     expect(BirthSupportAssessmentSchema.safeParse({ ...declaration, overseasDeclared: true, status: 'unavailable', reasonCode: 'time_basis_unverified' }).success).toBe(false);
   });
-  it.each(['1900-01-01', '1949-12-31', '1986-01-01', '1987-08-03', '1991-12-31'])('fails closed for historical civil date %s', (birthDate) => {
-    expect(assessBirthSupport({ ...input, birthDate }, declaration)).toMatchObject({ status: 'unavailable', reasonCode: 'historical_time_basis_unverified' });
+  it.each(['1900-01-01', '1949-12-31', '1986-01-01', '1987-08-03', '1991-12-31'])('fails closed for explicitly unverified historical civil date %s', (birthDate) => {
+    expect(assessBirthSupport({ ...input, birthDate }, { ...declaration, reportedTimeBasis: 'historical_unverified' })).toMatchObject({ status: 'unavailable', reasonCode: 'historical_time_basis_unverified' });
   });
-  it('checks historical scope after lunar conversion and across the explicit end day', () => {
-    expect(assessBirthSupport({ ...input, calendarType: 'lunar', birthDate: '1985-12-01' }, declaration).status).toBe('unavailable');
-    expect(assessBirthSupport({ ...range('23:00', '00:00', 1), birthDate: '1985-12-31' }, declaration).status).toBe('unavailable');
+  it('supports declared standard-clock dates after lunar conversion and across the explicit end day', () => {
+    expect(assessBirthSupport({ ...input, calendarType: 'lunar', birthDate: '1985-12-01' }, declaration).status).toBe('supported');
+    expect(assessBirthSupport({ ...range('23:00', '00:00', 1), birthDate: '1985-12-31' }, declaration).status).toBe('supported');
     expect(assessBirthSupport({ ...input, birthDate: '1977-10-15' }, declaration).status).toBe('supported');
     expect(assessBirthSupport({ ...input, birthDate: '1992-01-01' }, declaration).status).toBe('supported');
   });

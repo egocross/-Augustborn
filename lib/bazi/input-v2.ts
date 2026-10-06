@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { hourBranch } from './chart';
 import type { BirthTimeConfidence } from './signal-schema';
 
-export const BIRTH_SUPPORT_POLICY_VERSION = 'birth-support-v1';
+export const BIRTH_SUPPORT_POLICY_VERSION = 'birth-support-v2';
 export const ClockTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'invalid_clock_time');
 export const TimeRangeSchema = z.object({
   start: ClockTimeSchema, end: ClockTimeSchema, endDayOffset: z.union([z.literal(0), z.literal(1)]),
@@ -43,7 +43,12 @@ export const BirthInputV2Schema = z.object({
 });
 export type BirthInputV2 = z.infer<typeof BirthInputV2Schema>;
 
-// No implicit domestic default, browser timezone, or "already converted" override.
+/** beijing_standard means the supplied DATE and clock fields are already in fixed UTC+08
+ * standard time, including the whole date interval for unknown. It does NOT mean
+ * a Beijing birthplace or an unexamined historical birth-certificate wall clock.
+ * Unverified civil records must declare unverified/historical_unverified. V2 neither
+ * infers nor converts historical DST. No browser timezone or self-conversion override.
+ */
 export const BirthSupportDeclarationSchema = z.object({
   reportedTimeBasis: z.enum(['beijing_standard', 'overseas_civil', 'unverified', 'historical_unverified']),
   overseasDeclared: z.boolean(),
@@ -63,7 +68,7 @@ export const BirthSupportAssessmentSchema = z.discriminatedUnion('status', [
   }).strict(),
 ]).superRefine((assessment, ctx) => {
   if (assessment.status !== 'unavailable') return;
-  const expected = declaredReason(assessment) ?? 'historical_time_basis_unverified';
+  const expected = declaredReason(assessment);
   if (assessment.reasonCode !== expected) ctx.addIssue({ code: 'custom', message: 'support_reason_mismatch' });
 });
 export type BirthSupportAssessment = z.infer<typeof BirthSupportAssessmentSchema>;
@@ -88,28 +93,18 @@ export function resolveBirthSolarDate(input: BirthInputV2): Solar {
     : Solar.fromYmd(year, month, day);
 }
 
-/** Conservative scope, NOT a historical timezone/DST converter.
- * Excludes all dates before 1950 and entire 1986–1991 civil years.
- * Evidence: https://github.com/eggert/tz/blob/main/asia (Shang / PRC rules).
- * Whole-year exclusion deliberately includes winter dates. No self-conversion override.
- */
-function historicalBasisUnverified(input: BirthInputV2): boolean {
-  const start = resolveBirthSolarDate(input);
-  const end = start.nextDay(input.timeRange?.endDayOffset ?? 0);
-  return [start.getYear(), end.getYear()].some(year => year < 1950 || (year >= 1986 && year <= 1991));
-}
-
 /** Callers submit declarations, never a trusted assessment. Unsupported declarations short-circuit before calendar work. */
 export function assessBirthSupport(rawInput: unknown, rawDeclaration: unknown): BirthSupportAssessment {
   const declaration = BirthSupportDeclarationSchema.parse(rawDeclaration);
   const reason = declaredReason(declaration);
   if (reason) return BirthSupportAssessmentSchema.parse({ ...declaration, status: 'unavailable', reasonCode: reason });
   const input = BirthInputV2Schema.parse(rawInput);
-  const historical = historicalBasisUnverified(input);
+  // Validate calendar conversion, not the historical zone. A year alone says
+  // nothing about whether already-standard fields require civil-time conversion.
+  resolveBirthSolarDate(input);
   return BirthSupportAssessmentSchema.parse({
     ...declaration,
-    status: historical ? 'unavailable' : 'supported',
-    reasonCode: historical ? 'historical_time_basis_unverified' : null,
+    status: 'supported', reasonCode: null,
   });
 }
 
