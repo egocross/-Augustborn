@@ -26,7 +26,7 @@ function baziFor(kind: BaziCase) {
     case "creative": return syntheticBazi({ stableThemes: ["creative_expression"], primaryThemes: ["creative_expression"] }).snapshot;
     case "caution": return syntheticBazi({ cautionThemes: ["analysis_research"] }).snapshot;
     case "other_task": return syntheticBazi({ cautionThemes: ["analysis_research"], taskMismatch: true }).snapshot;
-    case "not_established": return syntheticBazi({ stableThemes: [] }).snapshot;
+    case "not_established": return syntheticBazi({ availableEmpty: true }).snapshot;
     case "time_sensitive_creative": return syntheticBazi({ timeSensitiveThemes: ["creative_expression"] }).snapshot;
   }
 }
@@ -127,6 +127,16 @@ describe("§30.2 complete golden corpus", () => {
     expect(bazi.evidenceSources).toEqual([]);
     expect(bazi.advantageHypotheses).toEqual([]);
     expect(core.conflicts).toEqual([]);
+  });
+  it("G10: a not_established birth theme stays available and forms no conflict or hypothesis", () => {
+    const { bazi, core } = golden("G10");
+    expect(bazi.status).toBe("available");
+    expect(bazi.unavailableReason).toBeNull();
+    expect(bazi.advantageHypotheses).toEqual([]);
+    expect(bazi.evidenceSources).toEqual([]);
+    expect(bazi.variantAssessments[0].themes.analysis_research.support).toBe("not_established");
+    expect(core.conflicts).toEqual([]);
+    expect(core.decisions.find(d => d.theme === THEMES.research)?.relation).toBe("scan_supported_only");
   });
   it("G24: displayed A means four different behavior dimensions and three values", () => {
     const { scan } = golden("G24");

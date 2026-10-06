@@ -6,8 +6,8 @@ import { behaviorStrength } from './evidence-policy';
 import { BEHAVIOR_THEME, INTEREST_THEME, RECENT_THEME, THEME_IDS, type Theme } from './ontology';
 import { partitionCandidates, type PreferenceEdge, type SelectionCandidate } from './selection';
 import type { IntegratedDecision, IntegratedReasoningCore } from './core-schema';
-import type { AdvantageScanSignalSnapshot } from '../advantage-scan/schema';
-import type { BaziSignalSnapshot } from '../bazi/signal-schema';
+import { validateAdvantageScanSnapshot, type AdvantageScanSignalSnapshot } from '../advantage-scan/schema';
+import { BaziSignalSnapshotSchema, type BaziSignalSnapshot } from '../bazi/signal-schema';
 
 type Relation = 'mixed' | 'aligned' | 'partially_aligned' | 'scan_supported_only' | 'bazi_hypothesis_only' | 'insufficient';
 const REASONING_GENERATOR_VERSION = 'deterministic-reasoning-v1';
@@ -15,7 +15,8 @@ const REASONING_GENERATOR_VERSION = 'deterministic-reasoning-v1';
 export type ReasoningInput = { scan: AdvantageScanSignalSnapshot; bazi: BaziSignalSnapshot };
 
 export function buildIntegratedReasoningCore(input: ReasoningInput, generatedAt: string): IntegratedReasoningCore {
-  const { scan, bazi } = input;
+  const scan = validateAdvantageScanSnapshot(input.scan);
+  const bazi = BaziSignalSnapshotSchema.parse(input.bazi);
   const recentSignal = scan.recentEvidence?.signal ?? null;
   const recentTheme: Theme | null = recentSignal ? RECENT_THEME[recentSignal] : null;
   const behaviorSignals = scan.behaviorSignals;
@@ -37,7 +38,7 @@ export function buildIntegratedReasoningCore(input: ReasoningInput, generatedAt:
   };
 
   const scanAvailable = scan.status !== 'skipped' && (scan.interestSignals.length > 0 || scan.behaviorSignals.length > 0 || scan.workValues.length > 0 || recentSignal !== null);
-  const baziAvailable = (bazi.status === 'available' || bazi.status === 'partial') && bazi.advantageHypotheses.length > 0;
+  const baziAvailable = (bazi.status === 'available' || bazi.status === 'partial') && (bazi.coreStructures.length > 0 || [...bazi.advantageHypotheses, ...bazi.driveHypotheses, ...bazi.workStyleHypotheses, ...bazi.taskTypeHypotheses, ...bazi.environmentHypotheses].some(h => h.support === 'supports'));
   const availability = (scanAvailable && baziAvailable) ? 'both' : scanAvailable ? 'scan_only' : baziAvailable ? 'bazi_only' : 'insufficient';
 
   const behaviorRaws = behaviorSignals.map(s => ({ theme: BEHAVIOR_THEME[s.dimension], raw: s.raw }));
@@ -59,11 +60,12 @@ export function buildIntegratedReasoningCore(input: ReasoningInput, generatedAt:
     const bSig = behaviorSignals.find(x => BEHAVIOR_THEME[x.dimension] === theme);
     if (!bSig) continue;
     const comparisonKeys = bSig.evidenceIds.map(id => { const optionId = id.slice('scan:'.length); const questionId = optionId.split('.')[0]; return { constructKey: theme, taskKey: theme + ':' + questionId, comparableConditionKey: 'scenario:' + questionId, evidenceId: id }; });
-    for (const assessment of bazi.variantAssessments) {
-      const ta = assessment.themes[theme];
-      if (ta.support !== 'cautions') continue;
-      const match = comparisonKeys.find(k => k.constructKey === ta.constructKey && k.taskKey === ta.taskKey && k.comparableConditionKey === ta.comparableConditionKey);
-      if (match) { conflicts.push(explicitOpposition({ themeId: theme, constructKey: ta.constructKey, taskKey: ta.taskKey, comparableConditionKey: ta.comparableConditionKey, baziEvidenceRefs: ta.basisRefs, behaviorEvidenceRefs: [match.evidenceId] })); break; }
+    for (const match of comparisonKeys) {
+      const cautionRefs = sortedUnique(bazi.variantAssessments.flatMap(assessment => {
+        const ta = assessment.themes[theme];
+        return ta.support === 'cautions' && match.constructKey === ta.constructKey && match.taskKey === ta.taskKey && match.comparableConditionKey === ta.comparableConditionKey ? ta.basisRefs : [];
+      }));
+      if (cautionRefs.length) conflicts.push(explicitOpposition({ themeId: theme, constructKey: match.constructKey, taskKey: match.taskKey, comparableConditionKey: match.comparableConditionKey, baziEvidenceRefs: cautionRefs, behaviorEvidenceRefs: [match.evidenceId] }));
     }
   }
   const conflictThemes = new Set(conflicts.map(c => c.themeId));
@@ -76,8 +78,9 @@ export function buildIntegratedReasoningCore(input: ReasoningInput, generatedAt:
     let relation: Relation;
     if (conflictThemes.has(theme)) relation = 'mixed';
     else if (baziSupport && info.sourceKinds.length > 0) {
-      const timeSensitive = bazi.timeSensitiveSignals.some(ts => ts.signalId === 'signal:' + theme);
-      relation = (info.behaviorCount >= 2 && !timeSensitive) ? 'aligned' : 'partially_aligned';
+      const hypothesis = bazi.advantageHypotheses.find(h => h.theme === theme)!;
+      const stable = bazi.stableSignals.includes(hypothesis.id);
+      relation = (info.behaviorCount >= 2 && stable) ? 'aligned' : 'partially_aligned';
     } else if (info.sourceKinds.length > 0) relation = 'scan_supported_only';
     else relation = 'bazi_hypothesis_only';
     const strength = behaviorStrength(theme, info.behaviorCount, { scheduledCount: 4, answeredCount: 4 });

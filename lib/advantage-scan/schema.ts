@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { BoundedTextSchema, HashSchema, MetaSchema, PositiveStrengthSchema, ScanEvidenceSourceSchema } from '../integrated-report/common-schema';
 import { ConflictSchema } from '../integrated-report/conflicts';
 import { DifferenceSchema } from '../integrated-report/differences';
+import { canonicalSemantic, semanticHash } from '../integrated-report/canonical-hash';
+import { buildAdvantageScanSnapshot } from './snapshot';
+import { FIXED_QUESTIONS } from './questions';
+import { planFollowups } from './followup-selector';
 import { BEHAVIOR_DIMENSIONS, FOLLOWUP_POLICY_VERSION, INTEREST_DIMENSIONS, SCAN_VERSION, SCORING_VERSION, ThemeSchema, VALUE_DIMENSIONS } from '../integrated-report/ontology';
 
 export const ScoreCellSchema = z.object({
@@ -42,7 +46,9 @@ export const AdvantageScanResultSchema = z.object({
   recentRecallMissing: z.boolean(),
   followups: z.array(FollowupResultSchema),
   inputHash: HashSchema, completedAt: z.iso.datetime(),
-}).strict();
+}).strict().superRefine((result, ctx) => {
+  if (result.recentRecallMissing !== (result.recentEvidence.optionId === 'Q14.none')) ctx.addIssue({ code: 'custom', message: 'RECENT_RECALL_MISMATCH' });
+});
 export type AdvantageScanResult = z.infer<typeof AdvantageScanResultSchema>;
 
 const scoreCellFields = {
@@ -97,9 +103,49 @@ export const AdvantageScanSignalSnapshotSchema = z.object({
   differences: z.array(DifferenceSchema),
   conflicts: z.array(ConflictSchema),
   evidenceSources: z.array(ScanEvidenceSourceSchema),
-}).strict();
+}).strict().superRefine((snapshot, ctx) => {
+  if (snapshot.status === 'skipped') {
+    if (snapshot.scanResult !== null) ctx.addIssue({ code: 'custom', message: 'SKIPPED_SCAN_RESULT_MUST_BE_NULL' });
+    if (snapshot.recentEvidence !== null) ctx.addIssue({ code: 'custom', message: 'SKIPPED_RECENT_EVIDENCE_MUST_BE_NULL' });
+    if (snapshot.uncertainty.recentRecallMissing !== null) ctx.addIssue({ code: 'custom', message: 'SKIPPED_RECALL_MUST_BE_NULL' });
+    if (snapshot.uncertainty.overallCoverageCode !== 'skipped') ctx.addIssue({ code: 'custom', message: 'SKIPPED_COVERAGE_MUST_BE_SKIPPED' });
+    const emptyArrays = [snapshot.interestSignals, snapshot.behaviorSignals, snapshot.workValues, snapshot.derivedAdvantageHypotheses, snapshot.taskPreferences, snapshot.signalStrength, snapshot.differences, snapshot.conflicts, snapshot.evidenceSources];
+    if (emptyArrays.some(a => a.length !== 0)) ctx.addIssue({ code: 'custom', message: 'SKIPPED_ARRAYS_MUST_BE_EMPTY' });
+  } else {
+    if (snapshot.scanResult === null) ctx.addIssue({ code: 'custom', message: 'COMPLETED_SCAN_RESULT_REQUIRED' });
+    if (snapshot.recentEvidence === null) ctx.addIssue({ code: 'custom', message: 'COMPLETED_RECENT_EVIDENCE_REQUIRED' });
+    if (snapshot.uncertainty.recentRecallMissing === null) ctx.addIssue({ code: 'custom', message: 'COMPLETED_RECALL_MUST_BE_BOOLEAN' });
+    if (snapshot.scanResult !== null && snapshot.recentEvidence !== null) {
+      if (canonicalSemantic(snapshot.scanResult.recentEvidence) !== canonicalSemantic(snapshot.recentEvidence)) ctx.addIssue({ code: 'custom', message: 'RECENT_EVIDENCE_MISMATCH' });
+      if (snapshot.scanResult.recentRecallMissing !== snapshot.uncertainty.recentRecallMissing) ctx.addIssue({ code: 'custom', message: 'RECALL_MISMATCH' });
+    }
+  }
+});
 export type AdvantageScanSignalSnapshot = z.infer<typeof AdvantageScanSignalSnapshotSchema>;
 
 export function validateAdvantageScanSnapshot(snapshot: unknown): AdvantageScanSignalSnapshot {
-  return AdvantageScanSignalSnapshotSchema.parse(snapshot);
+  const parsed = AdvantageScanSignalSnapshotSchema.parse(snapshot);
+  const result = parsed.scanResult;
+  let rebuilt: AdvantageScanSignalSnapshot;
+  if (result === null) {
+    rebuilt = buildAdvantageScanSnapshot({ status: 'skipped', scanVersion: SCAN_VERSION }, parsed.meta.generatedAt);
+  } else {
+    // Recover each fixed answer from its retained raw evidence. Uncertain is the
+    // only legal absence; replay then verifies every score and derived field.
+    const refs = [...Object.values(result.interests), ...Object.values(result.behavior), ...Object.values(result.values)].flatMap(c => c.evidenceIds);
+    const answers = FIXED_QUESTIONS.map(q => {
+      if (q.questionId === 'Q14') return { questionId: q.questionId, optionId: result.recentEvidence.optionId };
+      const matching = refs.filter(ref => ref.startsWith('scan:' + q.questionId + '.'));
+      if (matching.length > 1) throw new Error('DUPLICATE_FIXED_EVIDENCE');
+      return { questionId: q.questionId, optionId: matching[0]?.slice(5) ?? q.questionId + '.uncertain' };
+    });
+    const fixed = { scanVersion: SCAN_VERSION, answers };
+    rebuilt = buildAdvantageScanSnapshot({ status: 'completed', ...fixed, followups: {
+      fixedInputHash: planFollowups(fixed).fixedInputHash,
+      answers: result.followups.filter(f => f.optionId !== null).map(f => ({ questionId: f.questionId, optionId: f.optionId })),
+      endedByUser: result.followups.some(f => f.status === 'ended_by_user'),
+    } }, parsed.meta.generatedAt);
+  }
+  if (parsed.meta.artifactHash !== semanticHash(parsed) || canonicalSemantic(parsed) !== canonicalSemantic(rebuilt)) throw new Error('SCAN_POLICY_MISMATCH');
+  return parsed;
 }

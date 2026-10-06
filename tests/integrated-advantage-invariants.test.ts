@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAdvantageScanSnapshot } from '../lib/advantage-scan/snapshot';
 import { BankSchema, QUESTION_BANK, ScanAnswerSchema } from '../lib/advantage-scan/questions';
 import { planFollowups } from '../lib/advantage-scan/followup-selector';
-import { RecentEvidenceSchema } from '../lib/advantage-scan/schema';
+import { RecentEvidenceSchema, validateAdvantageScanSnapshot } from '../lib/advantage-scan/schema';
 import { buildIntegratedReasoningCore } from '../lib/integrated-report/reasoning-core';
 import { validateIntegratedReasoningCore } from '../lib/integrated-report/core-schema';
 import { RelationSchema } from '../lib/integrated-report/common-schema';
@@ -30,7 +30,7 @@ function baziFor(kind: BaziCase) {
     case 'creative': return syntheticBazi({ stableThemes: ['creative_expression'], primaryThemes: ['creative_expression'] }).snapshot;
     case 'caution': return syntheticBazi({ cautionThemes: ['analysis_research'] }).snapshot;
     case 'other_task': return syntheticBazi({ cautionThemes: ['analysis_research'], taskMismatch: true }).snapshot;
-    case 'not_established': return syntheticBazi({ stableThemes: [] }).snapshot;
+    case 'not_established': return syntheticBazi({ availableEmpty: true }).snapshot;
     case 'time_sensitive_creative': return syntheticBazi({ timeSensitiveThemes: ['creative_expression'] }).snapshot;
   }
 }
@@ -184,6 +184,13 @@ describe('difference and identity negative cases', () => {
     expect(RecentEvidenceSchema.safeParse({ optionId: 'Q14.none', signal: 'none', evidenceId: null, verification: 'self_report_unverified' }).success).toBe(false);
     expect(RecentEvidenceSchema.safeParse({ optionId: 'Q14.none', signal: null, evidenceId: 'scan:Q14.none', verification: 'self_report_unverified' }).success).toBe(false);
     expect(RecentEvidenceSchema.safeParse({ optionId: 'Q14.hands_on', signal: 'create', evidenceId: 'scan:Q14.hands_on', verification: 'self_report_unverified' }).success).toBe(false);
+  });
+  it('N18: skipped and completed-none snapshots cannot be confused or carry illegal fields', () => {
+    const skipped = scanFor(goldenAnswers('G37'));
+    const none = scanFor(goldenAnswers('G36'));
+    expect(() => validateAdvantageScanSnapshot({ ...skipped, recentEvidence: { optionId: 'Q14.none', signal: null, evidenceId: null, verification: 'self_report_unverified' } })).toThrow();
+    expect(() => validateAdvantageScanSnapshot({ ...skipped, uncertainty: { ...skipped.uncertainty, recentRecallMissing: true } })).toThrow();
+    expect(() => validateAdvantageScanSnapshot({ ...none, recentEvidence: null })).toThrow();
   });
   it('N19: old or unknown relation terminology is rejected by the enum', () => {
     expect(RelationSchema.safeParse('behavior_aligned').success).toBe(false);

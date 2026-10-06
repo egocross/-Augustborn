@@ -33,16 +33,9 @@ export const IntegratedReasoningCoreSchema = z.object({
 }).strict();
 export type IntegratedReasoningCore = z.infer<typeof IntegratedReasoningCoreSchema>;
 
-export function validateIntegratedReasoningCore(core: unknown, inputs?: unknown): IntegratedReasoningCore {
+export function validateIntegratedReasoningCore(core: unknown, inputs: ReasoningInput): IntegratedReasoningCore {
   const parsed = IntegratedReasoningCoreSchema.parse(core);
-  if (inputs) {
-    const rebuilt = buildIntegratedReasoningCore(inputs as ReasoningInput, parsed.meta.generatedAt);
-    const partition = (c: IntegratedReasoningCore) => ({
-      availability: c.availability, selected: c.selectedDecisionIds, secondary: c.secondaryDecisionIds, unknowns: c.unknowns,
-      decisions: c.decisions.map(d => [d.theme, d.relation, d.strength, d.strengthCeiling, d.priorityReasonCodes, d.differenceIds, d.conflictIds]),
-      differenceKinds: c.differences.map(d => d.kind).sort(), conflictIds: c.conflicts.map(x => x.id).sort(),
-    });
-    if (semanticHash(partition(parsed)) !== semanticHash(partition(rebuilt))) throw new Error('INTEGRATED_REASONING_POLICY_MISMATCH');
-  }
+  const rebuilt = buildIntegratedReasoningCore(inputs, parsed.meta.generatedAt);
+  if (parsed.meta.artifactHash !== semanticHash(parsed) || semanticHash(parsed) !== semanticHash(rebuilt)) throw new Error('INTEGRATED_REASONING_POLICY_MISMATCH');
   return parsed;
 }

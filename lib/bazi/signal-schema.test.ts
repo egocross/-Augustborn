@@ -1,3 +1,4 @@
+import { semanticHash } from '../integrated-report/canonical-hash';
 import { describe, expect, it } from 'vitest';
 import { BaziSignalSnapshotSchema } from './signal-schema';
 
@@ -24,6 +25,6 @@ describe('BaziSignalSnapshot strict consumer contract', () => {
     expect(BaziSignalSnapshotSchema.safeParse({ ...unavailable, stableSignals: ['bazi:research'] }).success).toBe(false);
   });
   it('accepts a complete empty unavailable envelope after semantic sealing', () => {
-    expect(BaziSignalSnapshotSchema.safeParse(unavailable).success).toBe(true);
+    expect(BaziSignalSnapshotSchema.safeParse({ ...unavailable, meta: { ...unavailable.meta, artifactHash: semanticHash(unavailable) } }).success).toBe(true);
   });
 });

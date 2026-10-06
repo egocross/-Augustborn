@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { sortedUnique, stableId } from './canonical-hash';
-import { ThemeSchema, type Theme } from './ontology';
+import { DIFFERENCE_POLICY_VERSION, ThemeSchema, type Theme } from './ontology';
 
 export const DIFFERENCE_CODES = {
   interest_behavior_difference: { reasonCode: 'interest_behavior_primary_sets_differ', resolutionCode: 'keep_behavior_priority_preserve_interest' },
@@ -22,11 +22,14 @@ export const DifferenceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('ambiguous_recent_evidence'), ...common }).strict(),
   z.object({ kind: z.literal('followup_preference_difference'), ...common, winnerThemeId: ThemeSchema, loserThemeId: ThemeSchema, triggerEvidenceRefs: z.array(z.string().min(1).max(200)).min(1).max(14) }).strict(),
   z.object({ kind: z.literal('priority_divergence'), ...common, baziPriorityThemeIds: z.array(ThemeSchema).min(1).max(7), behaviorPriorityThemeIds: z.array(ThemeSchema).min(1).max(7), baziEvidenceRefs: z.array(z.string().min(1).max(200)).min(1).max(256), behaviorEvidenceRefs: z.array(z.string().min(1).max(200)).min(1).max(256) }).strict(),
-]);
+]).superRefine((difference, ctx) => {
+  const codes = DIFFERENCE_CODES[difference.kind];
+  if (difference.reasonCode !== codes.reasonCode || difference.resolutionCode !== codes.resolutionCode) ctx.addIssue({ code: 'custom', message: 'DIFFERENCE_CODE_MISMATCH' });
+});
 export type Difference = z.infer<typeof DifferenceSchema>;
 
 function differenceId(kind: string, themeIds: Theme[], evidenceRefs: string[]): string {
-  return stableId('difference', { kind, themeIds, evidenceRefs });
+  return stableId('difference', { version: DIFFERENCE_POLICY_VERSION, kind, themeIds, evidenceRefs });
 }
 
 export function interestBehaviorDifference(I: Theme[], B: Theme[], interestEvidence: string[], behaviorEvidence: string[]): Difference {
